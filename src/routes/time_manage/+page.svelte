@@ -32,26 +32,48 @@
 </div>
 <div class="time_table">
     <table>
-        <thread>
+        <thead>
             <tr>
-                <th scope="col">#</th>
-                <th scope="col">삭제</th>
+                <th scope="col" style="width: 1vw">#</th>
                 <th scope="col">신청곡</th>
                 <th scope="col">음원 종류</th>
-                <th scope="col">음반 번호</th>
                 <th scope="col">작곡가</th>
                 <th scope="col">제목</th>
-                <th scope="col">오케스트라</th>
-                <th scope="col">지휘자</th>
-                <th scope="col">연주자</th>
-                <th scope="col">편집</th>
-                <th scope="col">판서</th>
+                <th scope="col">연주</th>
             </tr>
-        </thread>
+        </thead>
+        <tbody>
+            <tr>
+                <td>1</td>
+                <td>X</td>
+                <td>ROON</td>
+                <td>요하네스 브람스</td>
+                <td>피아노 소나타 제3번 바단조, Op.5</td>
+                <td>피아노 : 헬렌 그리모</td>
+            </tr>
+        </tbody>
     </table>
 </div>
 
 <style>
+    table, th, td {
+        border: 1px solid black;
+    }
+    table {
+        table-layout: fixed;
+        border-collapse: collapse;
+    }
+    tr {
+        vertical-align: top;
+        height: 3vh;
+    }
+    
+    tr, th {
+        font-size: 16px;
+        line-height: 20px;
+        vertical-align: top;
+        padding: 30px;
+    }
     nav {
         margin: 0;
         padding: 0;
@@ -111,12 +133,5 @@
     h2 {
         font-size: 24px;
         font-weight: bold;
-    }
-
-    tr, th {
-        font-size: 16px;
-        line-height: 16px;
-        vertical-align: top;
-        padding: 40px;
     }
 </style>
