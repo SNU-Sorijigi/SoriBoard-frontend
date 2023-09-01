@@ -1,4 +1,6 @@
 <script>
+    import { clickOutside } from './outclick.js';
+
 	let visible = false;
 
     function toggle() {
@@ -22,8 +24,9 @@
     <button type="button" class="welcomeButton" on:click={toggle}>타임 시작하기</button>
 </section>
 
-<div class="{visible ? "modal" : "modalInvisible"}">
-    <div class="modal-content animate-top">
+{#if visible}
+<div class="modal">
+    <div class="modal-content animate-top" use:clickOutside on:outclick={toggle}>
         <div>
             <span role="button" tabindex="0" class="button hover-red display-topright" title="close" on:click={toggle} on:keydown={toggle}>&times;</span>
         </div>
@@ -60,6 +63,7 @@
           </form>
     </div>
 </div>
+{/if}
 
 <style>
     .display-topright{position:absolute;right:0;top:0}
@@ -78,9 +82,6 @@
         overflow:auto;
         background-color:rgb(0,0,0);
         background-color:rgba(0,0,0,0.4)
-    }
-    .modalInvisible {
-        display: none;
     }
 
     .modal-content {
