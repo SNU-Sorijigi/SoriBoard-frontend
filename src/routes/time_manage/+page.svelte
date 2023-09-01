@@ -1,5 +1,6 @@
 <script>
 	import { page } from '$app/stores';
+    import Music from './Music.svelte'
 </script>
 
 <nav>
@@ -28,52 +29,76 @@
 </nav>
 
 <div class="time_info">
-    <h2>9/4(수) 3타임 정용환</h2>
+    <h2>9/4(월) 3타임 정용환</h2>
 </div>
 <div class="time_table">
-    <table>
-        <thead>
-            <tr>
-                <th scope="col" style="width: 1vw">#</th>
-                <th scope="col">신청곡</th>
-                <th scope="col">음원 종류</th>
-                <th scope="col">작곡가</th>
-                <th scope="col">제목</th>
-                <th scope="col">연주</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td>1</td>
-                <td>X</td>
-                <td>ROON</td>
-                <td>요하네스 브람스</td>
-                <td>피아노 소나타 제3번 바단조, Op.5</td>
-                <td>피아노 : 헬렌 그리모</td>
-            </tr>
-        </tbody>
-    </table>
+    <Music>
+        <span slot="composer">요하네스 브람스</span>
+	    <span slot="name">피아노 협주곡 제1번 라단조, Op.15</span>
+	    <span slot="requested">신청곡</span>
+    	<span slot="source">CD : BRA-9006</span>
+	    <span slot="conductor">카를 뵘</span>
+    	<span slot="orchestra">빈 필하모니 관현악단</span>
+	    <span slot="performer">피아노 : 마우리치오 폴리니</span>
+    </Music>
+    <Music>
+        <span slot="composer">프레데리크 쇼팽</span>
+	    <span slot="name">첼로 소나타 사단조, Op.65</span>
+    	<span slot="source">ROON</span>
+	    <span slot="performer">첼로 : 요요 마<br>피아노 : 엠마누엘 엑스</span>
+    </Music>
+    <Music>
+        <span slot="composer">프레데리크 쇼팽</span>
+	    <span slot="name">첼로 소나타 사단조, Op.65</span>
+    	<span slot="source">ROON</span>
+	    <span slot="performer">첼로 : 요요 마<br>피아노 : 엠마누엘 엑스</span>
+    </Music>
+    <Music>
+        <span slot="composer">프레데리크 쇼팽</span>
+	    <span slot="name">첼로 소나타 사단조, Op.65</span>
+    	<span slot="source">ROON</span>
+	    <span slot="performer">첼로 : 요요 마<br>피아노 : 엠마누엘 엑스</span>
+    </Music>
+    <Music>
+        <span slot="composer">프레데리크 쇼팽</span>
+	    <span slot="name">첼로 소나타 사단조, Op.65</span>
+    	<span slot="source">ROON</span>
+	    <span slot="performer">첼로 : 요요 마<br>피아노 : 엠마누엘 엑스</span>
+    </Music>
+    <Music>
+        <span slot="composer">프레데리크 쇼팽</span>
+	    <span slot="name">첼로 소나타 사단조, Op.65</span>
+    	<span slot="source">ROON</span>
+	    <span slot="performer">첼로 : 요요 마<br>피아노 : 엠마누엘 엑스</span>
+    </Music>
+    <Music>
+        <span slot="composer">프레데리크 쇼팽</span>
+	    <span slot="name">첼로 소나타 사단조, Op.65</span>
+    	<span slot="source">ROON</span>
+	    <span slot="performer">첼로 : 요요 마<br>피아노 : 엠마누엘 엑스</span>
+    </Music>
+    <Music>
+        <span slot="composer">프레데리크 쇼팽</span>
+	    <span slot="name">첼로 소나타 사단조, Op.65</span>
+    	<span slot="source">ROON</span>
+	    <span slot="performer">첼로 : 요요 마<br>피아노 : 엠마누엘 엑스</span>
+    </Music>
+</div>
+
+<div class="command">
+    <form>
+        <label>신청곡 <input name="requested" type="checkbox"></label><br>
+        <label>음원 종류: <input name="source" type="text" required ></label><br>
+        <label>음반 번호: <input name="number" type="text"></label><br>
+        <label>작곡가: <input name="composer" type="text" required></label><br>
+        <label>제목: <input name="name" type="text" required></label><br>
+        <label>지휘자: <input name="conductor" type="text"></label><br>
+        <label>오케스트라: <input name="orchestra" type="text"></label><br>
+        <label>연주자 리스트: <input name="performer" type="text"></label><br>
+    </form>
 </div>
 
 <style>
-    table, th, td {
-        border: 1px solid black;
-    }
-    table {
-        table-layout: fixed;
-        border-collapse: collapse;
-    }
-    tr {
-        vertical-align: top;
-        height: 3vh;
-    }
-    
-    tr, th {
-        font-size: 16px;
-        line-height: 20px;
-        vertical-align: top;
-        padding: 30px;
-    }
     nav {
         margin: 0;
         padding: 0;
@@ -126,8 +151,20 @@
         display: none;
     }
 
-    .time_info, .time_table {
+    .time_info {
         margin-left: 15vw;
+    }
+
+    .time_table {
+        margin-left: 15vw;
+        position: relative;
+
+    }
+
+    .command {
+        margin-left: 65vw;
+        margin-top: 5vh;
+        position: fixed;
     }
 
     h2 {
