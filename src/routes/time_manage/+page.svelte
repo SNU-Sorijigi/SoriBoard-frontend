@@ -3,6 +3,11 @@
     import Music from './Music.svelte'
 </script>
 
+<svelte:head>
+    <title>타임 관리</title>
+    <meta name="description" content="SoriBoard" />
+</svelte:head>
+
 <nav>
     <ul>
         <li>
@@ -158,11 +163,13 @@
     .time_table {
         margin-left: 15vw;
         position: relative;
-
+        width: 50vw;
+        max-height: 75vh;
+        overflow: auto;
     }
 
     .command {
-        margin-left: 65vw;
+        margin-left: 70vw;
         margin-top: 5vh;
         position: fixed;
     }
