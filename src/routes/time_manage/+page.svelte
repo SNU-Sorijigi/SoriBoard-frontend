@@ -38,6 +38,7 @@
 </div>
 <div class="time_table">
     <Music>
+        <span slot="id">1</span>
         <span slot="composer">요하네스 브람스</span>
 	    <span slot="name">피아노 협주곡 제1번 라단조, Op.15</span>
 	    <span slot="requested">신청곡</span>
@@ -47,42 +48,35 @@
 	    <span slot="performer">피아노 : 마우리치오 폴리니</span>
     </Music>
     <Music>
+        <span slot="id">2</span>
         <span slot="composer">프레데리크 쇼팽</span>
 	    <span slot="name">첼로 소나타 사단조, Op.65</span>
     	<span slot="source">ROON</span>
 	    <span slot="performer">첼로 : 요요 마<br>피아노 : 엠마누엘 엑스</span>
     </Music>
     <Music>
+        <span slot="id">3</span>
         <span slot="composer">프레데리크 쇼팽</span>
 	    <span slot="name">첼로 소나타 사단조, Op.65</span>
     	<span slot="source">ROON</span>
 	    <span slot="performer">첼로 : 요요 마<br>피아노 : 엠마누엘 엑스</span>
     </Music>
     <Music>
+        <span slot="id">4</span>
         <span slot="composer">프레데리크 쇼팽</span>
 	    <span slot="name">첼로 소나타 사단조, Op.65</span>
     	<span slot="source">ROON</span>
 	    <span slot="performer">첼로 : 요요 마<br>피아노 : 엠마누엘 엑스</span>
     </Music>
     <Music>
+        <span slot="id">5</span>
         <span slot="composer">프레데리크 쇼팽</span>
 	    <span slot="name">첼로 소나타 사단조, Op.65</span>
     	<span slot="source">ROON</span>
 	    <span slot="performer">첼로 : 요요 마<br>피아노 : 엠마누엘 엑스</span>
     </Music>
     <Music>
-        <span slot="composer">프레데리크 쇼팽</span>
-	    <span slot="name">첼로 소나타 사단조, Op.65</span>
-    	<span slot="source">ROON</span>
-	    <span slot="performer">첼로 : 요요 마<br>피아노 : 엠마누엘 엑스</span>
-    </Music>
-    <Music>
-        <span slot="composer">프레데리크 쇼팽</span>
-	    <span slot="name">첼로 소나타 사단조, Op.65</span>
-    	<span slot="source">ROON</span>
-	    <span slot="performer">첼로 : 요요 마<br>피아노 : 엠마누엘 엑스</span>
-    </Music>
-    <Music>
+        <span slot="id">6</span>
         <span slot="composer">프레데리크 쇼팽</span>
 	    <span slot="name">첼로 소나타 사단조, Op.65</span>
     	<span slot="source">ROON</span>
@@ -93,7 +87,7 @@
 <div class="command">
     <form>
         <label>신청곡 <input name="requested" type="checkbox"></label><br>
-        <label>음원 종류: <input name="source" type="text" required ></label><br>
+        <label>음원 종류: <input name="source" type="text" required placeholder="ROON"></label><br>
         <label>음반 번호: <input name="number" type="text"></label><br>
         <label>작곡가: <input name="composer" type="text" required></label><br>
         <label>제목: <input name="name" type="text" required></label><br>
@@ -107,11 +101,12 @@
     nav {
         margin: 0;
         padding: 0;
+        margin-top: 100px;
         list-style: none;
         background-color: whitesmoke;
         width: 10vw;
-        min-height: 30vh;
-        overflow: auto;
+        
+        
         position: fixed;
     }
 

@@ -2,20 +2,27 @@
 	import Header from './Header.svelte';
     import './styles.css';
     import logo from '$lib/images/logo.svg';
+	import { page } from '$app/stores';
 </script>
 
-<div class="app">
-	<Header />
+{#if $page.url.pathname != '/display'}
+	<div class="app">
+		<Header />
 
-	<main>
+		<main>
+			<slot />
+		</main>
+
+		<footer>
+			<p><img src={logo} alt="logo"> SORIJIGI SNU MUSIKVEREIN</p>
+        	<p class="version">Soriboard 2.0</p>
+		</footer>
+	</div>
+{:else}
+	<div class="app">
 		<slot />
-	</main>
-
-	<footer>
-		<p><img src={logo} alt="logo"> SORIJIGI SNU MUSIKVEREIN</p>
-        <p class="version">Soriboard 2.0</p>
-	</footer>
-</div>
+	</div>
+{/if}
 
 <style>
 	.app {
@@ -58,10 +65,4 @@
     p {
         margin: 0;
     }
-
-	@media (min-width: 480px) {
-		footer {
-			padding: 12px 0;
-		}
-	}
 </style>

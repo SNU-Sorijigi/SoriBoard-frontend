@@ -90,7 +90,6 @@
         right: 0;
         top: 0;
         display: inline-block;
-        vertical-align: middle;
         text-decoration: none;
         text-align: center;
         cursor: pointer;

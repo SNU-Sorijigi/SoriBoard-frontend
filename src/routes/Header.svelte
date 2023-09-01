@@ -11,14 +11,14 @@
 			<li aria-current={$page.url.pathname === '/' ? 'page' : undefined}>
 				<a href="/">홈</a>
 			</li>
-			<li aria-current={$page.url.pathname === '/time_manage' ? 'page' : undefined}>
+			<li aria-current={$page.url.pathname.startsWith('/time_manage') ? 'page' : undefined}>
 				<a href="/time_manage">타임 관리</a>
+			</li>
+			<li aria-current={$page.url.pathname === '/display' ? 'page' : undefined}>
+				<a href="/display">판서 화면</a>
 			</li>
 			<li aria-current={$page.url.pathname.startsWith('/stat') ? 'page' : undefined}>
 				<a href="/stat">통계</a>
-			</li>
-			<li aria-current={$page.url.pathname.startsWith('/display') ? 'page' : undefined}>
-				<a href="/display">판서 화면</a>
 			</li>
             <li aria-current={$page.url.pathname.startsWith('/setting') ? 'page' : undefined}>
 				<a href="/setting">설정</a>

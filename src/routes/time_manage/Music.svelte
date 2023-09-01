@@ -1,6 +1,11 @@
 <div class="music-card">
+    <div class="number">
+        <span>
+            <slot name="id"></slot>
+        </span>
+    </div>
     <div class="delete">
-        <span role="button" tabindex="0" class="button hover-red display-topright" title="close">&times;</span>
+        <span role="button" tabindex="0" class="xbutton" title="close">&times;</span>
     </div>
 	<div class="music-info">
 		<h2>
@@ -29,9 +34,6 @@
 </div>
 
 <style>
-    .display-topright{position:absolute;right:0;top:0}
-    .hover-red:hover{color:#fff!important;background-color:#f44336!important}
-    .button{border:none;display:inline-block;padding:8px 16px;vertical-align:middle;overflow:hidden;text-decoration:none;color:inherit;background-color:inherit;text-align:center;cursor:pointer;white-space:nowrap}
 	.music-card {
         display: block;
         position:sticky;
@@ -40,7 +42,7 @@
 		border-radius: 2px;
 		box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.1);
 		padding: 1em;
-        margin-bottom: 1em;
+        margin-bottom: 0.5em;
         background-color: white;
 	}
 
@@ -48,8 +50,37 @@
 		text-align: center
 	}
 
+    .xbutton {
+        position: absolute;
+        right: 0;
+        top: 0;
+        display: inline-block;
+        text-decoration: none;
+        text-align: center;
+        cursor: pointer;
+        padding: 8px 16px;
+        font-weight: bold;
+        font-size: 1em;
+    }
+    .number {
+        position: absolute;
+        left: 0;
+        top: 0;
+        display: inline-block;
+        text-decoration: none;
+        text-align: center;
+        padding: 8px 16px;
+        font-weight: bold;
+        font-size: 1em;
+    }
+
+    .xbutton:hover {
+        color: #fff!important;
+        background-color: #f44336!important
+    }
+
 	h2 {
-        font-size: 24px;
+        font-size: 22px;
 		padding: 0 0 0.2em 0;
 		margin: 0 0 0.2em 0;
 		border-bottom: 1px solid #79a59a;
@@ -64,6 +95,6 @@
 		padding: 0.8em 0 0 0;
 		margin: 0;
 		line-height: 1.5;
-        font-size: 16px;
+        font-size: 15px;
 	}
 </style>
