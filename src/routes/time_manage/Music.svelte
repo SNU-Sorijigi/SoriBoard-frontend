@@ -11,24 +11,18 @@
 		<h2>
 			<slot name="composer"></slot>
 			-
-			<slot name="name"></slot>
+			<slot name="title"></slot>
 		</h2>
 		<div class="info">
             {#if $$slots.requested}
 			<slot name="requested"></slot>
-			/
             {/if}
 			<slot name="source"></slot>
 		</div>
 	</div>
 
 	<div class="performers">
-		{#if $$slots.conductor}
-		<slot name="conductor"></slot>
-		/
 		<slot name="orchestra"></slot>
-		<br>
-		{/if}
 		<slot name="performer"></slot>
 	</div>
 </div>

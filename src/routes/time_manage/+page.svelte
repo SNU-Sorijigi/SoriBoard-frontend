@@ -1,6 +1,17 @@
 <script>
-	import { page } from '$app/stores';
     import Music from './Music.svelte'
+    import { current } from './display.js'
+   
+    export let data;
+
+    function change() {
+        current.update((data) =>
+        ["요하네스 브람스", "피아노 협주곡 제1번 라단조, Op.15", "카를 뵘 / 빈 필하모니 관현악단 \n 피아노 : 마우리치오 폴리니"]
+        );
+        target_num++;
+    };
+
+    let target_num = 1;
 </script>
 
 <svelte:head>
@@ -37,64 +48,36 @@
     <h2>9/4(월) 3타임 정용환</h2>
 </div>
 <div class="time_table">
+    {#each data.time_table as info, i}
     <Music>
-        <span slot="id">1</span>
-        <span slot="composer">요하네스 브람스</span>
-	    <span slot="name">피아노 협주곡 제1번 라단조, Op.15</span>
-	    <span slot="requested">신청곡</span>
-    	<span slot="source">CD : BRA-9006</span>
-	    <span slot="conductor">카를 뵘</span>
-    	<span slot="orchestra">빈 필하모니 관현악단</span>
-	    <span slot="performer">피아노 : 마우리치오 폴리니</span>
+        <span slot="id">{i + 1}</span>
+        <span slot="composer">{info.composer}</span>
+	    <span slot="title">{info.title}</span>
+	    <span slot="requested">{#if info.requested === 'on'}신청곡 / {/if}</span>
+    	<span slot="source">{info.source} {#if info.number != ''}- {info.number}{/if}</span>
+        <span slot="orchestra">{#if info.conductor!=''}{info.conductor} / {info.orchestra}<br>{/if}</span>
+	    <span slot="performer">{info.performer}</span>
     </Music>
-    <Music>
-        <span slot="id">2</span>
-        <span slot="composer">프레데리크 쇼팽</span>
-	    <span slot="name">첼로 소나타 사단조, Op.65</span>
-    	<span slot="source">ROON</span>
-	    <span slot="performer">첼로 : 요요 마<br>피아노 : 엠마누엘 엑스</span>
-    </Music>
-    <Music>
-        <span slot="id">3</span>
-        <span slot="composer">프레데리크 쇼팽</span>
-	    <span slot="name">첼로 소나타 사단조, Op.65</span>
-    	<span slot="source">ROON</span>
-	    <span slot="performer">첼로 : 요요 마<br>피아노 : 엠마누엘 엑스</span>
-    </Music>
-    <Music>
-        <span slot="id">4</span>
-        <span slot="composer">프레데리크 쇼팽</span>
-	    <span slot="name">첼로 소나타 사단조, Op.65</span>
-    	<span slot="source">ROON</span>
-	    <span slot="performer">첼로 : 요요 마<br>피아노 : 엠마누엘 엑스</span>
-    </Music>
-    <Music>
-        <span slot="id">5</span>
-        <span slot="composer">프레데리크 쇼팽</span>
-	    <span slot="name">첼로 소나타 사단조, Op.65</span>
-    	<span slot="source">ROON</span>
-	    <span slot="performer">첼로 : 요요 마<br>피아노 : 엠마누엘 엑스</span>
-    </Music>
-    <Music>
-        <span slot="id">6</span>
-        <span slot="composer">프레데리크 쇼팽</span>
-	    <span slot="name">첼로 소나타 사단조, Op.65</span>
-    	<span slot="source">ROON</span>
-	    <span slot="performer">첼로 : 요요 마<br>피아노 : 엠마누엘 엑스</span>
-    </Music>
+    {/each}
 </div>
 
 <div class="command">
-    <form>
+    <form method="POST">
         <label>신청곡 <input name="requested" type="checkbox"></label><br>
-        <label>음원 종류: <input name="source" type="text" required placeholder="ROON"></label><br>
+        <label>음원 종류: <input name="source" type="text" required value="ROON"></label><br>
         <label>음반 번호: <input name="number" type="text"></label><br>
         <label>작곡가: <input name="composer" type="text" required></label><br>
-        <label>제목: <input name="name" type="text" required></label><br>
+        <label>제목: <input name="title" type="text" required></label><br>
         <label>지휘자: <input name="conductor" type="text"></label><br>
         <label>오케스트라: <input name="orchestra" type="text"></label><br>
-        <label>연주자 리스트: <input name="performer" type="text"></label><br>
+        <label>연주자 리스트: <input name="performer" type="text"></label><br><br>
+        <input type="submit" value="추가하기" class="submit">
     </form>
+    <br><br>
+    <input name="target" type="number" min="1" value={target_num}>
+    <button on:click={change}>판서!</button>
+    <br>
+
 </div>
 
 <style>

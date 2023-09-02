@@ -1,5 +1,5 @@
 <script>
-
+    import { current } from '../time_manage/display.js'
 </script>
 
 <svelte:head>
@@ -7,13 +7,18 @@
     <meta name="description" content="SoriBoard" />
 </svelte:head>
 
-<div class="display">
-    <div class="composer">요하네스 브람스</div>
-    <div class="title">피아노 소나타 제3번 Op.5</div>
-    <div class="performer">피아노 : 엘렌 그리모</div>
-</div>
+<a class="display" href='/time_manage'>
+    <div class="composer">{$current[0]}</div>
+    <div class="title">{$current[1]}</div>
+    <div class="performer">{$current[2]}</div>
+</a>
 
 <style>
+    a {
+        height: 100vh;
+        width: 100vw;
+    }
+
     .display {
         background-color: black;
         height: 100vh;
