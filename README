@@ -30,9 +30,9 @@ HOW TO RUN?
 SoriBoard is deployed on Docker inside the Synology NAS of SNU Sorijigi.
 To test-run frontend only(which is this repository), run
 
-    npm install
-    npm run dev
+  $ npm install
+  $ npm run dev
 
 To open the page in browser immediately, run
 
-    npm run dev -- --open
+  $ npm run dev -- --open
