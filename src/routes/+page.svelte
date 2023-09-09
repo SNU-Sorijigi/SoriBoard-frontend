@@ -3,6 +3,8 @@
     import { fade, fly } from 'svelte/transition';
     import { onMount } from 'svelte';
 
+    export let data;
+
     let loaded = false;
     onMount(() => loaded = true);
 
@@ -14,8 +16,16 @@
     }
 
     let now = new Date((new Date()).getTime() + 1000*60*60*9);
+    
     let date = now.toISOString().substring(0, 10);
     let time = now.toISOString().substring(11, 16);
+    let num = 1;
+
+    $: selected_day = (new Date(date)).getDay();
+    $: day = (selected_day === 0 || selected_day === 6) ? 1 : selected_day;
+
+    $: mento = data.table[day-1][num-1].mento;
+    $: menti = data.table[day-1][num-1].menti;
 </script>
 
 <svelte:head>
@@ -41,13 +51,13 @@
             <br>
             <h3>타임 생성</h3>
             <form method="POST">
-                <label>지기 이름 <input name="name" type="text" required style="width:5em"></label>
-                <label>제자 이름 <input name="subname" type="text" style="width:5em"></label>
+                <label>타임 일자 <input name="date" type="date" required bind:value={date} style="width:8em"></label>
+                <label><input name="number" type="number" min="1" max="5" bind:value={num} required style="width:3em"> 타임</label>
                 <br><br>
                 <label>출근 시간 <input name="time" type="time" required value={time} style="width:8em"></label>
                 <br><br>
-                <label>타임 일자 <input name="date" type="date" required value={date} style="width:8em"></label>
-                <label><input name="number" type="number" min="1" max="5" value="1" required style="width:3em"> 타임</label>
+                <label>지기 이름 <input name="name" type="text" required style="width:5em" autocomplete="off" value={mento}></label>
+                <label>제자 이름 <input name="subname" type="text" style="width:5em" autocomplete="off" value={menti}></label>
                 <br><br>
                 <label>
                     <input type="submit" value="타임 시작하기" class="submit">
