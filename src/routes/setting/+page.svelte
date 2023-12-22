@@ -449,7 +449,10 @@
                     <Input type="text" bind:value={editMajor} placeholder="전공" size="sm" class="mb-1" required/>
                     <Input type="text" bind:value={editYearId} placeholder="학번" size="sm" class="mb-1" pattern="\d{2}\" title="학번은 두 자리 숫자여야 합니다." required/>
                     <Checkbox bind:checked={editIsOb} color="teal" class="mb-1">OB</Checkbox>
-                    <Button type="submit" class="w-auto" color="green">수정</Button>
+                    <div>
+                        <Button type="submit" class="w-auto" color="green">수정</Button>
+                        <Button on:click={()=>edit=false} class="w-auto" color="dark">취소</Button>
+                    </div>
                 </form>
             </AccordionItem>
         </Accordion>
