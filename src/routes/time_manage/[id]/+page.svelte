@@ -2,6 +2,7 @@
     import { Table, TableBody, TableBodyCell, TableBodyRow, TableHead, TableHeadCell, Checkbox, TableSearch, Badge } from 'flowbite-svelte';
     import { slide } from 'svelte/transition';
     import instalogo from '$lib/images/insta.svg';
+    import Autocomplete from './Autocomplete.svelte';
     const items = [
         {
         composer: '요하네스 브람스',
@@ -20,11 +21,19 @@
         semititle: '',
         players: '',
         conductor: '헤르베르트 폰 카라얀',
-        orchestra: '베를린 필하모닉 관현악단',
+        orchestra: '베를린 필하모니 관현악단',
         source: 'ROON',
         is_requested: true,
         more_players: '',
     }
+    ];
+    let data = [
+        {text: '요하네스 브람스', value: '34'},
+        {text: '루트비히 판 베토벤', value: '28'},
+        {text: '볼프강 아마데우스 모차르트', value: '14'},
+        {text: '프레데리크 쇼팽', value: '22'},
+        {text: '모리스 라벨', value: '17'},
+        {text: '구스타프 말러', value: '9'},
     ];
     let openRow;
     let openAdd = false;
@@ -78,10 +87,7 @@
         <Heading tag="h4">12월 18일(월) 3타임</Heading>
         <Heading tag="h6">담당 지기 : 정용환</Heading>
     </div>
-    <div class="text-center w-fit flex-col">
-        <Toggle bind:checked={showDetail} color="teal" class="w-fit mb-2 mx-auto"></Toggle>
-        <Helper>선곡 정보 자세히 보기</Helper>
-    </div>
+    &nbsp&nbsp&nbsp&nbsp&nbsp&nbsp
     <div class="text-center w-fit flex-col">
         <GradientButton class="w-fit h-fit mb-2 shadow-lg" color="pinkToOrange"><img src={instalogo} alt="logo"/>&nbsp&nbsp업로드</GradientButton>
         <Helper>스토리를 자동으로<br> 올릴 수.. 있을까요?</Helper>
@@ -151,20 +157,21 @@
                     <div class="flex" transition:slide={{ duration: 300, axis: 'y' }}>
                         <div class="w-96">
                             <p>곡 추가</p>
-                            <form class="flex flex-col items-center">
-                            <Input type="text" bind:value={composer} placeholder="작곡가" size="sm" class="mb-1" required/>
-                            <Input type="text" bind:value={title} placeholder="제목" size="sm" class="mb-1" required/>
-                            <Input type="text" bind:value={semititle} placeholder="세부 제목" size="sm" class="mb-1"/>
-                            <Input type="text" bind:value={conductor} placeholder="지휘자" size="sm" class="mb-1"/>
-                            <Input type="text" bind:value={orchestra} placeholder="오케스트라" size="sm" class="mb-1"/>
-                            <Input type="text" bind:value={players} placeholder="연주자" size="sm" class="mb-1"/>
-                            <Input type="text" bind:value={source} placeholder="소스" size="sm" class="mb-1"/>
-                            <Checkbox bind:checked={is_requested} color="teal" class="mb-1">신청곡</Checkbox>
-                            <Button type="submit" class="w-auto" color="green">추가</Button>
+                            <form autocomplete="off" class="flex flex-col">
+                                <Helper>&nbsp&nbsp&nbsp선곡 횟수는 학기 기준입니다.</Helper>
+                                <label class="flex items-center">작곡가 &nbsp<Autocomplete data={data} inputValue={composer} isRequired={true}/></label>
+                                <label class="flex items-center">제목 &nbsp<Autocomplete data={data} inputValue={title} isRequired={true}/></label>
+                                <label class="flex items-center">세부 &nbsp<Autocomplete data={data} inputValue={semititle}/></label>
+                                <label class="flex items-center">지휘자 &nbsp<Autocomplete data={data} inputValue={conductor}/></label>
+                                <label class="flex items-center">오케스트라 &nbsp<Autocomplete data={data} inputValue={orchestra}/></label>
+                                <Autocomplete data={data} inputValue={players} placeholder="연주자"/>
+                                
+                                <Button type="submit" class="w-auto" color="green">추가</Button>
                             </form>
                         </div>
                         <div>
-                            검색 결과
+                            <Autocomplete data={data} inputValue={source} placeholder="소스"/>
+                            <Checkbox bind:checked={is_requested} color="teal">신청곡</Checkbox>
                         </div>
                     </div>
                 </TableBodyCell>
