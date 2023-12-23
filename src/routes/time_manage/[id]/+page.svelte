@@ -1,34 +1,42 @@
 <script>
     import { Table, TableBody, TableBodyCell, TableBodyRow, TableHead, TableHeadCell, Checkbox, TableSearch, Badge } from 'flowbite-svelte';
     import { slide } from 'svelte/transition';
+    import instalogo from '$lib/images/insta.svg';
     const items = [
-    {
+        {
         composer: '요하네스 브람스',
         title: '피아노 협주곡 제1번 라단조, Op.15',
         semititle: '제 3악장',
         players: '피아노 : 아르투르 루빈슈타인',
-        conductor: '지휘 : 프리츠 라이너',
+        conductor: '프리츠 라이너',
         orchestra: '시카고 교향악단',
         source: 'ROON',
         is_requested: false,
+        more_players: '바이올린 : 다비드 오이스트라흐, 첼로 : 므스티슬라프 로스트로포비치',
     },
     {
         composer: '루트비히 판 베토벤',
         title: '교향곡 제3번 내림마장조, Op.55',
         semititle: '',
         players: '',
-        conductor: '지휘 : 헤르베르트 폰 카라얀',
+        conductor: '헤르베르트 폰 카라얀',
         orchestra: '베를린 필하모닉 관현악단',
         source: 'ROON',
         is_requested: true,
+        more_players: '',
     }
     ];
-    let openRow
+    let openRow;
+    let openAdd = false;
+    let addMusic = () => {
+        openAdd = openAdd === true ? false : true
+    }
     const toggleRow = (i) => {
         openRow = openRow === i ? null : i
     }
+    
 
-    import { Accordion, AccordionItem, Input, Button, Toggle } from 'flowbite-svelte';
+    import { Accordion, AccordionItem, Input, Button, Toggle, Heading, GradientButton, Helper } from 'flowbite-svelte';
     import { PenOutline, CloseOutline, CheckOutline } from 'flowbite-svelte-icons';
 
     let showDetail = false;
@@ -64,86 +72,106 @@
         editIsRequested = item.is_requested;
     }
 </script>
-<h2>12월 19일 3타임</h2>
-<Toggle bind:checked={showDetail} color="teal" class="w-fit m-auto">자세히 보기</Toggle>
+<br><br>
+<div class="flex justify-center gap-10 items-center">
+    <div class="text-center w-fit px-6 py-2 shadow-lg bg-white rounded-md">
+        <Heading tag="h4">12월 18일(월) 3타임</Heading>
+        <Heading tag="h6">담당 지기 : 정용환</Heading>
+    </div>
+    <div class="text-center w-fit flex-col">
+        <Toggle bind:checked={showDetail} color="teal" class="w-fit mb-2 mx-auto"></Toggle>
+        <Helper>선곡 정보 자세히 보기</Helper>
+    </div>
+    <div class="text-center w-fit flex-col">
+        <GradientButton class="w-fit h-fit mb-2 shadow-lg" color="pinkToOrange"><img src={instalogo} alt="logo"/>&nbsp&nbsp업로드</GradientButton>
+        <Helper>스토리를 자동으로<br> 올릴 수.. 있을까요?</Helper>
+    </div>
+    <div class="text-center w-fit flex-col">
+        <GradientButton class="w-fit h-fit mb-2 shadow-lg" color="cyan">기기 휴식</GradientButton>
+        <Helper>시간은 자동으로<br> 설정됩니다.</Helper>
+    </div>
+</div>
+<br>
 
 <div class="flex justify-center">
     <div class="p-2 overflow-auto table-height hide-scrollbar">
-        <Table shadow hoverable={true} class="w-auto flex-col m-auto">
+        <Table shadow hoverable={true} class="flex-col m-auto w-fit">
         <TableHead>
             <TableHeadCell>#</TableHeadCell>
-            <TableHeadCell>신청곡</TableHeadCell>
-            <TableHeadCell>작곡가</TableHeadCell>
-            <TableHeadCell>제목</TableHeadCell>
-            <TableHeadCell></TableHeadCell>
-            <TableHeadCell>수정</TableHeadCell>
-            <TableHeadCell>삭제</TableHeadCell>
+            <TableHeadCell class="w-40 text-center">작곡가</TableHeadCell>
+            <TableHeadCell class="w-40 text-center">제목</TableHeadCell>
+            <TableHeadCell class="w-40 text-center">연주</TableHeadCell>
+            <TableHeadCell class="w-min text-center"></TableHeadCell>
         </TableHead>
-        <TableBody class="divide-y">
+        <TableBody>
             {#each items as item, i}
             <TableBodyRow>
-                {#if !edit[i]}
                 <TableBodyCell on:click={() => toggleRow(i)}>{i+1}</TableBodyCell>
-                <TableBodyCell on:click={() => toggleRow(i)}>
-                    <Checkbox class="m-auto" disabled checked={item.is_requested}/>
+                <TableBodyCell on:click={() => toggleRow(i)} class="text-center">{item.composer}</TableBodyCell>
+                <TableBodyCell on:click={() => toggleRow(i)} class="text-center">{item.title}<br>{item.semititle}</TableBodyCell>
+                <TableBodyCell on:click={() => toggleRow(i)} class="text-center">
+                    {#if item.players}{item.players}{#if item.conductor || item.orchestra}<br>{/if}{/if}
+                    {#if item.conductor}지휘 : {item.conductor}{#if item.orchestra}<br>{/if}{/if}
+                    {item.orchestra}
                 </TableBodyCell>
-                <TableBodyCell on:click={() => toggleRow(i)}>{item.composer}</TableBodyCell>
-                <TableBodyCell on:click={() => toggleRow(i)}>{item.title}</TableBodyCell>
-                <TableBodyCell on:click={() => toggleRow(i)}>{item.semititle}</TableBodyCell>
-                <TableBodyCell>
-                    <Button class="!p-2" size="lg" outline={true} color="dark" on:click={() => openEditForm(item, i)} ><PenOutline class="m-auto"/></Button>
-                </TableBodyCell>
-                {/if}
-                {#if edit[i]}
-                <TableBodyCell>{i+1}</TableBodyCell>
-                <TableBodyCell>
-                    <Checkbox class="m-auto" checked={editIsRequested}/>
-                </TableBodyCell>
-                <TableBodyCell><Input type="text" bind:value={editComposer} size="sm"/></TableBodyCell>
-                <TableBodyCell><Input type="text" bind:value={editTitle} size="sm"/></TableBodyCell>
-                <TableBodyCell><Input type="text" bind:value={editSemititle} size="sm"/></TableBodyCell>
-                <TableBodyCell>
-                    <Button class="!p-2" size="lg" outline={true} color="dark" on:click={() => edit[i] = false}><CheckOutline class="m-auto"/></Button>
-                </TableBodyCell>
-                {/if}
-                <TableBodyCell>
-                    <Button class="!p-2" size="lg" outline={true} color="dark"><CloseOutline class="m-auto" /></Button>
+                <TableBodyCell on:click={() => toggleRow(i)} class="text-center flex flex-col items-center justify-center gap-1">
+                    {#if item.is_requested}
+                    <Badge color="dark">신청곡</Badge>
+                    {/if}
+                    <Badge color="red">{item.source}</Badge>
                 </TableBodyCell>
             </TableBodyRow>
             {#if openRow === i || edit[i] || showDetail}
             <TableBodyRow>
-                <TableBodyCell colspan="7" class="p-0">
-                    <div class="px-2 py-3" transition:slide={{ duration: 300, axis: 'y' }}>
-                        <p class="text-gray-500 text-sm">{item.players}</p>
-                        <p class="text-gray-500 text-sm">{item.conductor}</p>
-                        <p class="text-gray-500 text-sm">{item.orchestra}</p>
-                        <Badge style="background-color: #477; color: #aaa;">{item.source}</Badge>
+                <TableBodyCell colspan="5" class="p-0">
+                    <div class="px-2 py-3 flex text-gray-500 justify-center gap-10" transition:slide={{ duration: 300, axis: 'y' }}>
+                        <div>
+                            {#each item.more_players.split(',') as line}<p>{line}</p>{/each}
+                        </div>
+                        <div>
+                            {#if !edit[i]}
+                            <Button class="!p-2" size="lg" outline={true} color="dark" on:click={() => openEditForm(item, i)} ><PenOutline class="m-auto"/></Button>
+                            {/if}
+                            {#if edit[i]}
+                            <Button class="!p-2" size="lg" outline={true} color="dark" on:click={() => edit[i] = false}><CheckOutline class="m-auto"/></Button>
+                            {/if}
+                            <Button class="!p-2" size="lg" outline={true} color="dark"><CloseOutline class="m-auto" /></Button> 
+                        </div>
                     </div>
                 </TableBodyCell>
             </TableBodyRow>
             {/if}
             {/each}
+            <TableBodyRow>
+                <TableBodyCell on:click={() => addMusic()} colspan="5" class="text-center">+ 곡 추가하기</TableBodyCell>
+            </TableBodyRow>
+            {#if openAdd}
+            <TableBodyRow>
+                <TableBodyCell colspan="5">
+                    <div class="flex" transition:slide={{ duration: 300, axis: 'y' }}>
+                        <div class="w-96">
+                            <p>곡 추가</p>
+                            <form class="flex flex-col items-center">
+                            <Input type="text" bind:value={composer} placeholder="작곡가" size="sm" class="mb-1" required/>
+                            <Input type="text" bind:value={title} placeholder="제목" size="sm" class="mb-1" required/>
+                            <Input type="text" bind:value={semititle} placeholder="세부 제목" size="sm" class="mb-1"/>
+                            <Input type="text" bind:value={conductor} placeholder="지휘자" size="sm" class="mb-1"/>
+                            <Input type="text" bind:value={orchestra} placeholder="오케스트라" size="sm" class="mb-1"/>
+                            <Input type="text" bind:value={players} placeholder="연주자" size="sm" class="mb-1"/>
+                            <Input type="text" bind:value={source} placeholder="소스" size="sm" class="mb-1"/>
+                            <Checkbox bind:checked={is_requested} color="teal" class="mb-1">신청곡</Checkbox>
+                            <Button type="submit" class="w-auto" color="green">추가</Button>
+                            </form>
+                        </div>
+                        <div>
+                            검색 결과
+                        </div>
+                    </div>
+                </TableBodyCell>
+            </TableBodyRow>
+            {/if}
         </TableBody>
         </Table>
-    </div>
-    <div>
-        <br>
-        <Accordion class="w-80">
-            <AccordionItem open class="h-2">
-                <span slot="header">곡 추가</span>
-                <form class="flex flex-col items-center">
-                    <Input type="text" bind:value={composer} placeholder="작곡가" size="sm" class="mb-1" required/>
-                    <Input type="text" bind:value={title} placeholder="제목" size="sm" class="mb-1" required/>
-                    <Input type="text" bind:value={semititle} placeholder="세부 제목" size="sm" class="mb-1"/>
-                    <Input type="text" bind:value={conductor} placeholder="지휘자" size="sm" class="mb-1"/>
-                    <Input type="text" bind:value={orchestra} placeholder="오케스트라" size="sm" class="mb-1"/>
-                    <Input type="text" bind:value={players} placeholder="연주자" size="sm" class="mb-1"/>
-                    <Input type="text" bind:value={source} placeholder="소스 기기" size="sm" class="mb-1"/>
-                    <Checkbox bind:checked={is_requested} color="teal" class="mb-1">신청곡</Checkbox>
-                    <Button type="submit" class="w-auto" color="green">추가</Button>
-                </form>
-            </AccordionItem>
-        </Accordion>
     </div>
 </div>
 
@@ -158,6 +186,6 @@
     }
 
     .table-height {
-        height: 70vh;
+        max-height: 70vh;
     }
 </style>
