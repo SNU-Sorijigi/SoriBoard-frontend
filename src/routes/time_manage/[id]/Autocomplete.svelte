@@ -56,11 +56,16 @@
 </script>
 
 <div class="container px-2">
-    <Input type="text" placeholder={placeholder} required={isRequired} bind:value={inputValue} on:input={handleInput} on:keydown={handleKeyDown} on:blur={handleBlur} on:focus={handleFocus} size="md" class="mb-1 py-1.5" />
+    <Input type="text" placeholder={placeholder} required={isRequired} bind:value={inputValue} on:input={handleInput} on:keydown={handleKeyDown} on:blur={handleBlur} on:focus={handleFocus} size="md" class="mb-1 py-1.5 w-64" />
     {#if isOpen}
         <ul class="dropdown">
             {#each filteredData as item, index}
-                <li class:selected={index === focusedIndex} on:click={() => selectItem(item)} tabindex="-1"><div class="flex justify-between"><p>&nbsp{item.text}</p><p>{item.value}회 선곡</p></div></li>
+            <li class:selected={index === focusedIndex} on:click={() => selectItem(item)} tabindex="-1">
+                <div class="row">
+                    <p>{item.text}</p>
+                    <p>{item.value}회 선곡</p>
+                </div>
+            </li>
             {/each}
         </ul>
     {/if}
@@ -93,5 +98,23 @@
 
     .dropdown li:hover, .dropdown li.selected {
         background-color: #f7f7f7;
+    }
+
+    .row {
+        display: flex;
+        justify-content: space-between;
+        width: 100%; /* Full width of the container */
+    }
+
+    .row p:first-child {
+        flex: 1; /* Allocate remaining space to the first paragraph */
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis; /* Add ellipsis for overflowed text */
+    }
+
+    .row p:last-child {
+        width: 100px; /* Fixed width for the second paragraph */
+        text-align: right;
     }
 </style>
