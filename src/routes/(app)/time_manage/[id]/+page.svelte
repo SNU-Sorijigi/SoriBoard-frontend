@@ -242,6 +242,19 @@
         overflow: hidden;
         padding: 40px;
     }
+    @media only screen and (max-width: 1200px) {
+        .content {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            width: 100%;
+            align-items: center;
+            justify-content: space-around;
+            position: relative;
+            overflow: hidden;
+            padding: 40px;
+        }
+    }
     .inputfield {
         display: flex;
         flex-direction: column;

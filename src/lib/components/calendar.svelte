@@ -137,7 +137,7 @@
   .stack2 {
     display: flex;
     flex-direction: row;
-    gap: 110px;
+    gap: 100px;
     align-items: center;
     justify-content: flex-start;
     flex-shrink: 0;

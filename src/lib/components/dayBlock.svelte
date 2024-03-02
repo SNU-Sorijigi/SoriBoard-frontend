@@ -32,8 +32,8 @@
       gap: 4px;
       align-items: flex-start;
       justify-content: flex-start;
-      width: 144px;
-      height: 120px;
+      width: 132px;
+      height: 110px;
       position: relative;
     }
     .this-month {
