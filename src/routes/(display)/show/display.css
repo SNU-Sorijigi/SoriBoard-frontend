@@ -162,7 +162,7 @@ body {
 	min-height: 100vh;
 	margin: 0;
 	background-attachment: fixed;
-	background-color: var(--secondary-secondary-50);
+	background-color: var(--black);
 	background-size: cover;
 	background-blend-mode: soft-light;
 }

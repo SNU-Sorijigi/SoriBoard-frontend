@@ -1,11 +1,7 @@
 <script>
-    import { Badge, Table, TableBody, TableBodyCell, TableBodyRow, TableHead, TableHeadCell } from 'flowbite-svelte';
-    import { AccordionItem, Accordion, Input, Checkbox, Search, Button } from 'flowbite-svelte';
-    import { Dropdown, DropdownItem, Modal, GradientButton } from 'flowbite-svelte';
-    import { PenOutline } from 'flowbite-svelte-icons';
     import { writable } from 'svelte/store';
     import { onMount } from 'svelte';
-
+/*
     export let data;
     let users = data.users;
     let searchTerm = '';
@@ -303,174 +299,16 @@
         timetable[i][j][k][3] = newUser.is_ob;
         timetable[i][j][k][4] = newUser.id;
     }
+    */
 </script>
-<br>
-<div class="flex justify-center">
-    <ButtonGroup class="space-x-px">
-        <GradientButton pill shadow="teal" color="teal" on:click={goToPreviousSemester}>← 지난 학기</GradientButton>
-        <GradientButton pill shadow="teal" color="teal" on:click={goToNextSemester}>다음 학기 →</GradientButton>
-    </ButtonGroup>
-    <p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p>
-    <GradientButton shadow="teal" color="teal" on:click={updateDate}>이번 학기</GradientButton>
-</div>
-<br>
-<div class="space-x-4 flex items-center m-auto w-fit h-10">
-    <p class="font-bold whitespace-nowrap">{year}년 {semester}학기</p>
-    {#if timeEdit}
-    <p class="font-bold whitespace-nowrap">시작 시간</p>
-    <Input type="time" bind:value={startTime} size="sm" class="mb-1 h-fit" required/>
-    <p class="font-bold whitespace-nowrap">종료 시간</p>
-    <Input type="time" bind:value={endTime} size="sm" class="mb-1 h-fit" required/>
-    <p class="font-bold whitespace-nowrap">휴식 시간</p>
-    <Input type="number" bind:value={restTime} size="sm" class="mb-1 h-fit"/>
-    <p class="font-bold whitespace-nowrap">타임 수</p>
-    <Input type="number" bind:value={time_num} size="sm" class="mb-1 h-fit" required/>
-    {/if}
-</div>
-<br>
-<div class="container mx-auto p-2">
-    <div class="grid grid-cols-5 gap-4">
-        <div class="text-center font-bold">월</div>
-        <div class="text-center font-bold">화</div>
-        <div class="text-center font-bold">수</div>
-        <div class="text-center font-bold">목</div>
-        <div class="text-center font-bold">금</div>
-        {#each Array(time_num) as _, i}
-            {#each Array(5) as _, j}
-                <div class="border py-4 text-center">
-                    {#if timetable[i][j][0][0] != "" && !timeEdit}
-                        <div class="font-bold">{timetable[i][j][0][0]}</div>
-                        <div>{timetable[i][j][0][1]}&nbsp;{timetable[i][j][0][2]}</div>
-                    {/if}
-                    {#if timeEdit}
-                    <Button outline color="dark" class="w-44 h-16 text-sm rounded p-1 mb-1">{timetable[i][j][0][0]}<br>{timetable[i][j][0][1]}&nbsp;{timetable[i][j][0][2]}</Button>
-                    <Dropdown class="overflow-y-auto px-3 pb-3 text-sm h-96" style="width: 36rem;">
-                        <div slot="header" class="p-3">
-                            <Search type="text" bind:value={searchTerm} placeholder="지기 검색" size="md"/>
-                        </div>
-                        <Button outline color="dark" class="w-44 h-16 text-sm rounded p-1" on:click={changeUser({name:'', major:'', year_id:'', is_ob: false, id:null}, i, j, 0)}>자리<br>비우기</Button>
-                        {#each sortUsers as user}
-                        <Button outline color="dark" class="w-44 h-16 text-sm rounded p-1" on:click={changeUser(user, i, j, 0)}>{user.name}<br>{user.major}&nbsp{user.year_id}</Button>
-                        {/each}
-                    </Dropdown>
-                    {/if}
-                    <br>
-                    {#if timetable[i][j][1][0] != "" && !timeEdit}
-                        <div class="font-bold">{timetable[i][j][1][0]}</div>
-                        <div>{timetable[i][j][1][1]}&nbsp;{timetable[i][j][1][2]}</div>
-                    {/if}
-                    {#if timeEdit}
-                    <Button outline color="dark" class="w-44 h-16 text-sm rounded p-1">{timetable[i][j][1][0]}<br>{timetable[i][j][1][1]}&nbsp;{timetable[i][j][1][2]}</Button>
-                    <Dropdown class="overflow-y-auto px-3 pb-3 text-sm h-96" style="width: 36rem;">
-                        <div slot="header" class="p-3">
-                            <Search type="text" bind:value={searchTerm} placeholder="지기 검색" size="md"/>
-                        </div>
-                        <Button outline color="dark" class="w-44 h-16 text-sm rounded p-1" on:click={changeUser({name:'', major:'', year_id:'', is_ob: false, id:null}, i, j, 1)}>자리<br>비우기</Button>
-                        {#each sortUsers as user}
-                        <Button outline color="dark" class="w-44 h-16 text-sm rounded p-1" on:click={changeUser(user, i, j, 1)}>{user.name}<br>{user.major}&nbsp{user.year_id}</Button>
-                        {/each}
-                    </Dropdown>
-                    {/if}
-                </div>
-            {/each}
-        {/each}
-    </div>
-</div>
-<br>
-<div class="flex justify-center">
-    {#if !timeEdit}
-    <GradientButton shadow="teal" color="teal" on:click={startTimeEdit}>편집</GradientButton>
-    <p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p>
-    {/if}
-    {#if timeEdit}
-    <GradientButton shadow="teal" color="teal" on:click={saveTimeEdit}>저장</GradientButton>
-    <p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p>
-    <GradientButton shadow="teal" color="teal" on:click={endEdit}>취소</GradientButton>
-    {/if}
-</div>
-
-
-<br><br>
-<div class="flex justify-center">
-    <div class="p-2 overflow-auto table-height hide-scrollbar">
-        <Table hoverable={true} class="border border-grey-500">
-            <caption class="p-5 text-lg font-semibold text-center text-gray-900 bg-white dark:text-white dark:bg-gray-800 border border-black">
-                지기 관리
-            </caption>
-            <TableHead>
-                <TableHeadCell on:click={() => sortTable('name')}>이름</TableHeadCell>
-                <TableHeadCell on:click={() => sortTable('major')}>학과</TableHeadCell>
-                <TableHeadCell on:click={() => sortTable('year_id')}>학번</TableHeadCell>
-                <TableHeadCell on:click={() => sortTable('is_ob')}>특징</TableHeadCell>
-                <TableHeadCell></TableHeadCell>
-            </TableHead>
-            <TableBody>
-                {#each sortUsers as user}
-                <TableBodyRow>
-                    <TableBodyCell>{user.name}</TableBodyCell>
-                    <TableBodyCell>{user.major}</TableBodyCell>
-                    <TableBodyCell>{user.year_id}</TableBodyCell>
-                    <TableBodyCell>
-                        {#if user.is_ob}
-                        <Badge color="green">OB</Badge>
-                        {/if}
-                    </TableBodyCell>
-                    <TableBodyCell>
-                        <PenOutline on:click={() => openEditForm(user)} />
-                    </TableBodyCell>
-                </TableBodyRow>
-                {/each}
-            </TableBody>
-        </Table>
-    </div>
-    <div>
-        <br>
-        <Search type="text" bind:value={searchTerm} placeholder="지기 검색" size="md"/>
-        <br>
-        <Accordion>
-            <AccordionItem class="h-2">
-                <span slot="header">지기 추가</span>
-                <form on:submit={addNewUser} class="flex flex-col items-center">
-                    <Input type="text" bind:value={name} placeholder="이름" size="sm" class="mb-1" required/>
-                    <Input type="text" bind:value={major} placeholder="전공" size="sm" class="mb-1" required/>
-                    <Input type="text" bind:value={yearId} placeholder="학번" size="sm" class="mb-1" pattern="\d{2}\" title="학번은 두 자리 숫자여야 합니다." required/>
-                    <Checkbox bind:checked={isOb} color="teal" class="mb-1">OB</Checkbox>
-                    <Button type="submit" class="w-auto" color="green">추가</Button>
-                </form>
-            </AccordionItem>
-        </Accordion>
-        <br>
-        {#if edit}
-        <Accordion>
-            <AccordionItem open={edit} class="h-2">
-                <span slot="header">정보 수정</span>
-                <form on:submit={editUser} class="flex flex-col items-center">
-                    <Input type="text" bind:value={editName} placeholder="이름" size="sm" class="mb-1" required/>
-                    <Input type="text" bind:value={editMajor} placeholder="전공" size="sm" class="mb-1" required/>
-                    <Input type="text" bind:value={editYearId} placeholder="학번" size="sm" class="mb-1" pattern="\d{2}\" title="학번은 두 자리 숫자여야 합니다." required/>
-                    <Checkbox bind:checked={editIsOb} color="teal" class="mb-1">OB</Checkbox>
-                    <div>
-                        <Button type="submit" class="w-auto" color="green">수정</Button>
-                        <Button on:click={()=>edit=false} class="w-auto" color="dark">취소</Button>
-                    </div>
-                </form>
-            </AccordionItem>
-        </Accordion>
-        {/if}
-    </div>
-</div>
+<div class="text">공사 중..</div>
 
 <style>
-    .hide-scrollbar {
-        -ms-overflow-style: none;  /* Internet Explorer 10+ */
-        scrollbar-width: none;  /* Firefox */
-    }
-
-    .hide-scrollbar::-webkit-scrollbar { 
-        display: none;  /* Safari and Chrome */
-    }
-
-    .table-height {
-        height: 60vh;
+    .text {
+        color: var(--gray-gray-950, #1a1a1a);
+        text-align: center;
+        font-family: var(--xlarge-font-family);
+        font-size: var(--xlarge-font-size, 32px);
+        font-weight: var(--xlarge-font-weight, 500);
     }
 </style>
