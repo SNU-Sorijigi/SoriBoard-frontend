@@ -2,64 +2,87 @@
     import showIcon from '$lib/images/show.svg';
     import editIcon from '$lib/images/edit.svg';
     import xIcon from '$lib/images/x.svg';
-    export let composer="요하네스 브람스";
+    import checkIcon from '$lib/images/check.svg'
+
+    export let composer="조안 크리스토프 프리드리히 폰 쉴링스";
     export let title="바이올린과 첼로를 위한 이중협주곡 가단조, Op.102";
-    export let semiTitle="3악장";
-    export let orchestra="클리블랜드 관현악단";
-    export let conductor="조지 셀";
+    export let semiTitle="2악장";
+    export let orchestra="서울시향";
+    export let conductor="지휘: 레너드 번스타인";
     export let players=[
-        {instrument: "바이올린", name: "다비드 오이스트라흐"},
-        {instrument: "첼로", name: "므스티슬라브 로스트로포비치"}
+        "피아노: 조성진",
+        "첼로: 므스티슬라브 로스트로포비치"
     ];
+
+    let isEditing = false;
+    function toggleEdit() {
+      isEditing = !isEditing;
+    }
+
+    function confirmEdit() {
+      isEditing = false;
+    }
 </script>
   
-<div class="music">
-    <div class="stack">
-      <div class="div">{composer}</div>
-      <div class="stack2">
-        <div class="stack3">
-          <div class="op-102">
-            {title}
-          </div>
-          <div class="_3">{semiTitle}</div>
-        </div>
-        <div class="stack4">
-          <div class="stack5">
-            <div class="div2">{orchestra}</div>
-            <div class="divider"></div>
-            <div class="div2">{conductor}</div>
-          </div>
-          <div class="stack6">
-            {#each players as player}
-            <div class="div2">{player.instrument + ": " + player.name}</div> 
-            {/each}
-          </div>
-        </div>
+<div class="musicinfo">
+  <div class="textstack">
+    <input bind:value={composer} readonly={!isEditing} class="composer">
+    <div class="divider"></div>
+    <div class="col_stack">
+      <div class="row_stack">
+        <input bind:value={title} readonly={!isEditing} class="title">
+        <input bind:value={semiTitle} readonly={!isEditing} class="semititle">
+      </div>
+      <div class="row_stack">
+        {#if orchestra != ""}
+        <input bind:value={orchestra} readonly={!isEditing} class="orchestra">
+        {/if}
+        {#if conductor != ""}
+        <input bind:value={conductor} readonly={!isEditing} class="conductor">
+        {/if}
+        {#each players as player}
+        <input bind:value={player} readonly={!isEditing} class="player">
+        {/each}
       </div>
     </div>
-    <div class="button">
-        <div class="button" on:click={() => navigate('/time_manage')}>
-            <img src={showIcon} alt="show" class="icon">
-        </div>  
-    <div class="div3">판서</div>
-    </div>
-    <div class="button">
-        <div class="button" on:click={() => navigate('/time_manage')}>
-            <img src={editIcon} alt="edit" class="icon">
-        </div>
-      <div class="div3">수정</div>
-    </div>
-    <div class="button">
-        <div class="button" on:click={() => navigate('/time_manage')}>
-            <img src={xIcon} alt="x" class="icon">
-        </div>
-      <div class="div3">삭제</div>
-    </div>
   </div>
+  <div class="button">
+    <img src={showIcon} alt="show" class="icon"> 
+    <div class="button_label">판서</div>
+  </div>
+  {#if !isEditing}
+  <div class="button" on:click={toggleEdit}>
+    <img src={editIcon} alt="edit" class="icon">
+    <div class="button_label">수정</div>
+  </div>
+  {:else}
+  <div class="button" on:click={confirmEdit}>
+    <img src={checkIcon} alt="edit" class="icon icon-black">
+    <div class="button_label">확인</div>
+  </div>
+  {/if}
+  <div class="button">
+    <img src={xIcon} alt="x" class="icon">
+    <div class="button_label">삭제</div>
+  </div>
+</div>
   
-  <style>
-    .music {
-      width: 100%;
+<style>
+    input {
+      background-color: var(--primary-primary-300);
+      color: var(--gray-gray-950, #1a1a1a);
+      text-overflow: ellipsis;
+      border: none;
+    }
+    input:focus {
+      outline: none;
+    }
+    input:not([readonly]) {
+      border: 1px solid var(--gray-gray-950, #1a1a1a);
+    }
+    .musicinfo {
+      width: 950px;
+      height: 56px;
       border-style: solid;
       border-color: var(--primary-primary-800, #6a5134);
       border-width: 1px;
@@ -73,107 +96,102 @@
       position: relative;
       box-shadow: 2px 2px 4px 0px rgba(0, 0, 0, 0.25);
       overflow: hidden;
-      background-color: var(--primary-primary-300)
+      background-color: var(--primary-primary-300);
     }
-    .stack {
-      padding: 4px;
+    .textstack {
+      padding-top: 6px;
+      padding-bottom: 6px;
       display: flex;
       flex-direction: row;
-      gap: 10px;
-      align-items: flex-start;
+      align-items: center;
       justify-content: flex-start;
-      flex-shrink: 0;
-      position: relative;
+      gap: 5px;
     }
-    .div {
-      color: var(--gray-gray-950, #1a1a1a);
-      text-align: left;
+    .composer {
       font-family: var(--medium-font-family, "NotoSansKr-Medium", sans-serif);
       font-size: var(--medium-font-size, 16px);
       font-weight: var(--medium-font-weight, 500);
-      position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: flex-start;
+      width: 250px;
+      text-align: center;
     }
-    .stack2 {
+    .col_stack {
       display: flex;
       flex-direction: column;
-      gap: 5px;
+      gap: 3px;
       align-items: flex-start;
       justify-content: center;
       flex-shrink: 0;
       position: relative;
     }
-    .stack3 {
-      padding: 0px 4px 0px 4px;
+    .row_stack {
       display: flex;
       flex-direction: row;
-      gap: 16px;
+      gap: 3px;
       align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      position: relative;
+      justify-content: flex-start;
     }
-    .op-102 {
-      color: var(--gray-gray-950, #1a1a1a);
-      text-align: left;
-      font-family: var(
-        --small-medium-font-family,
-        "NotoSansKr-Medium",
-        sans-serif
-      );
+    .title {
+      font-family: var(--small-medium-font-family);
       font-size: var(--small-medium-font-size, 13px);
       font-weight: var(--small-medium-font-weight, 500);
-      position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: flex-start;
+      width: 360px;
     }
-    ._3 {
-      color: var(--gray-gray-950, #1a1a1a);
-      text-align: left;
-      font-family: var(
-        --small-medium-font-family,
-        "NotoSansKr-Medium",
-        sans-serif
-      );
+    .semititle {
+      font-family: var(--small-medium-font-family);
       font-size: var(--small-medium-font-size, 13px);
       font-weight: var(--small-medium-font-weight, 500);
-      position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: flex-start;
+      width: 160px;
     }
-    .stack4 {
-      display: flex;
-      flex-direction: row;
-      gap: 14px;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      position: relative;
-    }
-    .stack5 {
-      padding: 4px;
-      display: flex;
-      flex-direction: row;
-      gap: 5px;
-      align-items: flex-start;
-      justify-content: flex-start;
-      flex-shrink: 0;
-      position: relative;
-    }
-    .div2 {
-      color: var(--gray-gray-800, #343434);
-      text-align: left;
+    .orchestra {
       font-family: var(--small-font-family, "NotoSansKr-Regular", sans-serif);
       font-size: var(--small-font-size, 10px);
       font-weight: var(--small-font-weight, 400);
-      position: relative;
+      width: 110px;
+    }
+    .conductor {
+      font-family: var(--small-font-family, "NotoSansKr-Regular", sans-serif);
+      font-size: var(--small-font-size, 10px);
+      font-weight: var(--small-font-weight, 400);
+      width: 128px;
+    }
+    .player {
+      font-family: var(--small-font-family, "NotoSansKr-Regular", sans-serif);
+      font-size: var(--small-font-size, 10px);
+      font-weight: var(--small-font-weight, 400);
+      width: 130px;
+    }
+    .button {
       display: flex;
+      flex-direction: column;
+      gap: 1px;
       align-items: center;
       justify-content: flex-start;
+      position: relative;
+      box-shadow: 2px 2px 4px 0px rgba(0, 0, 0, 0.25);
+      padding: 4px;
+      border-color: var(--primary-primary-500, #6a5134);
+      border-width: 1px;
+      border-style: solid;
+      background-color: var(--primary-primary-200);
+      border-radius: 10%;
+    }
+    .icon {
+      flex-shrink: 0;
+      width: 24px;
+      height: 24px;
+      position: relative;
+      overflow: visible;
+    }
+    .icon-black {
+      filter: invert(100%);
+    }
+    .button_label {
+      color: var(--gray-gray-950, #1a1a1a);
+      text-align: left;
+      font-family: var(--xsmall-font-family, "NotoSansKr-Regular", sans-serif);
+      font-size: var(--xsmall-font-size, 8px);
+      font-weight: var(--xsmall-font-weight, 400);
+      position: relative;
     }
     .divider {
       background: var(--primary-primary-800, #6a5134);
@@ -183,53 +201,4 @@
       position: relative;
       overflow: hidden;
     }
-    .stack6 {
-      padding: 4px;
-      display: flex;
-      flex-direction: row;
-      gap: 8px;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      position: relative;
-    }
-    .button {
-      display: flex;
-      flex-direction: column;
-      gap: 1px;
-      align-items: center;
-      justify-content: flex-start;
-      flex-shrink: 0;
-      position: relative;
-    }
-    .icon {
-      flex-shrink: 0;
-      width: 24px;
-      height: 24px;
-      position: relative;
-      overflow: visible;
-    }
-    .div3 {
-      color: var(--gray-gray-950, #1a1a1a);
-      text-align: left;
-      font-family: var(--xsmall-font-family, "NotoSansKr-Regular", sans-serif);
-      font-size: var(--xsmall-font-size, 8px);
-      font-weight: var(--xsmall-font-weight, 400);
-      position: relative;
-    }
-    .icon2 {
-      flex-shrink: 0;
-      width: 24px;
-      height: 24px;
-      position: relative;
-      overflow: visible;
-    }
-    .icon3 {
-      flex-shrink: 0;
-      width: 24px;
-      height: 24px;
-      position: relative;
-      overflow: visible;
-    }
-  </style>
-  
+</style>
