@@ -1,12 +1,12 @@
 <script>
     export let label = '';
-    export let placeholder = '';
+    export let value = '';
     export let width = '300px';
 </script>
 
 <div class="container" style="--width: {width};">
     <label class="label">{label}</label>
-    <input type="text" placeholder={placeholder}>
+    <input type="text" bind:value={value}>
 </div>
 
 <style>

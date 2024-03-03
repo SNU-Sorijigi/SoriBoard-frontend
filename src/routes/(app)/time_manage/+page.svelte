@@ -58,9 +58,8 @@
         const formData = {
             date: $date,
             time: $num,
-            SemesterInfo : 1,
-            user_name: mento,
-            mentee_name: mentee,
+            user: mento,
+            mentee: mentee,
             arrival_time: $mento_time,
             mentee_arrival_time: $mentee_time,
         };

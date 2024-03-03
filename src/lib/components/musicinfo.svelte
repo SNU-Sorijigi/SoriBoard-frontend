@@ -4,15 +4,19 @@
     import xIcon from '$lib/images/x.svg';
     import checkIcon from '$lib/images/check.svg'
 
-    export let composer="조안 크리스토프 프리드리히 폰 쉴링스";
-    export let title="바이올린과 첼로를 위한 이중협주곡 가단조, Op.102";
-    export let semiTitle="2악장";
-    export let orchestra="서울시향";
-    export let conductor="지휘: 레너드 번스타인";
-    export let players=[
-        "피아노: 조성진",
-        "첼로: 므스티슬라브 로스트로포비치"
-    ];
+    export let composer="";
+    export let title="";
+    export let semiTitle="";
+    export let orchestra="";
+    export let conductor="";
+    export let players=[];
+
+    export let is_requested=false;
+    export let source="";
+    export let cd_id="";
+    export let id="";
+
+    export let deleteMusic;
 
     let isEditing = false;
     function toggleEdit() {
@@ -21,6 +25,31 @@
 
     function confirmEdit() {
       isEditing = false;
+      updateData(id);
+    }
+
+    async function updateData(id){
+      const formData = {
+        is_requested: is_requested,
+        source: source,
+        cd_id: cd_id,
+        title: title,
+        semi_title: semiTitle,
+        composer_name: composer,
+        conductor_name: conductor,
+        orchestra_name: orchestra,
+        player_names: players,
+      }
+      const response = await fetch(`/api/music/${id}`, {
+        method: 'PUT',
+        headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formData),
+      });
+      if (!response.ok) {
+        console.error('failed to edit');
+      }
     }
 </script>
   
@@ -61,7 +90,7 @@
     <div class="button_label">확인</div>
   </div>
   {/if}
-  <div class="button">
+  <div class="button" on:click={() => deleteMusic(id)}>
     <img src={xIcon} alt="x" class="icon">
     <div class="button_label">삭제</div>
   </div>
@@ -174,6 +203,7 @@
       border-style: solid;
       background-color: var(--primary-primary-200);
       border-radius: 10%;
+      cursor: pointer;
     }
     .icon {
       flex-shrink: 0;

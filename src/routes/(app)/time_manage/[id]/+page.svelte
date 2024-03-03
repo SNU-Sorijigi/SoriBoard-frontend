@@ -11,20 +11,39 @@
 
     $: id = $page.params.id;
 
-    let timeDate = writable("");
-    let timeUser = writable("");
+    let timeDate = "";
+    let timeUser = "";
+    let timeMusic = [];
 
     let composer = '';
     let title = '';
-    let semititle = '';
-    let players = '';
+    let detail = '';
     let conductor = '';
     let orchestra = '';
     let source = '';
-    let is_requested = writable(false);
+    let cd_id = '';
+    let is_requested = false;
+    let players = writable(['']);
+
+    function addPlayer() {
+        players.update(currentPlayers => [...currentPlayers, '']);
+    }
+
+    function deletePlayer(index) {
+        players.update(currentPlayers => {
+            return currentPlayers.filter((_, i) => i !== index);
+        });
+    }
 
     function toggleCheck() {
-        is_requested.update(n => !n);
+        is_requested = !is_requested;
+    }
+
+    async function deleteMusic(music_id) {
+        const response = await fetch(`/api/music/${music_id}`, {
+            method: 'DELETE'
+        });
+        loadTimeInfo(id);
     }
 
     async function fetchTimeInfo() {
@@ -52,10 +71,11 @@
             const month = date.getMonth() + 1;
             const day = date.getDate();
             const time = data.time;
-            const mento_name = data.mento_name;
-            const mentee_name = data.mentee_name ? ` / ${data.mentee_name}` : "";
-            timeDate.set(`${year}년 ${month}월 ${day}일 ${time}타임`);
-            timeUser.set(`${mento_name}${mentee_name}`);
+            const mento_name = data.user.name;
+            const mentee_name = data.mentee ? ` / ${data.mentee.name}` : "";
+            timeMusic = data.time_music;
+            timeDate=`${year}년 ${month}월 ${day}일 ${time}타임`;
+            timeUser=`${mento_name}${mentee_name}`;
         } catch (error) {
             console.log("Error");
         }
@@ -64,6 +84,45 @@
     onMount(() => {
         loadTimeInfo(id);
     })
+
+    async function handleSubmit(event) {
+        event.preventDefault();
+        const formData = {
+            time: id,
+            order: timeMusic.length+1,
+            is_requested: is_requested,
+            source: source,
+            cd_id: cd_id,
+            title: title,
+            semi_title: detail,
+            composer_name: composer,
+            conductor_name: conductor,
+            orchestra_name: orchestra,
+            player_names: $players,
+        };
+
+        const response = await fetch('/api/music', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formData),
+        });
+        if (response.ok) {
+            composer = '';
+            title = '';
+            detail = '';
+            conductor = '';
+            orchestra = '';
+            source = '';
+            cd_id = '';
+            is_requested = false;
+            players.set(['']);
+            loadTimeInfo(id);
+        } else {
+            console.error('Failed to create');
+        }
+    }
 </script>
 
 <svelte:head>
@@ -74,7 +133,7 @@
 <div class="manage-screen">
     <div class="header">
         <div class="spacer"></div>
-        <div class="timeinfo">{$timeDate}<br>{$timeUser}</div>
+        <div class="timeinfo">{timeDate}<br>{timeUser}</div>
         <div class="buttons">
             <div class="insta button">
                 <img src={instalogo} alt="insta">
@@ -88,31 +147,55 @@
     </div>
     <div class="content">
         <div class="playlist">
-            <MusicInfo></MusicInfo>
+            {#each timeMusic as music}
+            <MusicInfo
+                id={music.id}
+                is_requested={music.is_requested}
+                source={music.source}
+                cd_id={music.cd_id}
+                composer={music.composer_name} 
+                title={music.music_title} 
+                semiTitle={music.music_semi_title ? music.music_semi_title : ""} 
+                orchestra={music.music_orchestra_name ? music.music_orchestra_name : ""} 
+                conductor={music.music_conductor_name ? music.music_conductor_name : ""} 
+                players={music.player_names ? music.player_names : []}
+                deleteMusic={deleteMusic}>
+            </MusicInfo>
+            {/each}
         </div>
-        <div class="inputfield">
+        <form on:submit={handleSubmit} method="POST" class="inputfield">
             <div class="stack">
                 <div class="box">
                     <div class="label">신청곡</div>
-                    <div class="checkbox" on:click={toggleCheck} class:checked={$is_requested}>
-                        {#if $is_requested}
+                    <div class="checkbox" on:click={toggleCheck} class:checked={is_requested}>
+                        {#if is_requested}
                         <img src={checkicon} alt="check" class="check">
                         {/if}
                     </div>
                 </div>
-                <Input label="음원 종류" width="100px"></Input>
-                <Input label="음반 번호" width="100px"></Input>
+                <Input label="음원 종류" width="100px" bind:value={source}></Input>
+                <Input label="음반 번호" width="100px" bind:value={cd_id}></Input>
             </div>
-            <Input label="작곡가"></Input>
-            <Input label="제목"></Input>
-            <Input label="곡 세부 정보"></Input>
-            <Input label="오케스트라"></Input>
-            <Input label="지휘자"></Input>
-            <Input label="연주자"></Input>
-            <div class="plus">
+            <Input label="작곡가" bind:value={composer}></Input>
+            <Input label="제목" bind:value={title}></Input>
+            <Input label="곡 세부 정보" bind:value={detail}></Input>
+            <Input label="오케스트라" bind:value={orchestra}></Input>
+            <Input label="지휘자" bind:value={conductor}></Input>
+            {#each $players as player, i}
+            <div class="player_stack">
+                <Input label={"연주자 "+(i+1)} bind:value={$players[i]} width={i != 0 ? '265px' : '300px'}></Input>
+                {#if i > 0}
+                    <div class="plus" on:click={() => deletePlayer(i)}>
+                        <img src={plusicon} alt="plus">
+                    </div>
+                {/if}
+            </div>
+            {/each}
+            <div class="plus" on:click={addPlayer}>
                 <img src={plusicon} alt="plus">
             </div>
-        </div>
+            <input type="submit" value="곡 추가하기" class="submit">    
+        </form>
     </div>
 </div>
 
@@ -264,12 +347,32 @@
         position: relative;
         overflow: hidden;
     }
+    .player_stack {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+    }
     .plus {
         flex-shrink: 0;
         width: 32px;
         height: 32px;
         position: relative;
         overflow: visible;
+        cursor: pointer;
+    }
+    .submit {
+        background-color: var(--secondary-secondary-50);
+        color: var(--gray-gray-950, #1a1a1a);
+        text-align: center;
+        font-family: var(--medium-font-family,);
+        font-size: var(--medium-font-size, 13px);
+        font-weight: var(--medium-font-weight, 500);
+        border: 1px solid var(--primary-primary-700);
+        border-radius: 6px;
+        border-width: 2px;
+        padding: 6px 20px 6px 20px;
         cursor: pointer;
     }
     .hide-scrollbar {
@@ -279,9 +382,5 @@
 
     .hide-scrollbar::-webkit-scrollbar { 
         display: none;  /* Safari and Chrome */
-    }
-
-    .table-height {
-        max-height: 70vh;
     }
 </style>
