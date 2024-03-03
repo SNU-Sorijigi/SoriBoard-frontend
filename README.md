@@ -2,7 +2,6 @@
 | SoriBoard 2.0 / frontend |
 +--------------------------+  
 <a href="https://kit.svelte.dev/"><img src="https://img.shields.io/badge/Svelte-4A4A55?style=for-the-badge&logo=svelte&logoColor=FF3E00"/></a>
-<a href="https://tailwindcss.com/"><img src="https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white"/></a>
 ### Frontend of SNU Sorijigi time manager - SoriBoard 2.0
 
 ### WHAT IS SoriBoard 2.0?
