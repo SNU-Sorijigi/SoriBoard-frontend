@@ -253,7 +253,6 @@
     </div>
 {/if}
 
-
 <style>
     .stack {
         display: flex;

@@ -52,7 +52,6 @@
         console.error('failed to edit');
       }
     }
-
     let ws;
     onMount(() => {
         ws = new WebSocket('ws://localhost:8080/ws/tv_display/');
@@ -113,7 +112,6 @@
       </div>
     </div>
   </div>
-  
 </div>
   
 <style>
