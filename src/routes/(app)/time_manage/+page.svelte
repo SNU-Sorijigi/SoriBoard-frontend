@@ -50,7 +50,7 @@
         window.location.href = url;
     }
 
-    $: mento = "정용환";
+    $: mento = "";
     $: mentee = "";
 
     async function handleSubmit(event) {

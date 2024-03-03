@@ -1,28 +1,68 @@
 <script>
     import './display.css';
-    let composer="루트비히 판 베토벤";
-    let title="피아노 소나타 제7번 라장조, Op.10 No.3";
-    let semititle="";
+    import { onMount } from 'svelte';
+
+    let composer="";
+    let title="";
+    let semi_title="";
     let orchestra="";
     let conductor="";
-    let players=[
-        {instrument: "피아노", name: "백건우"}
-    ];
+    let players=[];
+    onMount(() => {
+        'use strict';
+        const ws = new WebSocket('ws://localhost:8080/ws/tv_display/');
+
+        ws.onopen = () => {
+            console.log('Connection established');
+        };
+
+        ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                if(data.update_type == 'breaktime'){
+                    composer = "기기 휴식"
+                    title = data.info;
+                    semi_title='';
+                    orchestra = '';
+                    conductor = '';
+                    players = [];
+                }else{
+                composer = data.info.composer_name;
+                title = data.info.music_title;
+                semi_title = data.info.music_semi_title
+                orchestra = data.info.orchestra_name;
+                conductor = data.info.conductor_name;
+                players = data.info.player_names;
+                }
+            } catch (error) {
+                console.error('Error parsing JSON:', error);
+            }
+        };
+
+        ws.onerror = (error) => {
+            console.error('WebSocket error:', error);
+        };
+
+        ws.onclose = (event) => {
+            console.log('WebSocket closed:', event.reason);
+        };
+    });
 </script>
 
 <div class="app">
 	<div class="contents">
         <div class="stack">
             <div class="text composer">{composer}</div>
-            <div class="text title">{title}</div>
+            <div class="spacer" style="height:8vh"></div>
+            <div class="text title">{title}{#if semi_title}<br>{semi_title}{/if}</div>
+            <div class="spacer" style="height:6vh"></div>
             {#if orchestra}
-                <div class="text orchestra">{orchestra}</div>
-            {/if}
-            {#if conductor}
-                <div class="text conductor">{conductor}</div>
+                <div class="text orchestra">{orchestra}{#if conductor}{" / 지휘: "+conductor}{/if}</div>
+                <div class="spacer" style="height:1vh"></div>
             {/if}
             {#each players as player}
-                <div class="text player">{player.instrument + ": " + player.name}</div>
+                <div class="text player">{player}</div>
+                <div class="spacer" style="height:1vh"></div>
             {/each}
         </div>
 	</div>
@@ -54,7 +94,6 @@
     .stack {
         display: flex;
         flex-direction: column;
-        gap: 14vh;
         align-items: center;
         justify-content: center;
         align-self: stretch;
@@ -69,9 +108,6 @@
         font-size: 4vw;
     }
     .orchestra {
-        font-size: 2.5vw;
-    }
-    .conductor {
         font-size: 2.5vw;
     }
     .player {
