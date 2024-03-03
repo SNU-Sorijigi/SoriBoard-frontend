@@ -2,11 +2,13 @@
     import { writable } from 'svelte/store';
     import { onMount } from 'svelte';
     import { page } from '$app/stores';
+    import { fade, fly } from 'svelte/transition';
     import MusicInfo from '$lib/components/musicinfo.svelte';
     import Input from '$lib/components/input.svelte';
+    import BreakButton from '$lib/components/breakButton.svelte';
     import instalogo from '$lib/images/insta.svg';
-    import sleeplogo from '$lib/images/sleep.svg';
     import plusicon from '$lib/images/plus.svg';
+    import minusicon from '$lib/images/minus.svg';
     import checkicon from '$lib/images/check.svg';
 
     $: id = $page.params.id;
@@ -14,6 +16,7 @@
     let timeDate = "";
     let timeUser = "";
     let timeMusic = [];
+    let time;
 
     let composer = '';
     let title = '';
@@ -70,7 +73,7 @@
             const year = date.getFullYear();
             const month = date.getMonth() + 1;
             const day = date.getDate();
-            const time = data.time;
+            time = data.time;
             const mento_name = data.user.name;
             const mentee_name = data.mentee ? ` / ${data.mentee.name}` : "";
             timeMusic = data.time_music;
@@ -123,6 +126,28 @@
             console.error('Failed to create');
         }
     }
+
+    let visible = false;
+
+    function toggle() {
+        visible = !visible;
+    }
+
+    function clickOutside(node) {
+	    const handleClick = (event) => {
+		    if (!node.contains(event.target)) {
+			    node.dispatchEvent(new CustomEvent('outclick'));
+		    }
+	    };
+
+	    document.addEventListener('click', handleClick, true);
+
+	    return {
+		    destroy() {
+			    document.removeEventListener('click', handleClick, true);
+		    }
+	    };
+    }
 </script>
 
 <svelte:head>
@@ -135,18 +160,17 @@
         <div class="spacer"></div>
         <div class="timeinfo">{timeDate}<br>{timeUser}</div>
         <div class="buttons">
-            <div class="insta button">
+            <div class="insta button" on:click={toggle}>
                 <img src={instalogo} alt="insta">
                 업로드
             </div>
-            <div class="sleep button">
-                <img src={sleeplogo} alt="sleep">
-                기기 휴식
-            </div>
+            {#if time}
+            <BreakButton time={time}/>
+            {/if}
         </div>
     </div>
     <div class="content">
-        <div class="playlist">
+        <div class="playlist hide-scrollbar">
             {#each timeMusic as music}
             <MusicInfo
                 id={music.id}
@@ -156,8 +180,8 @@
                 composer={music.composer_name} 
                 title={music.music_title} 
                 semiTitle={music.music_semi_title ? music.music_semi_title : ""} 
-                orchestra={music.music_orchestra_name ? music.music_orchestra_name : ""} 
-                conductor={music.music_conductor_name ? music.music_conductor_name : ""} 
+                orchestra={music.orchestra_name ? music.orchestra_name : ""} 
+                conductor={music.conductor_name ? "지휘: "+music.conductor_name : ""} 
                 players={music.player_names ? music.player_names : []}
                 deleteMusic={deleteMusic}>
             </MusicInfo>
@@ -185,8 +209,8 @@
             <div class="player_stack">
                 <Input label={"연주자 "+(i+1)} bind:value={$players[i]} width={i != 0 ? '265px' : '300px'}></Input>
                 {#if i > 0}
-                    <div class="plus" on:click={() => deletePlayer(i)}>
-                        <img src={plusicon} alt="plus">
+                    <div class="minus" on:click={() => deletePlayer(i)}>
+                        <img src={minusicon} alt="minus">
                     </div>
                 {/if}
             </div>
@@ -198,6 +222,36 @@
         </form>
     </div>
 </div>
+
+{#if visible}
+    <div class="modal">
+        <div class="modal-content" use:clickOutside on:outclick={toggle} in:fly={{ y: '-20vh', duration: 400}}>
+            <span role="button" tabindex="0" class="xbutton" title="close" on:click={toggle} on:keydown={toggle}>&times;</span>
+            <div class="title">인스타 업로드 형식</div>
+            <div class="insta_content">
+            {#each timeMusic as music}
+                <br>
+                {music.composer_name}
+                <br>
+                {music.music_title}
+                {music.music_semi_title ? music.music_semi_title : ""}
+                <br>
+                {#if music.orchestra_name}
+                    {music.orchestra_name}
+                    <br>
+                {/if}
+                {#if music.conductor_name}
+                    {music.conductor_name ? "지휘: "+music.conductor_name : ""}
+                    <br>
+                {/if}
+                {#each music.player_names as player}
+                    {player}
+                {/each}
+            {/each}
+            </div>
+        </div>
+    </div>
+{/if}
 
 
 <style>
@@ -303,9 +357,6 @@
     .insta {
         background: var(--red-red-500, #f49a9a);
     }
-    .sleep {
-        background: var(--blue-blue-600);
-    }
     .title {
         color: var(--gray-gray-900, #202020);
         text-align: center;
@@ -338,6 +389,13 @@
             padding: 40px;
         }
     }
+    .playlist {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        align-items: center;
+        justify-content: center;
+    }
     .inputfield {
         display: flex;
         flex-direction: column;
@@ -355,7 +413,16 @@
         gap: 3px;
     }
     .plus {
-        flex-shrink: 0;
+        width: 32px;
+        height: 32px;
+        position: relative;
+        overflow: visible;
+        cursor: pointer;
+        margin-top: 8px;
+        margin-bottom: 8px;
+    }
+    .minus {
+        margin-top: 20px;
         width: 32px;
         height: 32px;
         position: relative;
@@ -374,6 +441,50 @@
         border-width: 2px;
         padding: 6px 20px 6px 20px;
         cursor: pointer;
+    }
+    .xbutton {
+        position: absolute;
+        right: 0;
+        top: 0;
+        display: inline-block;
+        text-decoration: none;
+        text-align: center;
+        cursor: pointer;
+        padding: 8px 16px;
+        font-weight: bold;
+        font-size: 1.4em;
+        border-radius: 10%;
+    }
+
+    .xbutton:hover {
+        color: #fff!important;
+        background-color: #f44336!important
+    }
+    .modal {
+        z-index: 3;
+        display: block;
+        padding-top: 10vh;
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        margin-left: 58px;
+    }
+    .modal-content {
+        margin: auto;
+        background-color: var(--primary-primary-100);
+        position: relative;
+        padding-top: 30px;
+        padding-bottom: 50px;
+        outline: 0;
+        width: 44vw;
+        border-radius: 2%;
+        border-color: var(--gray-gray-400);
+        border-style: solid;
+    }
+    .insta_content {
+        text-align: center;
     }
     .hide-scrollbar {
         -ms-overflow-style: none;  /* Internet Explorer 10+ */
