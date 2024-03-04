@@ -63,6 +63,7 @@
             arrival_time: $mento_time,
             mentee_arrival_time: $mentee_time,
         };
+        console.log(formData);
 
         const response = await fetch('/api/time', {
             method: 'POST',
@@ -99,11 +100,11 @@
                 </div>
                 <br>
                 <div class="stack">
-                <label>지기 이름 <input name="name" type="text" required style="width:5em" autocomplete="off" value={mento}></label>
+                <label>지기 이름 <input name="name" type="text" required style="width:5em" autocomplete="off" bind:value={mento}></label>
                 <label>출근 시간 <input name="time" type="time" required value={$mento_time} style="width:8em"></label>
                 </div>
                 <div class="stack">
-                <label>제자 이름 <input name="subname" type="text" style="width:5em" autocomplete="off" value={mentee}></label>
+                <label>제자 이름 <input name="subname" type="text" style="width:5em" autocomplete="off" bind:value={mentee}></label>
                 <label>출근 시간 <input name="time" type="time" required value={$mentee_time} style="width:8em"></label>
                 </div>
                 <br>
