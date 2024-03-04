@@ -1,5 +1,5 @@
 <script>
-    import DayBlock from './DayBlock.svelte';
+    import DayBlock from './dayBlock.svelte';
     export let week;
     export let month;
     export let year;
