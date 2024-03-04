@@ -71,6 +71,10 @@
   
 <div class="musicinfo">
   <div class="textstack">
+    <div class="button" on:click={() => deleteMusic(id)}>
+      <img src={xIcon} alt="x" class="icon">
+      <div class="button_label">삭제</div>
+    </div>
     <input bind:value={composer} readonly={!isEditing} class="composer">
     <div class="divider"></div>
     <div class="col_stack">
@@ -94,10 +98,6 @@
           <div class="button_label">확인</div>
         </div>
         {/if}
-        <div class="button" on:click={() => deleteMusic(id)}>
-          <img src={xIcon} alt="x" class="icon">
-          <div class="button_label">삭제</div>
-        </div>
       </div>
       <div class="row_stack">
         {#if orchestra != ""}
