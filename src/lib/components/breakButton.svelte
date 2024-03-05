@@ -1,6 +1,6 @@
 <script>
     import sleeplogo from '$lib/images/sleep.svg';
-    import { WebSocketServer } from '$lib/globals';
+    import { webSocketServer } from '$lib/globals';
     import { onMount } from 'svelte';
     export let time;
     let breakTime;

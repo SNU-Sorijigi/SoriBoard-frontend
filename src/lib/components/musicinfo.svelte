@@ -3,7 +3,7 @@
     import editIcon from '$lib/images/edit.svg';
     import xIcon from '$lib/images/x.svg';
     import checkIcon from '$lib/images/check.svg'
-    import { WebSocketServer } from '$lib/globals';
+    import { webSocketServer } from '$lib/globals';
     import { onMount } from 'svelte';
 
     export let composer="";

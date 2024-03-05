@@ -1,7 +1,7 @@
 <script>
     import './display.css';
     import { onMount } from 'svelte';
-    import { WebSocketServer } from '$lib/globals';
+    import { webSocketServer } from '$lib/globals';
     let composer="";
     let title="";
     let semi_title="";
