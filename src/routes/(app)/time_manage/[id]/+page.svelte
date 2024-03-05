@@ -23,7 +23,7 @@
     let detail = '';
     let conductor = '';
     let orchestra = '';
-    let source = '';
+    let source = 'ROON';
     let cd_id = '';
     let is_requested = false;
     let players = writable(['']);
@@ -117,7 +117,7 @@
             detail = '';
             conductor = '';
             orchestra = '';
-            source = '';
+            source = 'ROON';
             cd_id = '';
             is_requested = false;
             players.set(['']);
