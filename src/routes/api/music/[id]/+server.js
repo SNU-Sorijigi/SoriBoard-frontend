@@ -1,9 +1,10 @@
 import { json } from '@sveltejs/kit';
+import { backendServer } from '$lib/globals';
 
 export async function PUT({ params, request }) {
     const {id} = params;
     const body = await request.json();
-    const response = await fetch(`http://127.0.0.1:8080/time_manage/timemusic/${id}/`, {
+    const response = await fetch(`${backendServer}/time_manage/timemusic/${id}/`, {
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json',
@@ -23,7 +24,7 @@ export async function PUT({ params, request }) {
 
 export async function DELETE({ params }) {
     const { id } = params;
-    const response = await fetch(`http://127.0.0.1:8080/time_manage/timemusic/${id}`, {
+    const response = await fetch(`${backendServer}/time_manage/timemusic/${id}`, {
         method: 'DELETE',
     });
     if (!response.ok) {

@@ -3,6 +3,7 @@
     import editIcon from '$lib/images/edit.svg';
     import xIcon from '$lib/images/x.svg';
     import checkIcon from '$lib/images/check.svg'
+    import { WebSocketServer } from '$lib/globals';
     import { onMount } from 'svelte';
 
     export let composer="";
@@ -54,7 +55,7 @@
     }
     let ws;
     onMount(() => {
-        ws = new WebSocket('ws://localhost:8080/ws/tv_display/');
+        ws = new WebSocket(`${webSocketServer}/ws/tv_display/`);
     });
     function showDisplay() {
       const displayData = {

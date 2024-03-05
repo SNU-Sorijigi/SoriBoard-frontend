@@ -1,8 +1,9 @@
 import { json } from '@sveltejs/kit';
+import { backendServer } from '$lib/globals';
 
 export async function POST({ request }) {
     const body = await request.json();
-    const response = await fetch('http://127.0.0.1:8080/time_manage/timemusic/', {
+    const response = await fetch(`${backendServer}/time_manage/timemusic/`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

@@ -1,7 +1,7 @@
 <script>
     import './display.css';
     import { onMount } from 'svelte';
-
+    import { WebSocketServer } from '$lib/globals';
     let composer="";
     let title="";
     let semi_title="";
@@ -10,7 +10,7 @@
     let players=[];
     onMount(() => {
         'use strict';
-        const ws = new WebSocket('ws://localhost:8080/ws/tv_display/');
+        const ws = new WebSocket(`${webSocketServer}/ws/tv_display/`);
 
         ws.onopen = () => {
             console.log('Connection established');

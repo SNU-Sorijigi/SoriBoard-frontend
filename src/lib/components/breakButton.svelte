@@ -1,5 +1,6 @@
 <script>
     import sleeplogo from '$lib/images/sleep.svg';
+    import { WebSocketServer } from '$lib/globals';
     import { onMount } from 'svelte';
     export let time;
     let breakTime;
@@ -30,7 +31,7 @@
 
     onMount(() => {
         updateBreakTime(time);
-        ws = new WebSocket('ws://localhost:8080/ws/tv_display/');
+        ws = new WebSocket(`${webSocketServer}/ws/tv_display/`);
     });
     
     function showDisplay() {
