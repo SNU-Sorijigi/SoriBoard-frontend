@@ -1,8 +1,11 @@
 <script>
+    import { createEventDispatcher } from 'svelte';
     import showIcon from '$lib/images/show.svg';
     import editIcon from '$lib/images/edit.svg';
     import xIcon from '$lib/images/x.svg';
     import checkIcon from '$lib/images/check.svg'
+    import upIcon from '$lib/images/up.svg';
+    import downIcon from '$lib/images/down.svg';
     import { webSocketServer } from '$lib/globals';
     import { onMount } from 'svelte';
 
@@ -68,14 +71,32 @@
         console.log("WebSocket is not open. ReadyState: ", ws.readyState);
       }
     }
+
+    $: {
+      const maxElements = 5;
+      const currentElements = (orchestra ? 1 : 0) + (conductor ? 1 : 0) + players.length;
+      const overLimit = currentElements - maxElements;
+
+      if (overLimit > 0) {
+        players = players.slice(0, players.length - overLimit);
+    }
+  }
+
+  const dispatch = createEventDispatcher();
+  function goUp(){
+    dispatch('goUp', {musicid:id});
+  }
+  function goDown(){
+    dispatch('goDown', {musicid:id})
+  }
 </script>
   
 <div class="musicinfo">
   <div class="textstack">
-    <div class="button" on:click={() => deleteMusic(id)}>
+    <button class="button" on:click={() => deleteMusic(id)}>
       <img src={xIcon} alt="x" class="icon">
       <div class="button_label">삭제</div>
-    </div>
+    </button>
     <input bind:value={composer} readonly={!isEditing} class="composer">
     <div class="divider"></div>
     <div class="col_stack">
@@ -84,21 +105,29 @@
           <input bind:value={title} readonly={!isEditing} class="title">
           <input bind:value={semiTitle} readonly={!isEditing} class="semititle">
         </div>
-        <div class="button" on:click={showDisplay}>
-          <img src={showIcon} alt="show" class="icon"> 
-          <div class="button_label">판서</div>
+        <div class="col_stack">
+          <button class="button" on:click={goUp}>
+            <img src={upIcon} alt="up" class="arrow_icon">
+          </button>
+          <button class="button" on:click={goDown}>
+            <img src={downIcon} alt="down" class="arrow_icon">
+          </button>
         </div>
         {#if !isEditing}
-        <div class="button" on:click={toggleEdit}>
+        <button class="button" on:click={toggleEdit}>
           <img src={editIcon} alt="edit" class="icon">
           <div class="button_label">수정</div>
-        </div>
+        </button>
         {:else}
-        <div class="button" on:click={confirmEdit}>
+        <button class="button" on:click={confirmEdit}>
           <img src={checkIcon} alt="edit" class="icon icon-black">
           <div class="button_label">확인</div>
-        </div>
+        </button>
         {/if}
+        <button class="button" on:click={showDisplay}>
+          <img src={showIcon} alt="show" class="icon"> 
+          <div class="button_label">판서</div>
+        </button>
       </div>
       <div class="row_stack">
         {#if orchestra != ""}
@@ -129,7 +158,7 @@
       border: 1px solid var(--gray-gray-950, #1a1a1a);
     }
     .musicinfo {
-      width: 900px;
+      width: 920px;
       height: 80px;
       border-style: solid;
       border-color: var(--primary-primary-800, #6a5134);
@@ -165,7 +194,7 @@
     .col_stack {
       display: flex;
       flex-direction: column;
-      gap: 3px;
+      gap: 2px;
       align-items: flex-start;
       justify-content: center;
       flex-shrink: 0;
@@ -180,7 +209,7 @@
     }
     .title {
       font-family: var(--small-medium-font-family);
-      font-size: var(--small-medium-font-size, 13px);
+      font-size: var(--medium-font-size, 13px);
       font-weight: var(--small-medium-font-weight, 500);
       width: 505px;
     }
@@ -206,7 +235,7 @@
       font-family: var(--small-font-family, "NotoSansKr-Regular", sans-serif);
       font-size: var(--small-font-size, 10px);
       font-weight: var(--small-font-weight, 400);
-      width: 120px;
+      width: 110px;
     }
     .button {
       display: flex;
@@ -228,6 +257,13 @@
       flex-shrink: 0;
       width: 24px;
       height: 24px;
+      position: relative;
+      overflow: visible;
+    }
+    .arrow_icon {
+      flex-shrink: 0;
+      width: 14px;
+      height: 14px;
       position: relative;
       overflow: visible;
     }

@@ -35,6 +35,9 @@
     let date = writable("");
     let mento_time = writable("");
     let mentee_time = writable("");
+    $: mento = "";
+    $: mentee = "";
+    let users = [["강태현", "조형근", "오유진", "윤지호", "백서연"], ["문도희", "홍주한", "김동민", "이하정", "신재원"], ["박인서", "이재원", "이윤재", "한유진", "최창인"], ["김진웅", "이채은", "한지호", "오윤서", "이현서"], ["정수현", "김태후", "호원재", "박석진", "현상윤"]];
 
     function create(event) {
         const { year, month, day, time } = event.detail;
@@ -43,15 +46,14 @@
         mentee_time.set(now.toISOString().substring(11, 16));
         date.set(formatDate(year, month, day))
         num.set(time);
+        let d = new Date(year, month-1, day);
+        mento = users[d.getDay()-1][time-1]
         toggle();
     }
 
     function navigate(url) {
         window.location.href = url;
     }
-
-    $: mento = "";
-    $: mentee = "";
 
     async function handleSubmit(event) {
         event.preventDefault();
@@ -63,7 +65,6 @@
             arrival_time: $mento_time,
             mentee_arrival_time: $mentee_time,
         };
-        console.log(formData);
 
         const response = await fetch('/api/time', {
             method: 'POST',
@@ -101,11 +102,11 @@
                 <br>
                 <div class="stack">
                 <label>지기 이름 <input name="name" type="text" required style="width:5em" autocomplete="off" bind:value={mento}></label>
-                <label>출근 시간 <input name="time" type="time" required value={$mento_time} style="width:8em"></label>
+                <label>출근 시간 <input name="time" type="time" required bind:value={$mento_time} style="width:8em"></label>
                 </div>
                 <div class="stack">
                 <label>제자 이름 <input name="subname" type="text" style="width:5em" autocomplete="off" bind:value={mentee}></label>
-                <label>출근 시간 <input name="time" type="time" required value={$mentee_time} style="width:8em"></label>
+                <label>출근 시간 <input name="time" type="time" bind:value={$mentee_time} style="width:8em"></label>
                 </div>
                 <br>
                 <label>

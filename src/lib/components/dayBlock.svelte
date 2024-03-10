@@ -6,17 +6,18 @@
     export let isThisMonth = true;
     export let year = "";
     export let month = "";
+    export let create = [];
 </script>
   
 <div class="day-block">
     <div class="day {isToday ? 'today' : ''} {isThisMonth ? 'this-month' : 'not-this-month'}">{day}</div>
     {#if time}
     <div class="stack">
-        <TimeButton time="1" year={parseInt(year)} month={parseInt(month)} day={parseInt(day)} on:createTime></TimeButton>
-        <TimeButton time="2" year={parseInt(year)} month={parseInt(month)} day={parseInt(day)} on:createTime></TimeButton>
-        <TimeButton time="3" year={parseInt(year)} month={parseInt(month)} day={parseInt(day)} on:createTime></TimeButton>
-        <TimeButton time="4" year={parseInt(year)} month={parseInt(month)} day={parseInt(day)} on:createTime></TimeButton>
-        <TimeButton time="5" year={parseInt(year)} month={parseInt(month)} day={parseInt(day)} on:createTime></TimeButton>
+        <TimeButton time="1" year={parseInt(year)} month={parseInt(month)} day={parseInt(day)} id={create[0]} on:createTime></TimeButton>
+        <TimeButton time="2" year={parseInt(year)} month={parseInt(month)} day={parseInt(day)} id={create[1]} on:createTime></TimeButton>
+        <TimeButton time="3" year={parseInt(year)} month={parseInt(month)} day={parseInt(day)} id={create[2]} on:createTime></TimeButton>
+        <TimeButton time="4" year={parseInt(year)} month={parseInt(month)} day={parseInt(day)} id={create[3]} on:createTime></TimeButton>
+        <TimeButton time="5" year={parseInt(year)} month={parseInt(month)} day={parseInt(day)} id={create[4]} on:createTime></TimeButton>
     </div>
     {/if}
 </div>

@@ -5,7 +5,7 @@
 </script>
 
 <div class="container" style="--width: {width};">
-    <label class="label">{label}</label>
+    <div class="label">{label}</div>
     <input type="text" bind:value={value}>
 </div>
 

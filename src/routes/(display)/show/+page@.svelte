@@ -102,7 +102,7 @@
         height: 100%;
     }
     .composer {
-        font-size: 5vw;
+        font-size: 7vw;
     }
     .title {
         font-size: 4vw;
