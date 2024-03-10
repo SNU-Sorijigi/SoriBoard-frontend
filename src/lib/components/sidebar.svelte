@@ -13,26 +13,28 @@
 
 <div class="side-bar">
     <div class="stack">
-        <div class="button" on:click={() => navigate('/')}>
+        <button class="button" on:click={() => navigate('/')}>
             <img src={homeIcon} alt="home" class="icon">
-        </div>
-        <div class="button" on:click={() => navigate('/time_manage')}>
+        </button>
+        <button class="button" on:click={() => navigate('/time_manage')}>
             <img src={timetableIcon} alt="timetable" class="icon">
-        </div>
-        <div class="button" on:click={() => navigate('/time_manage/1')}>
+        </button>
+        <!--
+        <button class="button" on:click={() => navigate('/time_manage/1')}>
             <img src={playlistIcon} alt="playlist" class="icon">
-        </div>
-        <div class="button" on:click={() => navigate('/display')}>
+        </button>
+    -->
+        <button class="button" on:click={() => navigate('/display')}>
             <img src={displayIcon} alt="display" class="icon">
-        </div>
-        <div class="button" on:click={() => navigate('/stat')}>
+        </button>
+        <button class="button" on:click={() => navigate('/stat')}>
             <img src={statIcon} alt="stats" class="icon">
-        </div>
+        </button>
         <div class="spacer"></div>
         <div class="divider"></div>
-        <div class="button" on:click={() => navigate('/setting')}>
+        <button class="button" on:click={() => navigate('/setting')}>
             <img src={settingIcon} alt="settings" class="icon">
-        </div>
+        </button>
     </div>
 </div>
   
@@ -75,13 +77,14 @@
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
-      height: 36px;
+      height: 45px;
       position: relative;
       overflow: visible;
       background: var(--primary-primary-700);
       filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.25));
       border-radius: 3px;
       cursor: pointer;
+      border: none;
     }
     .icon {
         width: 34px;

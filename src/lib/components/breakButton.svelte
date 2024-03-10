@@ -18,13 +18,13 @@
             breakTime = "14:30";
             break;
         case 4:
-            breakTime = "16:10"; // Corrected format for consistency
+            breakTime = "16:10";
             break;
         case 5:
             breakTime = "17:50";
             break;
         default:
-            breakTime = ""; // Default case if time is not 1-5
+            breakTime = "";
             break;
         }
     }
@@ -47,10 +47,10 @@
     }
 </script>
 <div class="set">
-<div class="sleep button" on:click={showDisplay}>
+<button class="sleep button" on:click={showDisplay}>
     <img src={sleeplogo} alt="sleep">
     기기 휴식
-</div>
+</button>
 <input name="time" type="time" bind:value={breakTime} style="width:110px">
 </div>
 
@@ -92,5 +92,6 @@
         position: relative;
         box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
         cursor: pointer;
+        border: none;
     }
 </style>

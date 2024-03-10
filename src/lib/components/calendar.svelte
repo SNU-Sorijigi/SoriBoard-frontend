@@ -1,5 +1,4 @@
 <script>
-    import { onMount } from 'svelte';
     import WeekBlock from './weekBlock.svelte';
 
     let currentDate = new Date();
@@ -58,9 +57,9 @@
     <div class="header">
       <div class="month">{formatMonthDisplay(month, year)}</div>
       <div class="buttons">
-        <div class="button" on:click={goToday}>&nbsp&nbsp오늘&nbsp&nbsp</div>
-        <div class="button" on:click={prevMonth}>&nbsp&nbsp&nbsp&nbsp{"<"}&nbsp&nbsp&nbsp&nbsp</div>
-        <div class="button" on:click={nextMonth}>&nbsp&nbsp&nbsp&nbsp{">"}&nbsp&nbsp&nbsp&nbsp</div>
+        <button class="button" on:click={goToday}>&nbsp&nbsp오늘&nbsp&nbsp</button>
+        <button class="button" on:click={prevMonth}>&nbsp&nbsp&nbsp&nbsp{"<"}&nbsp&nbsp&nbsp&nbsp</button>
+        <button class="button" on:click={nextMonth}>&nbsp&nbsp&nbsp&nbsp{">"}&nbsp&nbsp&nbsp&nbsp</button>
       </div>
     </div>
     <div class="stack">
@@ -74,7 +73,7 @@
           <div class="div">토</div>
       </div>
       <div class="month-block">
-          {#each weekList as index (index)}
+          {#each weekList as index (year.toString() + '-' + month.toString() + '-' + index)}
               <WeekBlock week={index} month={month} year={year} on:createTime></WeekBlock>
           {/each}
       </div>

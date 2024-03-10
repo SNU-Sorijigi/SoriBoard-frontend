@@ -1,6 +1,4 @@
 <script>
-    import { onMount } from 'svelte';
-    import { writable } from 'svelte/store';
     import { createEventDispatcher } from 'svelte';
     import time1Icon from '$lib/images/1time.svg';
     import time2Icon from '$lib/images/2time.svg';
@@ -11,9 +9,8 @@
     export let year = "";
     export let month = "";
     export let day = "";
-    let created = writable(false);
-    let id = writable(null);
-    $: variantsClassName = `created-${$created}`;
+    export let id = null;
+    $: variantsClassName = `created-${id ? true : false}`;
     const timeIcons = {
         "1": time1Icon,
         "2": time2Icon,
@@ -33,50 +30,20 @@
     }
 
     function handleClick() {
-        if ($created) {
-            navigate('/time_manage/' + $id);
+        if (id) {
+            navigate('/time_manage/' + id);
         } else {
             create();
         }
     }
-
-    async function fetchData(year, month, day, time){
-        const response = await fetch(`/api/time/${year}/${month}/${day}/${time}`)
-        if (!response.ok) {
-            console.log("Error");
-        }
-        return await response.json();
-    }
-
-    async function loadTimeInfo(year, month, day, time) {
-        try {
-            const data = await fetchData(year, month, day, parseInt(time));
-              if(data.id){
-                id.set(data.id);
-                created.set(true);
-            } else {
-                created.set(false);
-            }
-        } catch (error) {
-            created.set(false);
-        }
-    }
-
-    $: if (year && month && day && time){
-        loadTimeInfo(year, month, day, time);
-    }
-    
-    onMount(() => {
-        loadTimeInfo(year, month, day, time);
-    });
 </script>
   
-<div class="{'time-button ' + variantsClassName}" on:click={handleClick}>
+<button class="{'time-button ' + variantsClassName}" on:click={handleClick}>
     <div class="stack">
         <div class="text">{time}타임</div>
     </div>
     <img src={timeIcon} alt="timeButton" class="icon">
-</div>
+</button>
   
 <style>
     .time-button {
@@ -93,6 +60,7 @@
       position: relative;
       overflow: hidden;
       cursor: pointer;
+      border: none;
     }
     .stack {
       padding: 0px 0px 0px 20px;

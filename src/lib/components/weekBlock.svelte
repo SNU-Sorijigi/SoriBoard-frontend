@@ -1,8 +1,10 @@
 <script>
     import DayBlock from './dayBlock.svelte';
+    import { onMount } from 'svelte';
     export let week;
     export let month;
     export let year;
+    let createdList=[];
 
     function calculateWeekDays(year, month, weekNumber) {
         const getSunday = (d) => new Date(d.setDate(d.getDate() - d.getDay()));
@@ -34,6 +36,22 @@
     }
 
     $: daysOfWeek = calculateWeekDays(year, month, week);
+
+    async function fetchData(start_year, start_month, start_day, end_year, end_month, end_day){
+        start_month = (('0')+start_month).slice(-2);
+        end_month = (('0')+end_month).slice(-2);
+        const response = await fetch(`/api/time/${start_year}/${start_month}/${start_day}/${end_year}/${end_month}/${end_day}`)
+        if (!response.ok) {
+            console.log("Error");
+        }
+        return await response.json();
+    }
+
+    onMount(() => {
+        fetchData(daysOfWeek[0].year, daysOfWeek[0].month+1, daysOfWeek[0].date, daysOfWeek[daysOfWeek.length-1].year, daysOfWeek[daysOfWeek.length-1].month+1, daysOfWeek[daysOfWeek.length-1].date).then(array => {
+            createdList = array;
+        });
+    });
 </script>
 
 <div class="week-block">
@@ -45,6 +63,7 @@
           time={i !== 0 && i !== 6} 
           isToday={isToday} 
           isThisMonth={isThisMonth}
+          create={createdList[i]}
           on:createTime
           >
         </DayBlock>

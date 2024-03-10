@@ -13,10 +13,19 @@
 
     $: id = $page.params.id;
 
+    function navigate(url) {
+        window.location.href = url;
+    }
+
     let timeDate = "";
     let timeUser = "";
     let timeMusic = [];
     let time;
+    let mento;
+    let mentee;
+    let arrival_time;
+    let mentee_arrival_time;
+    let date;
 
     let composer = '';
     let title = '';
@@ -43,10 +52,13 @@
     }
 
     async function deleteMusic(music_id) {
-        const response = await fetch(`/api/music/${music_id}`, {
-            method: 'DELETE'
-        });
-        loadTimeInfo(id);
+        const isConfirmed = confirm("삭제하시겠습니까?");
+        if (isConfirmed){
+            const response = await fetch(`/api/music/${music_id}`, {
+                method: 'DELETE'
+            });
+            loadTimeInfo(id);
+        }
     }
 
     async function fetchTimeInfo() {
@@ -69,7 +81,7 @@
     async function loadTimeInfo(id) {
         try {
             const data = await fetchData(id);
-            const date = new Date(data.date);
+            date = new Date(data.date);
             const year = date.getFullYear();
             const month = date.getMonth() + 1;
             const day = date.getDate();
@@ -79,6 +91,11 @@
             timeMusic = data.time_music;
             timeDate=`${year}년 ${month}월 ${day}일 ${time}타임`;
             timeUser=`${mento_name}${mentee_name}`;
+            mento = data.user.name;
+            mentee = data.mentee ? data.mentee.name : "";
+            arrival_time = data.arrival_time;
+            mentee_arrival_time = data.mentee_arrival_time ? data.mentee_arrival_time : "";
+            date = date.toISOString().split('T')[0];
         } catch (error) {
             console.log("Error");
         }
@@ -92,7 +109,7 @@
         event.preventDefault();
         const formData = {
             time: id,
-            order: timeMusic.length+1,
+            order: timeMusic[timeMusic.length-1].order+1,
             is_requested: is_requested,
             source: source,
             cd_id: cd_id,
@@ -127,10 +144,43 @@
         }
     }
 
+    async function handleEdit(event) {
+        event.preventDefault();
+        const formData = {
+            date: date,
+            time: time,
+            user: mento,
+            mentee: mentee,
+            arrival_time: arrival_time,
+            mentee_arrival_time: mentee_arrival_time,
+        };
+
+        const response = await fetch(`/api/time/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formData),
+        });
+        if (response.ok) {
+            const data = await response.json();
+            location.reload();
+        } else {
+            console.error('Failed to edit TimeInfo');
+        }
+    }
+
     let visible = false;
+    let editing = false;
 
     function toggle() {
         visible = !visible;
+        editing = false;
+    }
+
+    function edit_toggle() {
+        editing = !editing;
+        visible = false;
     }
 
     function clickOutside(node) {
@@ -148,6 +198,55 @@
 		    }
 	    };
     }
+    function findItemIndexById(id) {
+        return timeMusic.findIndex(item => item.id === id);
+    }
+
+    async function deleteTime() {
+        const isConfirmed = confirm("삭제하시겠습니까?");
+        if (isConfirmed){
+            const response = await fetch(`/api/time/${id}`, {
+                method: 'DELETE'
+            });
+            navigate('/time_manage');
+        }
+    }
+
+    async function swapOrders(id1, id2){
+        try {
+            const response = await fetch(`/api/music/${id1}/${id2}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            const data = await response.json();
+        } catch (error) {
+            console.error('Error swapping orders:', error);
+        }
+    }
+
+    async function goDown(event){
+        const {musicid} = event.detail;
+        const index = findItemIndexById(musicid);
+        if (index === -1 || index === timeMusic.length - 1) return;
+        const currentItem = timeMusic[index];
+        const nextItem = timeMusic[index + 1];
+        await swapOrders(currentItem.id, nextItem.id);
+        loadTimeInfo(id);
+    }
+    async function goUp(event){
+        const {musicid} = event.detail;
+        const index = findItemIndexById(musicid);
+        if (index <= 0) return;
+        const currentItem = timeMusic[index];
+        const prevItem = timeMusic[index - 1];
+        await swapOrders(currentItem.id, prevItem.id);
+        loadTimeInfo(id);
+    }
 </script>
 
 <svelte:head>
@@ -157,13 +256,17 @@
 
 <div class="manage-screen">
     <div class="header">
-        <div class="spacer"></div>
+        <div class="buttons">
+            <button class="time_edit button" on:click={edit_toggle}>
+                타임 정보 수정
+            </button>
+        </div>
         <div class="timeinfo">{timeDate}<br>{timeUser}</div>
         <div class="buttons">
-            <div class="insta button" on:click={toggle}>
+            <button class="insta button" on:click={toggle}>
                 <img src={instalogo} alt="insta">
                 업로드
-            </div>
+            </button>
             {#if time}
             <BreakButton time={time}/>
             {/if}
@@ -173,6 +276,8 @@
         <div class="playlist hide-scrollbar">
             {#each timeMusic as music}
             <MusicInfo
+                on:goDown={goDown}
+                on:goUp={goUp}
                 id={music.id}
                 is_requested={music.is_requested}
                 source={music.source}
@@ -202,7 +307,7 @@
             </div>
             <Input label="작곡가" bind:value={composer}></Input>
             <Input label="제목" bind:value={title}></Input>
-            <Input label="곡 세부 정보" bind:value={detail}></Input>
+            <Input label="곡 세부 정보(악장 등)" bind:value={detail}></Input>
             <Input label="오케스트라" bind:value={orchestra}></Input>
             <Input label="지휘자" bind:value={conductor}></Input>
             {#each $players as player, i}
@@ -218,7 +323,7 @@
             <div class="plus" on:click={addPlayer}>
                 <img src={plusicon} alt="plus">
             </div>
-            <input type="submit" value="곡 추가하기" class="submit">    
+            <input id="submit1" type="submit" value="곡 추가하기" class="submit">
         </form>
     </div>
 </div>
@@ -253,7 +358,49 @@
     </div>
 {/if}
 
+{#if editing}
+    <div class="modal edit_modal">
+        <div class="modal-content" use:clickOutside on:outclick={edit_toggle} in:fly={{ y: '-20vh', duration: 400}}>
+            <span role="button" tabindex="0" class="xbutton" title="close" on:click={edit_toggle} on:keydown={edit_toggle}>&times;</span>
+            <div class="title">타임 정보 수정</div>
+            <br>
+            <form on:submit={handleEdit} method="PUT" class="form">
+                <div class="stack">
+                    <label><input name="date" type="date" required bind:value={date} style="width:120px" readonly></label>
+                    <label><input name="number" type="number" min="1" max="5" bind:value={time} required style="width:40px" readonly> 타임</label>
+                </div>
+                <br>
+                <div class="stack">
+                <label>지기 이름 <input name="name" type="text" required style="width:5em" autocomplete="off" bind:value={mento}></label>
+                <label>출근 시간 <input name="time" type="time" required bind:value={arrival_time} style="width:8em"></label>
+                </div>
+                <div class="stack">
+                <label>제자 이름 <input name="subname" type="text" style="width:5em" autocomplete="off" bind:value={mentee}></label>
+                <label>출근 시간 <input name="time" type="time" bind:value={mentee_arrival_time} style="width:8em"></label>
+                </div>
+                <br>
+                <label>
+                    <input id="submit2" type="submit" value="타임 수정하기" class="submit">
+                </label>
+            </form>
+            <button class="delete" on:click={deleteTime}>삭제</button>
+        </div>
+    </div>
+{/if}
+
 <style>
+    input {
+        background-color: var(--secondary-secondary-200);
+        color: var(--gray-gray-950);
+        font-family: var(--medium-font-family, "NotoSansKr-Medium", sans-serif);
+        font-size: var(--medium-font-size, 16px);
+        font-weight: var(--medium-font-weight, 500);
+    }
+    label {
+        font-family: var(--large-font-family, "NotoSansKr-Medium", sans-serif);
+        font-size: var(--large-font-size, 16px);
+        font-weight: var(--large-font-weight, 500);
+    }
     .stack {
         display: flex;
         flex-direction: row;
@@ -262,6 +409,13 @@
         justify-content: center;
         flex-shrink: 0;
         position: relative;
+    }
+    .form {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
     }
     .box {
         margin-top: 14px;
@@ -285,6 +439,30 @@
     }
     .checked {
         background-color: var(--primary-primary-700);
+    }
+    .delete {
+        text-align: center;
+        color: var(--gray-gray-50);
+        font-family: var(--small-medium-font-family,);
+        font-size: var(--small-medium-font-size, 13px);
+        font-weight: var(--small-medium-font-weight, 500);
+        position: relative;
+        border-radius: 3px;
+        padding: 4px 7px 4px 7px;
+        display: flex;
+        flex-direction: row;
+        gap: 4px;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        width: 60px;
+        height: 40px;
+        position: absolute;
+        box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
+        cursor: pointer;
+        border: none;
+        background: var(--red-red-700);
+        margin-left: 10px;
     }
     .check {
         width: 20px;
@@ -352,9 +530,13 @@
         position: relative;
         box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
         cursor: pointer;
+        border: none;
     }
     .insta {
         background: var(--red-red-500, #f49a9a);
+    }
+    .time_edit {
+        background: var(--gray-gray-500);
     }
     .title {
         color: var(--gray-gray-900, #202020);
@@ -469,6 +651,9 @@
         width: 100%;
         height: 100%;
         margin-left: 58px;
+    }
+    .edit_modal {
+        backdrop-filter: blur(15px);
     }
     .modal-content {
         margin: auto;

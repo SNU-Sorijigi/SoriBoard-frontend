@@ -51,27 +51,27 @@
       <div class="div">{selectedString}&nbsp</div>
       <div class="stack2">
         <div class="stack3">
-            <div class="button" on:click={() => navigate('/time_manage')}>
+            <button class="button" on:click={() => navigate('/time_manage')}>
                 <img src={timetableIcon} alt="timetable" class="icon">
-            </div>
+            </button>
             <div class="text">타임 관리</div>
         </div>
         <div class="stack3">
-            <div class="button" on:click={() => navigate('/display')}>
+            <button class="button" on:click={() => navigate('/display')}>
                 <img src={displayIcon} alt="display" class="icon">
-            </div>
+            </button>
             <div class="text">판서</div>
         </div>
         <div class="stack3">
-            <div class="button" on:click={() => navigate('/stat')}>
+            <button class="button" on:click={() => navigate('/stat')}>
                 <img src={statIcon} alt="stat" class="icon">
-            </div>
+            </button>
             <div class="text">통계</div>
         </div>
         <div class="stack3">
-            <div class="button" on:click={() => navigate('/setting')}>
+            <button class="button" on:click={() => navigate('/setting')}>
                 <img src={settingIcon} alt="setting" class="icon">
-            </div>
+            </button>
             <div class="text">설정</div>
         </div>
       </div>
@@ -84,7 +84,7 @@
                     <div class="sorijigi-snu-musikverein">SORIJIGI SNU MUSIKVEREIN</div>
                 </div>
                 <div class="stack6">
-                    <div class="soriboard-2-0">Soriboard 2.0</div>
+                    <div class="soriboard-2-0">Soriboard 2.0.0</div>
                     <div class="githubbutton" on:click={() => navigate('https://github.com/SNU-Sorijigi/SoriBoard-frontend')}>
                         <img src={githubIcon} alt="github" class="githubicon">
                     </div>
@@ -161,6 +161,7 @@
       filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.25));
       border-radius: 3px;
       cursor: pointer;
+      border: none;
     }
     .text {
       color: var(--gray-gray-950, #1a1a1a);
@@ -180,11 +181,6 @@
       align-items: center;
       flex-shrink: 0;
       padding: 2vh;
-    }
-    .logo {
-      flex-shrink: 0;
-      position: relative;
-      overflow: hidden;
     }
     .stack5 {
       display: flex;
@@ -215,15 +211,6 @@
       flex-shrink: 0;
       position: relative;
     }
-    .stack7 {
-      display: flex;
-      flex-direction: row;
-      gap: 10px;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      position: relative;
-    }
     .soriboard-2-0 {
       color: var(--gray-gray-600, #7c7c7c);
       text-align: left;
@@ -241,13 +228,6 @@
       height: 70px;
       position: relative;
       overflow: visible;
-    }
-    .logoicon {
-        flex-shrink: 0;
-        width: 53px;
-        height: 60px;
-        position: relative;
-        overflow: visible;
     }
     .githubicon {
         flex-shrink: 0;
