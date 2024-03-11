@@ -54,7 +54,7 @@
         <div class="stack">
             <div class="text composer">{composer}</div>
             <div class="spacer" style="height:8vh"></div>
-            <div class="text title">{title}{#if semi_title}<br>{"중"+semi_title}{/if}</div>
+            <div class="text title">{title}{#if semi_title}<br>{"중 "+semi_title}{/if}</div>
             <div class="spacer" style="height:6vh"></div>
             {#if orchestra}
                 <div class="text orchestra">{orchestra}{#if conductor}{" / 지휘: "+conductor}{/if}</div>
