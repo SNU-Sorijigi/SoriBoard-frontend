@@ -109,7 +109,7 @@
         event.preventDefault();
         const formData = {
             time: id,
-            order: timeMusic[timeMusic.length-1].order+1,
+            order: timeMusic.length > 0 ? timeMusic[timeMusic.length-1].order + 1 : 1,
             is_requested: is_requested,
             source: source,
             cd_id: cd_id,
