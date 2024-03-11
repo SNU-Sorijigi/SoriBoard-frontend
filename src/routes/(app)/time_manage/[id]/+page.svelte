@@ -107,6 +107,11 @@
 
     async function handleSubmit(event) {
         event.preventDefault();
+        const isValid = $players.every(player => player !== '' && !player.includes(':'));
+        if (isValid){
+            alert("'{악기/역할} : {연주자 이름}' 형식으로 적어주세요");
+            return;
+        }
         const formData = {
             time: id,
             order: timeMusic.length > 0 ? timeMusic[timeMusic.length-1].order + 1 : 1,

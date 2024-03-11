@@ -217,7 +217,7 @@
       font-family: var(--small-medium-font-family);
       font-size: var(--small-medium-font-size, 13px);
       font-weight: var(--small-medium-font-weight, 500);
-      width: 160px;
+      width: 505px;
     }
     .orchestra {
       font-family: var(--small-font-family, "NotoSansKr-Regular", sans-serif);
