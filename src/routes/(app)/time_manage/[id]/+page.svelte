@@ -78,6 +78,15 @@
         return await response.json();
     }
 
+    function formatDateToKorean(dateString) {
+        const date = new Date(dateString + 'T00:00:00');
+        const options = { month: 'long', day: 'numeric', weekday: 'long' };
+        let formattedDate = date.toLocaleDateString('ko-KR', options);
+        formattedDate = formattedDate.replace('월요일', '(월요일)').replace('화요일', '(화요일)').replace('수요일', '(수요일)')
+        .replace('목요일', '(목요일)').replace('금요일', '(금요일)').replace('토요일', '(토요일)').replace('일요일', '(일요일)');
+        return formattedDate;
+    }
+
     async function loadTimeInfo(id) {
         try {
             const data = await fetchData(id);
@@ -99,6 +108,30 @@
         } catch (error) {
             console.log("Error");
         }
+    }
+
+    function timeChange(time){
+        switch(time) {
+        case 1:
+            time = "9:30~11:00";
+            break;
+        case 2:
+            time = "11:10~12:40";
+            break;
+        case 3:
+            time = "12:50~14:20";
+            break;
+        case 4:
+            time = "14:30~16:00";
+            break;
+        case 5:
+            time = "16:10~17:40";
+            break;
+        default:
+            time = "";
+            break;
+        }
+        return time
     }
 
     onMount(() => {
@@ -339,9 +372,10 @@
             <span role="button" tabindex="0" class="xbutton" title="close" on:click={toggle} on:keydown={toggle}>&times;</span>
             <div class="title">인스타 업로드 형식</div>
             <div class="insta_content">
+            <h3>[ {formatDateToKorean(date)} / {timeChange(time)} ]</h3>
             {#each timeMusic as music}
                 <br>
-                {music.composer_name}
+                <b>{music.composer_name}</b>
                 <br>
                 {music.music_title}
                 {music.music_semi_title ? music.music_semi_title : ""}
@@ -355,7 +389,7 @@
                     <br>
                 {/if}
                 {#each music.player_names as player}
-                    {player}
+                    {player}<br>
                 {/each}
             {/each}
             </div>
@@ -381,7 +415,7 @@
                 </div>
                 <div class="stack">
                 <label>제자 이름 <input name="subname" type="text" style="width:5em" autocomplete="off" bind:value={mentee}></label>
-                <label>출근 시간 <input name="time" type="time" bind:value={mentee_arrival_time} style="width:8em"></label>
+                <label style="visibility: {mentee ? 'visible' : 'hidden'};">출근 시간 <input name="time" type="time" bind:value={mentee_arrival_time} style="width:8em"></label>
                 </div>
                 <br>
                 <label>

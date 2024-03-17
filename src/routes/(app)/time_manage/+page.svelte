@@ -37,7 +37,7 @@
     let mentee_time = writable("");
     $: mento = "";
     $: mentee = "";
-    let users = [["강태현", "조형근", "오유진", "윤지호", "백서연"], ["문도희", "홍주한", "김동민", "이하정", "신재원"], ["박인서", "이재원", "이윤재", "한유진", "최창인"], ["김진웅", "이채은", "한지호", "오윤서", "이현서"], ["정수현", "김태후", "호원재", "박석진", "현상윤"]];
+    let users = [["강태현", "조형근", "오유진", "윤지호", "백서연"], ["문도희", "한유진", "김동민", "이하정", "신재원"], ["박인서", "이재원", "이윤재", "홍주한", "최창인"], ["김진웅", "이채은", "한지호", "오윤서", "이현서"], ["정수현", "김태후", "호원재", "박석진", "현상윤"]];
 
     function create(event) {
         const { year, month, day, time } = event.detail;
@@ -106,7 +106,7 @@
                 </div>
                 <div class="stack">
                 <label>제자 이름 <input name="subname" type="text" style="width:5em" autocomplete="off" bind:value={mentee}></label>
-                <label>출근 시간 <input name="time" type="time" bind:value={$mentee_time} style="width:8em"></label>
+                <label style="visibility: {mentee ? 'visible' : 'hidden'};">출근 시간 <input name="time" type="time" bind:value={$mentee_time} style="width:8em"></label>
                 </div>
                 <br>
                 <label>

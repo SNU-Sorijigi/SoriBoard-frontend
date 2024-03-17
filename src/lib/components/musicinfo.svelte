@@ -73,7 +73,7 @@
     }
 
     $: {
-      const maxElements = 5;
+      const maxElements = 4;
       const currentElements = (orchestra ? 1 : 0) + (conductor ? 1 : 0) + players.length;
       const overLimit = currentElements - maxElements;
 
@@ -103,42 +103,52 @@
       <div class="row_stack">
         <div class="col_stack">
           <input bind:value={title} readonly={!isEditing} class="title">
-          <input bind:value={semiTitle} readonly={!isEditing} class="semititle">
+          <div class="row_stack">
+            <input bind:value={semiTitle} readonly={!isEditing} class="semititle">
+          </div>
+          <div class="row_stack">
+            {#if orchestra != ""}
+            <input bind:value={orchestra} readonly={!isEditing} class="orchestra">
+            {/if}
+            {#if conductor != ""}
+            <input bind:value={conductor} readonly={!isEditing} class="conductor">
+            {/if}
+            {#each players as player}
+            <input bind:value={player} readonly={!isEditing} class="player">
+            {/each}
+          </div>
         </div>
         <div class="col_stack">
-          <button class="button" on:click={goUp}>
-            <img src={upIcon} alt="up" class="arrow_icon">
+        <div class="row_stack">
+          <div class="col_stack">
+            <button class="button" on:click={goUp}>
+              <img src={upIcon} alt="up" class="arrow_icon">
+            </button>
+            <button class="button" on:click={goDown}>
+              <img src={downIcon} alt="down" class="arrow_icon">
+            </button>
+          </div>
+          {#if !isEditing}
+          <button class="button" on:click={toggleEdit}>
+            <img src={editIcon} alt="edit" class="icon">
+            <div class="button_label">수정</div>
           </button>
-          <button class="button" on:click={goDown}>
-            <img src={downIcon} alt="down" class="arrow_icon">
+          {:else}
+          <button class="button" on:click={confirmEdit}>
+            <img src={checkIcon} alt="edit" class="icon icon-black">
+            <div class="button_label">확인</div>
+          </button>
+          {/if}
+          <button class="button" on:click={showDisplay}>
+            <img src={showIcon} alt="show" class="icon"> 
+            <div class="button_label">판서</div>
           </button>
         </div>
-        {#if !isEditing}
-        <button class="button" on:click={toggleEdit}>
-          <img src={editIcon} alt="edit" class="icon">
-          <div class="button_label">수정</div>
-        </button>
-        {:else}
-        <button class="button" on:click={confirmEdit}>
-          <img src={checkIcon} alt="edit" class="icon icon-black">
-          <div class="button_label">확인</div>
-        </button>
-        {/if}
-        <button class="button" on:click={showDisplay}>
-          <img src={showIcon} alt="show" class="icon"> 
-          <div class="button_label">판서</div>
-        </button>
-      </div>
-      <div class="row_stack">
-        {#if orchestra != ""}
-        <input bind:value={orchestra} readonly={!isEditing} class="orchestra">
-        {/if}
-        {#if conductor != ""}
-        <input bind:value={conductor} readonly={!isEditing} class="conductor">
-        {/if}
-        {#each players as player}
-        <input bind:value={player} readonly={!isEditing} class="player">
-        {/each}
+        <div class="row_stack">
+          <input bind:value={cd_id} readonly={!isEditing} class="cd_id">
+          <input bind:value={source} readonly={!isEditing} class="source">
+        </div>
+        </div>
       </div>
     </div>
   </div>
@@ -217,7 +227,19 @@
       font-family: var(--small-medium-font-family);
       font-size: var(--small-medium-font-size, 13px);
       font-weight: var(--small-medium-font-weight, 500);
-      width: 505px;
+      width: 380px;
+    }
+    .source {
+      font-family: var(--small-font-family);
+      font-size: var(--small-font-size, 13px);
+      font-weight: var(--small-font-weight, 500);
+      width: 40px;
+    }
+    .cd_id {
+      font-family: var(--small-font-family);
+      font-size: var(--small-font-size, 13px);
+      font-weight: var(--small-font-weight, 500);
+      width: 50px;
     }
     .orchestra {
       font-family: var(--small-font-family, "NotoSansKr-Regular", sans-serif);
