@@ -14,6 +14,7 @@
 	import { displayConductor } from '$lib/displayStore';
 	import { displayOrchestra } from '$lib/displayStore';
 	import { displayPlayers } from '$lib/displayStore';
+  import { fontSizeInit } from '$lib/displayStore';
 
 	export let composer = '';
 	export let title = '';
@@ -88,6 +89,7 @@
 			spacerSize3: 0.28125,
 			spacerSize4: 0.28125
 		};
+    fontSizeInit();
 		if (ws.readyState === WebSocket.OPEN) {
 			ws.send(JSON.stringify(displayData));
 			ws.send(JSON.stringify(data));

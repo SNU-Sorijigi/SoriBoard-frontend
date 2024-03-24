@@ -14,3 +14,13 @@ export const spacerSize1 = writable(2.25);
 export const spacerSize2 = writable(1.6875);
 export const spacerSize3 = writable(0.28125);
 export const spacerSize4 = writable(0.28125);
+export function fontSizeInit() {
+    composerFontSize.set(3)
+    titleFontSize.set(2);
+    orchestraFontSize.set(1.25);
+    playerFontSize.set(1.25);
+    spacerSize1.set(2.25);
+    spacerSize2.set(1.6875);
+    spacerSize3.set(0.28125);
+    spacerSize4.set(0.28125);
+}

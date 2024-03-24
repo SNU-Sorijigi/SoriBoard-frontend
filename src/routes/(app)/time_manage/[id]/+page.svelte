@@ -349,7 +349,7 @@
 			<Input label="작곡가" bind:value={composer}></Input>
 			<Input label="제목" bind:value={title}></Input>
 			<Input label="곡 세부 정보(악장 등)" bind:value={detail}></Input>
-			<Input label="오케스트라" bind:value={orchestra}></Input>
+			<Input label="오케스트라/실내악단" bind:value={orchestra}></Input>
 			<Input label="지휘자" bind:value={conductor}></Input>
 			{#each $players as player, i}
 				<div class="player_stack">

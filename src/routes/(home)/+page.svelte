@@ -1,10 +1,8 @@
 <script>
 	import { onMount } from 'svelte';
 	import timetableIcon from '$lib/images/timetable.svg';
-	import displayIcon from '$lib/images/display.svg';
 	import statIcon from '$lib/images/stat.svg';
 	import settingIcon from '$lib/images/setting.svg';
-	import logoIcon from '$lib/images/logo.svg';
 	import githubIcon from '$lib/images/github.svg';
 
 	function navigate(url) {
