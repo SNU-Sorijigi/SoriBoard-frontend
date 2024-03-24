@@ -8,6 +8,12 @@
     import downIcon from '$lib/images/down.svg';
     import { webSocketServer } from '$lib/globals';
     import { onMount } from 'svelte';
+    import { displayComposer } from '$lib/displayStore';
+    import { displayTitle } from '$lib/displayStore';
+    import { displaySemiTitle } from '$lib/displayStore';
+    import { displayConductor } from '$lib/displayStore';
+    import { displayOrchestra } from '$lib/displayStore';
+    import { displayPlayers } from '$lib/displayStore';
 
     export let composer="";
     export let title="";
@@ -61,12 +67,30 @@
         ws = new WebSocket(`${webSocketServer}/ws/tv_display/`);
     });
     function showDisplay() {
+      displayComposer.set(composer);
+      displayTitle.set(title);
+      displaySemiTitle.set(semiTitle);
+      displayOrchestra.set(orchestra);
+      displayConductor.set(conductor);
+      displayPlayers.set(players);
       const displayData = {
         time_music_id: id,
         update_type: "music",
       }
+      const data = {
+        update_type: "size",
+        composerFontSize: 3,
+        titleFontSize: 2,
+        orchestraFontSize: 1.25,
+        playerFontSize: 1.25,
+        spacerSize1: 2.25,
+        spacerSize2: 1.6875,
+        spacerSize3: 0.28125,
+        spacerSize4: 0.28125,
+      }
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify(displayData));
+        ws.send(JSON.stringify(data));
       } else {
         console.log("WebSocket is not open. ReadyState: ", ws.readyState);
       }

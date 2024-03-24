@@ -8,6 +8,14 @@
     let orchestra="";
     let conductor="";
     let players=[];
+    let composerFontSize = 6;
+    let titleFontSize = 4;
+    let orchestraFontSize = 2.5;
+    let playerFontSize = 2.5;
+    let spacerSize1 = 8;
+    let spacerSize2 = 6;
+    let spacerSize3 = 1;
+    let spacerSize4 = 1;
     onMount(() => {
         'use strict';
         const ws = new WebSocket(`${webSocketServer}/ws/tv_display/`);
@@ -26,13 +34,22 @@
                     orchestra = '';
                     conductor = '';
                     players = [];
-                }else{
+                }else if(data.update_type == "music"){
                 composer = data.info.composer_name;
                 title = data.info.music_title;
                 semi_title = data.info.music_semi_title
                 orchestra = data.info.orchestra_name;
                 conductor = data.info.conductor_name;
                 players = data.info.player_names;
+                }else{
+                    composerFontSize = data.info.composerFontSize*2;
+                    titleFontSize = data.info.titleFontSize*2;
+                    orchestraFontSize = data.info.orchestraFontSize*2;
+                    playerFontSize = data.info.playerFontSize*2;
+                    spacerSize1 = data.info.spacerSize1*3.5555;
+                    spacerSize2 = data.info.spacerSize2*3.5555;
+                    spacerSize3 = data.info.spacerSize3*3.5555;
+                    spacerSize4 = data.info.spacerSize4*3.5555;
                 }
             } catch (error) {
                 console.error('Error parsing JSON:', error);
@@ -52,17 +69,17 @@
 <div class="app">
 	<div class="contents">
         <div class="stack">
-            <div class="text composer">{composer}</div>
-            <div class="spacer" style="height:8vh"></div>
-            <div class="text title">{title}{#if semi_title}<br>{semi_title}{/if}</div>
-            <div class="spacer" style="height:6vh"></div>
+            <div class="text" style="font-size: {composerFontSize}vw">{composer}</div>
+            <div class="spacer" style="height: {spacerSize1}vh"></div>
+            <div class="text" style="font-size: {titleFontSize}vw">{title}{#if semi_title}<br>{semi_title}{/if}</div>
+            <div class="spacer" style="height: {spacerSize2}vh"></div>
             {#if orchestra}
-                <div class="text orchestra">{orchestra}{#if conductor}{" / 지휘: "+conductor}{/if}</div>
-                <div class="spacer" style="height:1vh"></div>
+                <div class="text" style="font-size: {orchestraFontSize}vw">{orchestra}{#if conductor}{" / 지휘: "+conductor}{/if}</div>
+                <div class="spacer" style="height: {spacerSize3}vh"></div>
             {/if}
             {#each players as player}
-                <div class="text player">{player}</div>
-                <div class="spacer" style="height:1vh"></div>
+                <div class="text" style="font-size: {playerFontSize}vw">{player}</div>
+                <div class="spacer" style="height: {spacerSize4}vh"></div>
             {/each}
         </div>
 	</div>
@@ -100,18 +117,6 @@
         flex: 1;
         position: relative;
         height: 100%;
-    }
-    .composer {
-        font-size: 6vw;
-    }
-    .title {
-        font-size: 4vw;
-    }
-    .orchestra {
-        font-size: 2.5vw;
-    }
-    .player {
-        font-size: 2.5vw;
     }
 </style>
   

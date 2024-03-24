@@ -42,7 +42,7 @@
         return strings[strings.length - 1].text;
     }
     onMount(() => {
-        selectedString = selectStringWithProbability(strings); // Compute the string after component is mounted
+        selectedString = selectStringWithProbability(strings);
     });
 </script>
   
@@ -55,12 +55,6 @@
                 <img src={timetableIcon} alt="timetable" class="icon">
             </button>
             <div class="text">타임 관리</div>
-        </div>
-        <div class="stack3">
-            <button class="button" on:click={() => navigate('/display')}>
-                <img src={displayIcon} alt="display" class="icon">
-            </button>
-            <div class="text">판서</div>
         </div>
         <div class="stack3">
             <button class="button" on:click={() => navigate('/stat')}>

@@ -2,7 +2,8 @@
     import { writable } from 'svelte/store';
     import { onMount } from 'svelte';
     import { page } from '$app/stores';
-    import { fade, fly } from 'svelte/transition';
+    import { fly } from 'svelte/transition';
+    import { goto } from '$app/navigation'; 
     import MusicInfo from '$lib/components/musicinfo.svelte';
     import Input from '$lib/components/input.svelte';
     import BreakButton from '$lib/components/breakButton.svelte';
@@ -10,12 +11,9 @@
     import plusicon from '$lib/images/plus.svg';
     import minusicon from '$lib/images/minus.svg';
     import checkicon from '$lib/images/check.svg';
+    import Tv from '$lib/components/tv.svelte';
 
     $: id = $page.params.id;
-
-    function navigate(url) {
-        window.location.href = url;
-    }
 
     let timeDate = "";
     let timeUser = "";
@@ -58,15 +56,6 @@
                 method: 'DELETE'
             });
             loadTimeInfo(id);
-        }
-    }
-
-    async function fetchTimeInfo() {
-        const response = await fetch(`/api/time/${id}`);
-        if (response.ok) {
-            timeInfo = await response.json();
-        } else {
-            console.error('Failed to fetch TimeInfo');
         }
     }
 
@@ -210,14 +199,23 @@
 
     let visible = false;
     let editing = false;
+    let display = false;
 
     function toggle() {
         visible = !visible;
         editing = false;
+        display = false;
     }
 
     function edit_toggle() {
         editing = !editing;
+        visible = false;
+        display = false;
+    }
+
+    function display_toggle() {
+        display = !display;
+        editing = false;
         visible = false;
     }
 
@@ -246,7 +244,7 @@
             const response = await fetch(`/api/time/${id}`, {
                 method: 'DELETE'
             });
-            navigate('/time_manage');
+            goto('/time_manage');
         }
     }
 
@@ -298,6 +296,9 @@
             <button class="time_edit button" on:click={edit_toggle}>
                 타임 정보 수정
             </button>
+            <button class="time_edit button" on:click={display_toggle}>
+                판서 화면 수정
+            </button>
         </div>
         <div class="timeinfo">{timeDate}<br>{timeUser}</div>
         <div class="buttons">
@@ -334,11 +335,11 @@
             <div class="stack">
                 <div class="box">
                     <div class="label">신청곡</div>
-                    <div class="checkbox" on:click={toggleCheck} class:checked={is_requested}>
+                    <button class="checkbox" on:click={toggleCheck} class:checked={is_requested}>
                         {#if is_requested}
                         <img src={checkicon} alt="check" class="check">
                         {/if}
-                    </div>
+                    </button>
                 </div>
                 <Input label="음원 종류" width="100px" bind:value={source}></Input>
                 <Input label="음반 번호" width="100px" bind:value={cd_id}></Input>
@@ -352,15 +353,15 @@
             <div class="player_stack">
                 <Input label={"연주자 "+(i+1)} bind:value={$players[i]} width={i != 0 ? '265px' : '300px'}></Input>
                 {#if i > 0}
-                    <div class="minus" on:click={() => deletePlayer(i)}>
+                    <button class="minus" on:click={() => deletePlayer(i)}>
                         <img src={minusicon} alt="minus">
-                    </div>
+                    </button>
                 {/if}
             </div>
             {/each}
-            <div class="plus" on:click={addPlayer}>
+            <button class="plus" on:click={addPlayer}>
                 <img src={plusicon} alt="plus">
-            </div>
+            </button>
             <input id="submit1" type="submit" value="곡 추가하기" class="submit">
         </form>
     </div>
@@ -396,7 +397,6 @@
         </div>
     </div>
 {/if}
-
 {#if editing}
     <div class="modal edit_modal">
         <div class="modal-content" use:clickOutside on:outclick={edit_toggle} in:fly={{ y: '-20vh', duration: 400}}>
@@ -423,6 +423,16 @@
                 </label>
             </form>
             <button class="delete" on:click={deleteTime}>삭제</button>
+        </div>
+    </div>
+{/if}
+{#if display}
+    <div class="modal edit_modal">
+        <div class="modal-content2" use:clickOutside on:outclick={display_toggle} in:fly={{ y: '-20vh', duration: 400}}>
+            <span role="button" tabindex="0" class="xbutton" title="close" on:click={display_toggle} on:keydown={display_toggle}>&times;</span>
+            <div class="title">판서 화면 수정</div>
+            <br>
+            <Tv></Tv>
         </div>
     </div>
 {/if}
@@ -458,6 +468,10 @@
     }
     .box {
         margin-top: 14px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
     }
     .label {
         color: var(--primary-primary-700, #b7946c);
@@ -468,9 +482,9 @@
         position: relative;
     }
     .checkbox {
-        margin: auto;
-        width: 20px;
-        height: 20px;
+        padding: 0;
+        width: 24px;
+        height: 24px;
         border-radius: 4px;
         border: 2px solid var(--primary-primary-700);
         cursor: pointer;
@@ -504,8 +518,8 @@
         margin-left: 10px;
     }
     .check {
-        width: 20px;
-        height: 20px;
+        width: 22px;
+        height: 22px;
     }
     .manage-screen {
         width: 100%;
@@ -538,10 +552,6 @@
         font-size: var(--medium-font-size, 16px);
         font-weight: var(--medium-font-weight, 500);
         position: relative;
-    }
-    .buttons .spacer {
-        flex: 1;
-        text-align: center;
     }
     .buttons {
         gap: 40px;
@@ -636,18 +646,34 @@
         width: 32px;
         height: 32px;
         position: relative;
-        overflow: visible;
+        overflow: hidden;
         cursor: pointer;
         margin-top: 8px;
         margin-bottom: 8px;
+        border: none;
+        background-color: var(--secondary-secondary-50);
+    }
+    .plus img {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
     }
     .minus {
         margin-top: 20px;
         width: 32px;
         height: 32px;
         position: relative;
-        overflow: visible;
+        overflow: hidden;
         cursor: pointer;
+        border: none;
+        background-color: var(--secondary-secondary-50);
+    }
+    .minus img {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
     }
     .submit {
         background-color: var(--secondary-secondary-50);
@@ -675,7 +701,6 @@
         font-size: 1.4em;
         border-radius: 10%;
     }
-
     .xbutton:hover {
         color: #fff!important;
         background-color: #f44336!important
@@ -702,6 +727,18 @@
         padding-bottom: 50px;
         outline: 0;
         width: 44vw;
+        border-radius: 2%;
+        border-color: var(--gray-gray-400);
+        border-style: solid;
+    }
+    .modal-content2 {
+        margin: auto;
+        background-color: var(--primary-primary-100);
+        position: relative;
+        padding-top: 30px;
+        padding-bottom: 50px;
+        outline: 0;
+        width: 60vw;
         border-radius: 2%;
         border-color: var(--gray-gray-400);
         border-style: solid;

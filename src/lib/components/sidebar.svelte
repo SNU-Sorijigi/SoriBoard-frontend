@@ -24,9 +24,6 @@
             <img src={playlistIcon} alt="playlist" class="icon">
         </button>
     -->
-        <button class="button" on:click={() => navigate('/display')}>
-            <img src={displayIcon} alt="display" class="icon">
-        </button>
         <button class="button" on:click={() => navigate('/stat')}>
             <img src={statIcon} alt="stats" class="icon">
         </button>
