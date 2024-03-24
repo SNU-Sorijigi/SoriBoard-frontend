@@ -1,114 +1,113 @@
 <script>
-    import homeIcon from '$lib/images/home.svg';
-    import timetableIcon from '$lib/images/timetable.svg';
-    import playlistIcon from '$lib/images/playlist.svg';
-    import displayIcon from '$lib/images/display.svg';
-    import statIcon from '$lib/images/stat.svg';
-    import settingIcon from '$lib/images/setting.svg';
-    
-    function navigate(url) {
-        window.location.href = url;
-    }
+	import homeIcon from '$lib/images/home.svg';
+	import timetableIcon from '$lib/images/timetable.svg';
+	import playlistIcon from '$lib/images/playlist.svg';
+	import displayIcon from '$lib/images/display.svg';
+	import statIcon from '$lib/images/stat.svg';
+	import settingIcon from '$lib/images/setting.svg';
+
+	function navigate(url) {
+		window.location.href = url;
+	}
 </script>
 
 <div class="side-bar">
-    <div class="stack">
-        <button class="button" on:click={() => navigate('/')}>
-            <img src={homeIcon} alt="home" class="icon">
-        </button>
-        <button class="button" on:click={() => navigate('/time_manage')}>
-            <img src={timetableIcon} alt="timetable" class="icon">
-        </button>
-        <!--
+	<div class="stack">
+		<button class="button" on:click={() => navigate('/')}>
+			<img src={homeIcon} alt="home" class="icon" />
+		</button>
+		<button class="button" on:click={() => navigate('/time_manage')}>
+			<img src={timetableIcon} alt="timetable" class="icon" />
+		</button>
+		<!--
         <button class="button" on:click={() => navigate('/time_manage/1')}>
             <img src={playlistIcon} alt="playlist" class="icon">
         </button>
     -->
-        <button class="button" on:click={() => navigate('/stat')}>
-            <img src={statIcon} alt="stats" class="icon">
-        </button>
-        <div class="spacer"></div>
-        <div class="divider"></div>
-        <button class="button" on:click={() => navigate('/setting')}>
-            <img src={settingIcon} alt="settings" class="icon">
-        </button>
-    </div>
+		<button class="button" on:click={() => navigate('/stat')}>
+			<img src={statIcon} alt="stats" class="icon" />
+		</button>
+		<div class="spacer"></div>
+		<div class="divider"></div>
+		<button class="button" on:click={() => navigate('/setting')}>
+			<img src={settingIcon} alt="settings" class="icon" />
+		</button>
+	</div>
 </div>
-  
+
 <style>
-    .side-bar {
-      display: flex;
-      align-items: flex-start;           
-      background: var(--secondary-secondary-100, #fef9f3);
-      border-style: solid;
-      border-color: var(--gray-gray-400, #bcbcbc);
-      border-width: 1px;
-      flex-direction: column;
-      gap: 10px;
-      align-items: flex-start;
-      justify-content: center;
-      height: 100%;
-      position: relative;
-      box-shadow: 0px 4px 5px 0px rgba(0, 0, 0, 0.25);
-      overflow: hidden;
-      padding-left: 4px;
-      padding-right: 4px;
-    }
-    .stack {
-      padding: 4px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      align-items: center;
-      justify-content: flex-start;
-      flex-shrink: 0;
-      height: 336px;
-      position: relative;
-    }
-    .button {
-      border-radius: 3px;
-      padding: 4px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      height: 45px;
-      position: relative;
-      overflow: visible;
-      background: var(--primary-primary-700);
-      filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.25));
-      border-radius: 3px;
-      cursor: pointer;
-      border: none;
-    }
-    .icon {
-        width: 34px;
-        height: 34px;
-        background-size: cover;
-    }
-    .spacer {
-      background: var(--secondary-secondary-100, #fef9f3);
-      padding: 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      align-items: center;
-      justify-content: center;
-      align-self: stretch;
-      flex-shrink: 0;
-      height: 60px;
-      position: relative;
-      overflow: hidden;
-    }
-    .divider {
-      background: var(--gray-gray-300, #d4d4d4);
-      align-self: stretch;
-      flex-shrink: 0;
-      height: 2px;
-      position: relative;
-      overflow: hidden;
-    }
+	.side-bar {
+		display: flex;
+		align-items: flex-start;
+		background: var(--secondary-secondary-100, #fef9f3);
+		border-style: solid;
+		border-color: var(--gray-gray-400, #bcbcbc);
+		border-width: 1px;
+		flex-direction: column;
+		gap: 10px;
+		align-items: flex-start;
+		justify-content: center;
+		height: 100%;
+		position: relative;
+		box-shadow: 0px 4px 5px 0px rgba(0, 0, 0, 0.25);
+		overflow: hidden;
+		padding-left: 4px;
+		padding-right: 4px;
+	}
+	.stack {
+		padding: 4px;
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+		align-items: center;
+		justify-content: flex-start;
+		flex-shrink: 0;
+		height: 336px;
+		position: relative;
+	}
+	.button {
+		border-radius: 3px;
+		padding: 4px;
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+		height: 45px;
+		position: relative;
+		overflow: visible;
+		background: var(--primary-primary-700);
+		filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.25));
+		border-radius: 3px;
+		cursor: pointer;
+		border: none;
+	}
+	.icon {
+		width: 34px;
+		height: 34px;
+		background-size: cover;
+	}
+	.spacer {
+		background: var(--secondary-secondary-100, #fef9f3);
+		padding: 10px;
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+		align-items: center;
+		justify-content: center;
+		align-self: stretch;
+		flex-shrink: 0;
+		height: 60px;
+		position: relative;
+		overflow: hidden;
+	}
+	.divider {
+		background: var(--gray-gray-300, #d4d4d4);
+		align-self: stretch;
+		flex-shrink: 0;
+		height: 2px;
+		position: relative;
+		overflow: hidden;
+	}
 </style>
-  

@@ -2,34 +2,43 @@
 	import { onMount } from 'svelte';
 	import { webSocketServer } from '$lib/globals';
 	import { displayComposer } from '$lib/displayStore';
-  import { displayTitle } from '$lib/displayStore';
-  import { displaySemiTitle } from '$lib/displayStore';
-  import { displayConductor } from '$lib/displayStore';
-  import { displayOrchestra } from '$lib/displayStore';
-  import { displayPlayers } from '$lib/displayStore';
-  import { composerFontSize, titleFontSize, orchestraFontSize, playerFontSize, spacerSize1, spacerSize2, spacerSize3, spacerSize4 } from '$lib/displayStore.js';
-  let ws;
-  onMount(() => {
-        ws = new WebSocket(`${webSocketServer}/ws/tv_display/`);
-  });
-  function editDisplay() {
-      const data = {
-        update_type: "size",
-        composerFontSize: $composerFontSize,
-        titleFontSize: $titleFontSize,
-        orchestraFontSize: $orchestraFontSize,
-        playerFontSize: $playerFontSize,
-        spacerSize1: $spacerSize1,
-        spacerSize2: $spacerSize2,
-        spacerSize3: $spacerSize3,
-        spacerSize4: $spacerSize4,
-      }
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify(data));
-      } else {
-        console.log("WebSocket is not open. ReadyState: ", ws.readyState);
-      }
-    }
+	import { displayTitle } from '$lib/displayStore';
+	import { displaySemiTitle } from '$lib/displayStore';
+	import { displayConductor } from '$lib/displayStore';
+	import { displayOrchestra } from '$lib/displayStore';
+	import { displayPlayers } from '$lib/displayStore';
+	import {
+		composerFontSize,
+		titleFontSize,
+		orchestraFontSize,
+		playerFontSize,
+		spacerSize1,
+		spacerSize2,
+		spacerSize3,
+		spacerSize4
+	} from '$lib/displayStore.js';
+	let ws;
+	onMount(() => {
+		ws = new WebSocket(`${webSocketServer}/ws/tv_display/`);
+	});
+	function editDisplay() {
+		const data = {
+			update_type: 'size',
+			composerFontSize: $composerFontSize,
+			titleFontSize: $titleFontSize,
+			orchestraFontSize: $orchestraFontSize,
+			playerFontSize: $playerFontSize,
+			spacerSize1: $spacerSize1,
+			spacerSize2: $spacerSize2,
+			spacerSize3: $spacerSize3,
+			spacerSize4: $spacerSize4
+		};
+		if (ws.readyState === WebSocket.OPEN) {
+			ws.send(JSON.stringify(data));
+		} else {
+			console.log('WebSocket is not open. ReadyState: ', ws.readyState);
+		}
+	}
 </script>
 
 <div class="app">
@@ -55,15 +64,79 @@
 	</div>
 
 	<div class="buttons">
-		<label>작곡가<input type="range" min="1" max="12" value={$composerFontSize / 0.4} on:input={(e) => ($composerFontSize = +e.target.value * 0.4)}/></label>
-    <label>간격<input type="range" min="1" max="12" value={$spacerSize1 / 0.4} on:input={(e) => ($spacerSize1 = +e.target.value * 0.4)}/></label>
-    <label>곡제목<input type="range" min="1" max="12" value={$titleFontSize / 0.4} on:input={(e) => ($titleFontSize = +e.target.value * 0.4)}/></label>
-    <label>간격<input type="range" min="1" max="12" value={$spacerSize2 / 0.4} on:input={(e) => ($spacerSize2 = +e.target.value * 0.4)}/></label>
-    <label>오케스트라<input type="range" min="1" max="12" value={$orchestraFontSize / 0.4} on:input={(e) => ($orchestraFontSize = +e.target.value * 0.4)}/></label>
-    <label>간격<input type="range" min="1" max="12" value={$spacerSize3 / 0.4} on:input={(e) => ($spacerSize3 = +e.target.value * 0.4)}/></label>
-    <label>연주자<input type="range" min="1" max="12" value={$playerFontSize / 0.4} on:input={(e) => ($playerFontSize = +e.target.value * 0.4)}/></label>
-    <label>간격<input type="range" min="1" max="12" value={$spacerSize4 / 0.4} on:input={(e) => ($spacerSize4= +e.target.value * 0.4)}/></label>
-    <button on:click={editDisplay}>수정하기</button>
+		<label
+			>작곡가<input
+				type="range"
+				min="1"
+				max="12"
+				value={$composerFontSize / 0.4}
+				on:input={(e) => ($composerFontSize = +e.target.value * 0.4)}
+			/></label
+		>
+		<label
+			>간격<input
+				type="range"
+				min="1"
+				max="12"
+				value={$spacerSize1 / 0.4}
+				on:input={(e) => ($spacerSize1 = +e.target.value * 0.4)}
+			/></label
+		>
+		<label
+			>곡제목<input
+				type="range"
+				min="1"
+				max="12"
+				value={$titleFontSize / 0.4}
+				on:input={(e) => ($titleFontSize = +e.target.value * 0.4)}
+			/></label
+		>
+		<label
+			>간격<input
+				type="range"
+				min="1"
+				max="12"
+				value={$spacerSize2 / 0.4}
+				on:input={(e) => ($spacerSize2 = +e.target.value * 0.4)}
+			/></label
+		>
+		<label
+			>오케스트라<input
+				type="range"
+				min="1"
+				max="12"
+				value={$orchestraFontSize / 0.4}
+				on:input={(e) => ($orchestraFontSize = +e.target.value * 0.4)}
+			/></label
+		>
+		<label
+			>간격<input
+				type="range"
+				min="1"
+				max="12"
+				value={$spacerSize3 / 0.4}
+				on:input={(e) => ($spacerSize3 = +e.target.value * 0.4)}
+			/></label
+		>
+		<label
+			>연주자<input
+				type="range"
+				min="1"
+				max="12"
+				value={$playerFontSize / 0.4}
+				on:input={(e) => ($playerFontSize = +e.target.value * 0.4)}
+			/></label
+		>
+		<label
+			>간격<input
+				type="range"
+				min="1"
+				max="12"
+				value={$spacerSize4 / 0.4}
+				on:input={(e) => ($spacerSize4 = +e.target.value * 0.4)}
+			/></label
+		>
+		<button on:click={editDisplay}>수정하기</button>
 	</div>
 </div>
 
