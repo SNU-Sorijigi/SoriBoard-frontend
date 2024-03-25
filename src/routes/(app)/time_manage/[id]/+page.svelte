@@ -337,7 +337,7 @@
 			<div class="stack">
 				<div class="box">
 					<div class="label">신청곡</div>
-					<button class="checkbox" on:click={toggleCheck} class:checked={is_requested}>
+					<button type="button" class="checkbox" on:click={toggleCheck} class:checked={is_requested}>
 						{#if is_requested}
 							<img src={checkicon} alt="check" class="check" />
 						{/if}
@@ -359,13 +359,13 @@
 						width={i != 0 ? '265px' : '300px'}
 					></Input>
 					{#if i > 0}
-						<button class="minus" on:click={() => deletePlayer(i)}>
+						<button type="button" class="minus" on:click={() => deletePlayer(i)}>
 							<img src={minusicon} alt="minus" />
 						</button>
 					{/if}
 				</div>
 			{/each}
-			<button class="plus" on:click={addPlayer}>
+			<button type="button" class="plus" on:click={addPlayer}>
 				<img src={plusicon} alt="plus" />
 			</button>
 			<input id="submit1" type="submit" value="곡 추가하기" class="submit" />
