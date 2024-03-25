@@ -5,6 +5,7 @@
 	export let time;
 	let breakTime;
 	let ws;
+	let goodBye = "안녕히가세요";
 
 	function updateBreakTime(time) {
 		switch (time) {
@@ -45,8 +46,19 @@
 			console.log('WebSocket is not open. ReadyState: ', ws.readyState);
 		}
 	}
+	function quit() {
+		const displayData = {
+			update_type: 'breaktime',
+			breaktime: goodBye,
+		};
+		if (ws.readyState === WebSocket.OPEN) {
+			ws.send(JSON.stringify(displayData));
+		} else {
+			console.log('WebSocket is not open. ReadyState: ', ws.readyState);
+		}
+	}
 </script>
-
+{#if time!=5}
 <div class="set">
 	<button class="sleep button" on:click={showDisplay}>
 		<img src={sleeplogo} alt="sleep" />
@@ -54,7 +66,15 @@
 	</button>
 	<input name="time" type="time" bind:value={breakTime} style="width:110px" />
 </div>
-
+{:else}
+<div class="set">
+	<button class="sleep button" on:click={quit}>
+		<img src={sleeplogo} alt="sleep" />
+		운영 종료
+	</button>
+	<input name="time" type="text" bind:value={goodBye} style="width:110px" />
+</div>
+{/if}
 <style>
 	input {
 		background-color: var(--secondary-secondary-200);

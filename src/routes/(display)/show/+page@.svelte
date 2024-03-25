@@ -27,13 +27,23 @@
 		ws.onmessage = (event) => {
 			try {
 				const data = JSON.parse(event.data);
+				const regexPattern = /^~(0[0-9]|1[0-9]|2[0-3]):([0-5][0-9])$/;
 				if (data.update_type == 'breaktime') {
+					if (!regexPattern.test(data.info)){
+						composer = '운영 종료'
+						title = data.info;
+						semi_title = '';
+						orchestra = '';
+						conductor = '';
+						players = [];
+					}else{
 					composer = '기기 휴식';
 					title = data.info;
 					semi_title = '';
 					orchestra = '';
 					conductor = '';
 					players = [];
+					}
 				} else if (data.update_type == 'music') {
 					composer = data.info.composer_name;
 					title = data.info.music_title;
