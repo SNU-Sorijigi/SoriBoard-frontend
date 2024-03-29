@@ -133,12 +133,8 @@
 						<input bind:value={semiTitle} readonly={!isEditing} class="semititle" />
 					</div>
 					<div class="row_stack">
-						{#if orchestra != ''}
-							<input bind:value={orchestra} readonly={!isEditing} class="orchestra" />
-						{/if}
-						{#if conductor != ''}
-							<input bind:value={conductor} readonly={!isEditing} class="conductor" />
-						{/if}
+						<input bind:value={orchestra} readonly={!isEditing} class="orchestra" />
+						<input bind:value={conductor} readonly={!isEditing} class="conductor" />
 						{#each players as player}
 							<input bind:value={player} readonly={!isEditing} class="player" />
 						{/each}
