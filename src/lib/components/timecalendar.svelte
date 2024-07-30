@@ -53,7 +53,7 @@
 	$: weekList = createWeekList(weeksInMonth);
 </script>
 
-<div class="calendar">
+<div class="timecalendar">
 	<div class="header">
 		<div class="month">{formatMonthDisplay(month, year)}</div>
 		<div class="buttons">
@@ -85,7 +85,7 @@
 </div>
 
 <style>
-	.calendar {
+	.timecalendar {
 		display: flex;
 		flex-direction: column;
 		gap: 20px;

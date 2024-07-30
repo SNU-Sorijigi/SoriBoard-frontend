@@ -1,5 +1,5 @@
 <script>
-	import Calendar from '$lib/components/calendar.svelte';
+	import TimeCalendar from '$lib/components/timecalendar.svelte';
 	import { fade, fly } from 'svelte/transition';
 	import { onMount } from 'svelte';
 	import { writable } from 'svelte/store';
@@ -93,7 +93,7 @@
 	<meta name="description" content="SoriBoard" />
 </svelte:head>
 
-<Calendar on:createTime={create} />
+<TimeCalendar on:createTime={create} />
 {#if visible}
 	<div class="modal">
 		<div
