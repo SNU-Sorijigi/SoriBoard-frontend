@@ -3,13 +3,13 @@
 	import { onMount } from 'svelte';
 	import Input from '$lib/components/input.svelte';
 	import UserInfo from '$lib/components/userinfo.svelte';
-	import checkicon from '$lib/images/check.svg';
+	import checkIcon from '$lib/images/check.svg';
 
 	const users = writable([]);
 
 	async function fetchUsers() {
 		try {
-			const response = await fetch('/api/user');
+			const response = await fetch('/api/user/');
 			const data = await response.json();
 			users.set(data);
 		} catch (error) {
@@ -24,11 +24,11 @@
 	let new_name = '';
 	let new_sabu_id = '';
 	let new_major = '';
-	let new_yearId = '';
-	let new_isOb = false;
+	let new_year_id = '';
+	let new_is_ob = false;
 
 	function toggleCheck() {
-		new_isOb = !new_isOb;
+		new_is_ob = !new_is_ob;
 	}
 
 	async function createNewUser(event) {
@@ -36,9 +36,9 @@
 		const newUser = {
 			name: new_name,
 			major: new_major,
-			yearId: new_yearId,
-			isOb: new_isOb,
-			sabu: new_sabu_id || null,
+			year_id: new_year_id,
+			is_ob: new_is_ob,
+			sabu_id: new_sabu_id || null,
 		};
 		const response = await fetch('/api/user', {
 			method: 'POST',
@@ -49,25 +49,35 @@
 		});
 		new_name = '';
 		new_major = '';
-		new_yearId = '';
+		new_year_id = '';
 		new_sabu_id = '';
-		new_isOb = false;
+		new_is_ob = false;
 		location.reload();
+	}
+
+	async function deleteUser(id) {
+		const isConfirmed = confirm('삭제하시겠습니까?');
+		if (isConfirmed) {
+			const response = await fetch(`/api/user/${id}`, {
+				method: 'DELETE'
+			});
+			fetchUsers();
+		}
 	}
 
 	/* let edit = false;
 	let edit_id = '';
 	let edit_name = '';
 	let edit_major = '';
-	let edit_yearId = '';
-	let edit_isOb = false;
+	let edit_year_id = '';
+	let edit_is_ob = false;
 	async function editUser(event) {
 		event.preventDefault();
 		const editedUser = {
 			name: edit_name,
 			major: edit_major,
-			yearId: edit_yearId,
-			isOb: edit_isOb,
+			year_id: edit_year_id,
+			is_ob: edit_is_ob,
 		};
 		const response = await fetch(`/api/user/${edit_id}`, {
 			method: 'PUT',
@@ -85,8 +95,8 @@
 		edit_id = '';
 		edit_name = '';
 		edit_major = '';
-		edit_yearId = '';
-		edit_isOb = false;
+		edit_year_id = '';
+		edit_is_ob = false;
 		location.reload();
 	}
 
@@ -96,8 +106,8 @@
 		edit_id = user.id;
 		edit_name = user.name;
 		edit_major = user.major;
-		edit_yearId = user.year_id;
-		edit_isOb = user.is_ob;
+		edit_year_id = user.year_id;
+		edit_is_ob = user.is_ob;
 	} */
 
 </script>
@@ -127,13 +137,17 @@
 	</div>
 	<div class="content">
 		<div class="userlist hide-scrollbar">
-			{#each users as user}
+			{#each $users as user}
 				<UserInfo
 					id={user.id}
 					name={user.name}
 					major={user.major}
 					year_id={user.year_id}
 					is_ob={user.is_ob}
+					sabu_id={user.sabu_id}
+					sabu_info={user.sabu_info}
+					deleteUser={deleteUser}
+					refetchUsers={fetchUsers}
 				></UserInfo>
 			{/each}
 		</div>
@@ -141,21 +155,21 @@
 			<div class="stack">
 				<div class="box">
 					<div class="label">OB 여부</div>
-					<button type="button" class="checkbox" on:click={toggleCheck} class:checked={new_isOb}>
-						{#if new_isOb}
-							<img src={checkicon} alt="check" class="check" />
+					<button type="button" class="checkbox" on:click={toggleCheck} class:checked={new_is_ob}>
+						{#if new_is_ob}
+							<img src={checkIcon} alt="check" class="check" />
 						{/if}
 					</button>
 				</div>
 			</div>
 			<Input label="이름" bind:value={new_name}></Input>
 			<Input label="전공" bind:value={new_major}></Input>
-			<Input label="학번" bind:value={new_yearId}></Input>
+			<Input label="학번" bind:value={new_year_id}></Input>
 			<label for="sabu-select">사부</label>
 			<select id="sabu-select" bind:value={new_sabu_id}>
 				<option value="">사부 없음</option>
 				{#each $users as user}
-					<option value={user.id}>{user.name} {user.major} {user.yearId}</option>
+					<option value={user.id}>{user.name} {user.major} {user.year_id}</option>
 				{/each}
 			</select>
 			<!--
@@ -375,39 +389,6 @@
 		justify-content: center;
 		position: relative;
 		overflow: hidden;
-	}
-	.plus {
-		width: 32px;
-		height: 32px;
-		position: relative;
-		overflow: hidden;
-		cursor: pointer;
-		margin-top: 8px;
-		margin-bottom: 8px;
-		border: none;
-		background-color: var(--secondary-secondary-50);
-	}
-	.plus img {
-		position: absolute;
-		top: 50%;
-		left: 50%;
-		transform: translate(-50%, -50%);
-	}
-	.minus {
-		margin-top: 20px;
-		width: 32px;
-		height: 32px;
-		position: relative;
-		overflow: hidden;
-		cursor: pointer;
-		border: none;
-		background-color: var(--secondary-secondary-50);
-	}
-	.minus img {
-		position: absolute;
-		top: 50%;
-		left: 50%;
-		transform: translate(-50%, -50%);
 	}
 	.submit {
 		background-color: var(--secondary-secondary-50);

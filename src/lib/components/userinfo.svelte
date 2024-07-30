@@ -1,22 +1,46 @@
 <script>
 	import { createEventDispatcher } from 'svelte';
-	import editIcon from '$lib/images/edit.svg';
-	import checkIcon from '$lib/images/check.svg';
 	import { onMount } from 'svelte';
-  import { fontSizeInit } from '$lib/displayStore';
+	import { writable } from 'svelte/store';
+	import editIcon from '$lib/images/edit.svg';
+	import xIcon from '$lib/images/x.svg';
+	import checkIcon from '$lib/images/check.svg';
 
+	export let id = '';
 	export let name = '';
-	export let sabu = '';
+	export let sabu_id = '';
+	export let sabu_info = '';
 	export let major = '';
-	export let yearId = '';
-	export let isOb = false;
+	export let year_id = '';
+	export let is_ob = false;
 
 	export let deleteUser;
 
-	let sabu_info = sabu.name + " " + sabu.major + " " + sabu.yearId;
+	export let refetchUsers;
+
+
+	const users = writable([]);
+	async function fetchUsers() {
+		try {
+			const response = await fetch('/api/user');
+			const data = await response.json();
+			users.set(data);
+		} catch (error) {
+			console.error('failed to fetch users');
+		}
+	}
+
+	onMount(() => {
+		// fetchUsers();
+	});
+
+	function toggleCheck() {
+		is_ob = !is_ob;
+	}
 
 	let isEditing = false;
 	function toggleEdit() {
+		fetchUsers();
 		isEditing = !isEditing;
 	}
 
@@ -28,10 +52,10 @@
 	async function updateData(id) {
 		const formData = {
 			name: name,
-			sabu: sabu,
+			sabu_id: sabu_id,
 			major: major,
-			yearId: yearId,
-			isOb: isOb
+			year_id: year_id,
+			is_ob: is_ob
 		};
 		const response = await fetch(`/api/user/${id}`, {
 			method: 'PUT',
@@ -43,6 +67,7 @@
 		if (!response.ok) {
 			console.error('failed to edit');
 		}
+		refetchUsers();
 	}
 	const dispatch = createEventDispatcher();
 </script>
@@ -54,27 +79,44 @@
 			<div class="button_label">삭제</div>
 		</button>
 		<input bind:value={name} readonly={!isEditing} class="name" />
-		{#if isOb}
-			<img src={checkicon} alt="check" class="check" />
+		<label>OB</label>
+		{#if isEditing}
+			<button tdype="button" class="checkbox" on:click={toggleCheck} class:checked={is_ob}>
+				{#if is_ob}
+					<img src={checkIcon} alt="check" class="check" />
+				{/if}
+			</button>
 		{:else}
-			<img src={xicon} alt="x" class="check" />
+			{#if is_ob}
+				<img src={checkIcon} alt="check" class="check" />
+			{:else}
+				<img src={xIcon} alt="x" class="check" />
+			{/if}
 		{/if}
 		<div class="divider"></div>
 		<div class="col_stack">
 			<div class="row_stack">
 				<div class="col_stack">
+					<label>사부</label>
 					{#if isEditing}
-						<select bind:value={sabu} class="sabu">
+						<select bind:value={sabu_id} class="sabu">
+							<option value="">해당 없음</option>
 							{#each $users as user}
-								<option value={user.id}>{user.name} {user.major} {user.yearId}</option>
+								<option value={user.id}>{user.name} {user.major} {user.year_id}</option>
 							{/each}
 						</select>
 					{:else}
 						<input bind:value={sabu_info} readonly={!isEditing} class="sabu" />
 					{/if}
 					<div class="row_stack">
+						{#if isEditing}
+						<label>전공</label>
+						{/if}
 						<input bind:value={major} readonly={!isEditing} class="major" />
-						<input bind:value={yearId} readonly={!isEditing} class="yearid" />
+						{#if isEditing}
+						<label>학번</label>
+						{/if}
+						<input bind:value={year_id} readonly={!isEditing} class="yearid" />
 					</div>
 				</div>
 				<div class="col_stack">
@@ -172,7 +214,7 @@
 		font-weight: var(--small-font-weight, 400);
 		width: 110px;
 	}
-	.yearId {
+	.year_id {
 		font-family: var(--small-font-family, 'NotoSansKr-Regular', sans-serif);
 		font-size: var(--small-font-size, 10px);
 		font-weight: var(--small-font-weight, 400);
