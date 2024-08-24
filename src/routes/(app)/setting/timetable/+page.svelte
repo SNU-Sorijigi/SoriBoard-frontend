@@ -90,12 +90,7 @@
 </script>
 
 <main>
-  <h1>User List</h1>
-  <ul class="user-list">
-    {#each $users as user}
-      <li>{user.name}</li>
-    {/each}
-  </ul>
+  <h1>공사 중...</h1>
 </main>
 
 <style>
