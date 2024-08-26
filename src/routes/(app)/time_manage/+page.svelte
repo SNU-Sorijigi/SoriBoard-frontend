@@ -4,6 +4,8 @@
 	import { onMount } from 'svelte';
 	import { writable } from 'svelte/store';
 
+	let semester_exists = false;
+
 	function clickOutside(node) {
 		const handleClick = (event) => {
 			if (!node.contains(event.target)) {
@@ -18,6 +20,72 @@
 				document.removeEventListener('click', handleClick, true);
 			}
 		};
+	}
+
+	async function getSemesterId(year, month) {
+		const response = await fetch(`/api/semester/year/${year}`);
+		const data = await response.json();
+		let semester_id;
+		if (month <= 7) {
+			semester_id = data[0];
+		} else {
+			semester_id = data[1];
+		}
+		return semester_id;
+	}
+
+	async function fetchSemester(id) {
+		if (id) {
+			semester_exists = true;
+			const response = await fetch(`/api/semester/${id}`);
+			const data = await response.json();
+			console.log(data);
+			return data;
+		} else {
+			semester_exists = false;
+		}
+	}
+
+	async function fetchTimetable(semester_id) {
+		const response = await fetch(`/api/timetable/${semester_id}`);
+		const data = await response.json();
+		return data;
+	}
+
+	async function fetchTimetableUnit(timetableunit_id) {
+		const response = await fetch(`/api/timetableunit/${timetableunit_id}`);
+		const data = await response.json();
+		return data;
+	}
+
+	async function fetchJigis(y, m, d, t) {
+		let day = new Date(y, m - 1, d);
+
+		// console.log(`y: ${y}, m: ${m}, d: ${d}, t: ${t}`);
+
+		const semester_id = await getSemesterId(y, m);
+		// console.log(`semester_id: ${semester_id}`);
+
+		const semester_data = await fetchSemester(semester_id);
+		// console.log(`semester_data: ${JSON.stringify(semester_data)}`);
+
+		if (semester_exists === false) {
+			return;
+		}
+
+		const timetable_data = await fetchTimetable(semester_data.timetable_id);
+		// console.log(`timetable_data: ${JSON.stringify(timetable_data)}`);
+
+		const timetable = timetable_data.table;
+		// console.log(`timetable: ${JSON.stringify(timetable)}`);
+
+		const timetableunit_id = timetable[day.getDay()][t];
+		// console.log(`timetableunit_id: ${timetableunit_id}`);
+
+		const timetableunit_data = await fetchTimetableUnit(timetableunit_id);
+		// console.log(`timetableunit_data: ${JSON.stringify(timetableunit_data)}`);
+
+		return timetableunit_data;
 	}
 
 	function toggle() {
@@ -37,6 +105,8 @@
 	let mentee_time = writable('');
 	$: mento = '';
 	$: mentee = '';
+	$: mento_id = '';
+	$: mentee_id = '';
 	let users = [
 		['강태현', '조형근', '오유진', '윤지호', '백서연'],
 		['문도희', '한유진', '김동민', '이하정', '신재원'],
@@ -45,15 +115,29 @@
 		['정수현', '김태후', '호원재', '박석진', '현상윤']
 	];
 
-	function create(event) {
+	let jigis = [];
+
+	async function create(event) {
 		const { year, month, day, time } = event.detail;
+		const timeUnitData = await fetchJigis(year, month, day, time);
+		if (semester_exists === false) {
+			alert('해당 학기가 존재하지 않습니다.');
+			return;
+		}
+		if (timeUnitData.jigi_info === "") {
+			alert('해당 타임의 시간표 정보가 존재하지 않습니다.');
+			return;
+		}
 		let now = new Date(new Date().getTime() + 1000 * 60 * 60 * 9);
 		mento_time.set(now.toISOString().substring(11, 16));
 		mentee_time.set(now.toISOString().substring(11, 16));
 		date.set(formatDate(year, month, day));
 		num.set(time);
-		let d = new Date(year, month - 1, day);
-		mento = users[d.getDay() - 1][time - 1];
+		// mento = users[d.getDay() - 1][time - 1];
+		mento = timeUnitData.jigi_info;
+		mento_id = timeUnitData.user;
+		mentee = timeUnitData.mentee_info;
+		mentee_id = timeUnitData.mentee;
 		toggle();
 	}
 
@@ -66,11 +150,16 @@
 		const formData = {
 			date: $date,
 			time: $num,
-			user: mento,
-			mentee: mentee,
+			user: mento_id,
+			mentee: mentee_id,
 			arrival_time: $mento_time,
 			mentee_arrival_time: $mentee_time
 		};
+
+		if (semester_exists === false) {
+			alert('현재 학기가 존재하지 않습니다.');
+			return;
+		}
 
 		const response = await fetch('/api/time', {
 			method: 'POST',
@@ -140,13 +229,14 @@
 				<br />
 				<div class="stack">
 					<label
-						>지기 이름 <input
+						>지기<input
 							name="name"
 							type="text"
 							required
 							style="width:5em"
 							autocomplete="off"
 							bind:value={mento}
+							readonly
 						/></label
 					>
 					<label
@@ -161,12 +251,13 @@
 				</div>
 				<div class="stack">
 					<label
-						>제자 이름 <input
+						>제자<input
 							name="subname"
 							type="text"
 							style="width:5em"
 							autocomplete="off"
 							bind:value={mentee}
+							readonly
 						/></label
 					>
 					<label style="visibility: {mentee ? 'visible' : 'hidden'};"

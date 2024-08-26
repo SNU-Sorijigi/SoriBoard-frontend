@@ -19,6 +19,8 @@
 	let timeUser = '';
 	let timeMusic = [];
 	let time;
+	let mento_id;
+	let mentee_id;
 	let mento;
 	let mentee;
 	let arrival_time;
@@ -67,6 +69,17 @@
 		return await response.json();
 	}
 
+	const users = writable([]);
+	async function fetchUsers() {
+		try {
+			const response = await fetch('/api/user');
+			const data = await response.json();
+			users.set(data);
+		} catch (error) {
+			console.error('failed to fetch users');
+		}
+	}
+
 	function formatDateToKorean(dateString) {
 		const date = new Date(dateString + 'T00:00:00');
 		const options = { month: 'long', day: 'numeric', weekday: 'long' };
@@ -90,13 +103,13 @@
 			const month = date.getMonth() + 1;
 			const day = date.getDate();
 			time = data.time;
-			const mento_name = data.user.name;
-			const mentee_name = data.mentee ? ` / ${data.mentee.name}` : '';
+			const mento_name = data.jigi_info;
+			const mentee_name = data.mentee ? ` / ${data.mentee_info}` : '';
 			timeMusic = data.time_music;
 			timeDate = `${year}년 ${month}월 ${day}일 ${time}타임`;
 			timeUser = `${mento_name}${mentee_name}`;
-			mento = data.user.name;
-			mentee = data.mentee ? data.mentee.name : '';
+			mento_id = data.user;
+			mentee_id = data.mentee ? data.mentee : '';
 			arrival_time = data.arrival_time;
 			mentee_arrival_time = data.mentee_arrival_time ? data.mentee_arrival_time : '';
 			date = date.toISOString().split('T')[0];
@@ -130,6 +143,7 @@
 	}
 
 	onMount(() => {
+		fetchUsers();
 		loadTimeInfo(id);
 	});
 
@@ -182,8 +196,8 @@
 		const formData = {
 			date: date,
 			time: time,
-			user: mento,
-			mentee: mentee,
+			user: mento_id,
+			mentee: mentee_id,
 			arrival_time: arrival_time,
 			mentee_arrival_time: mentee_arrival_time
 		};
@@ -460,16 +474,14 @@
 				</div>
 				<br />
 				<div class="stack">
-					<label
-						>지기 이름 <input
-							name="name"
-							type="text"
-							required
-							style="width:5em"
-							autocomplete="off"
-							bind:value={mento}
-						/></label
-					>
+					<label >지기 이름
+						<select bind:value={mento_id}>
+							<option value="">해당 없음</option>
+							{#each $users as user}
+								<option value={user.id}>{user.name} {user.major} {user.year_id}</option>
+							{/each}
+						</select>
+					</label >
 					<label
 						>출근 시간 <input
 							name="time"
@@ -481,16 +493,15 @@
 					>
 				</div>
 				<div class="stack">
-					<label
-						>제자 이름 <input
-							name="subname"
-							type="text"
-							style="width:5em"
-							autocomplete="off"
-							bind:value={mentee}
-						/></label
-					>
-					<label style="visibility: {mentee ? 'visible' : 'hidden'};"
+					<label>견습 이름
+						<select bind:value={mentee_id}>
+							<option value="">해당 없음</option>
+							{#each $users as user}
+								<option value={user.id}>{user.name} {user.major} {user.year_id}</option>
+							{/each}
+						</select>
+					</label >
+					<label style="visibility: {mentee_id ? 'visible' : 'hidden'};"
 						>출근 시간 <input
 							name="time"
 							type="time"
