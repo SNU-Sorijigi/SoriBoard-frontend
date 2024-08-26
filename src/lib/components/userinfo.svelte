@@ -13,6 +13,8 @@
 	export let major = '';
 	export let year_id = '';
 	export let is_ob = false;
+	export let join_year = '';
+	export let join_semester = '';
 
 	export let deleteUser;
 
@@ -55,7 +57,9 @@
 			sabu_id: sabu_id,
 			major: major,
 			year_id: year_id,
-			is_ob: is_ob
+			is_ob: is_ob,
+			join_year: join_year,
+			join_semester: join_semester
 		};
 		const response = await fetch(`/api/user/${id}`, {
 			method: 'PUT',
@@ -84,6 +88,8 @@
 			<button tdype="button" class="checkbox" on:click={toggleCheck} class:checked={is_ob}>
 				{#if is_ob}
 					<img src={checkIcon} alt="check" class="check" />
+				{:else}
+					<img src={xIcon} alt="x" class="check" />
 				{/if}
 			</button>
 		{:else}
@@ -97,7 +103,11 @@
 		<div class="col_stack">
 			<div class="row_stack">
 				<div class="col_stack">
-					<label>사부</label>
+					<div class="row_stack">
+						전공:<input bind:value={major} readonly={!isEditing} class="major" />
+						학번:<input bind:value={year_id} readonly={!isEditing} class="yearid" />
+					</div>
+					<label>사부
 					{#if isEditing}
 						<select bind:value={sabu_id} class="sabu">
 							<option value="">해당 없음</option>
@@ -108,15 +118,20 @@
 					{:else}
 						<input bind:value={sabu_info} readonly={!isEditing} class="sabu" />
 					{/if}
+					</label>
+				</div>
+				<div class="col_stack">
 					<div class="row_stack">
 						{#if isEditing}
-						<label>전공</label>
+							<label>입부 년도</label>
 						{/if}
-						<input bind:value={major} readonly={!isEditing} class="major" />
+						<input bind:value={join_year} readonly={!isEditing} class="join" />
+					</div>
+					<div class="row_stack">
 						{#if isEditing}
-						<label>학번</label>
+							<label>입부 학기</label>
 						{/if}
-						<input bind:value={year_id} readonly={!isEditing} class="yearid" />
+						<input bind:value={join_semester} readonly={!isEditing} class="join" />
 					</div>
 				</div>
 				<div class="col_stack">
@@ -183,7 +198,7 @@
 		font-family: var(--medium-font-family, 'NotoSansKr-Medium', sans-serif);
 		font-size: var(--medium-font-size, 16px);
 		font-weight: var(--medium-font-weight, 500);
-		width: 250px;
+		width: 150px;
 		text-align: center;
 	}
 	.col_stack {
@@ -202,23 +217,29 @@
 		align-items: center;
 		justify-content: flex-start;
 	}
-	.sabu {
+	.major {
 		font-family: var(--small-medium-font-family);
 		font-size: var(--medium-font-size, 13px);
 		font-weight: var(--small-medium-font-weight, 500);
-		width: 505px;
+		width: 110px;
 	}
-	.major {
+	.sabu {
 		font-family: var(--small-font-family, 'NotoSansKr-Regular', sans-serif);
 		font-size: var(--small-font-size, 10px);
 		font-weight: var(--small-font-weight, 400);
-		width: 110px;
+		width: 200px;
+	}
+	.join {
+		font-family: var(--small-font-family, 'NotoSansKr-Regular', sans-serif);
+		font-size: var(--small-font-size, 10px);
+		font-weight: var(--small-font-weight, 400);
+		width: 100px;
 	}
 	.year_id {
 		font-family: var(--small-font-family, 'NotoSansKr-Regular', sans-serif);
 		font-size: var(--small-font-size, 10px);
 		font-weight: var(--small-font-weight, 400);
-		width: 110px;
+		width: 40px;
 	}
 	.button {
 		display: flex;
