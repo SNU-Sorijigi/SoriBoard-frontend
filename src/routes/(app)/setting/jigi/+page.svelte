@@ -27,6 +27,8 @@
 	let new_major = '';
 	let new_year_id = '';
 	let new_is_ob = false;
+	let new_join_year = '';
+	let new_join_semester = '';
 
 	function toggleCheck() {
 		new_is_ob = !new_is_ob;
@@ -34,12 +36,18 @@
 
 	async function createNewUser(event) {
 		event.preventDefault();
+		if (new_join_semester != 1 && new_join_semester != 2) {
+			alert('Semester must be 1 or 2');
+			return;
+		}
 		const newUser = {
 			name: new_name,
 			major: new_major,
 			year_id: new_year_id,
 			is_ob: new_is_ob,
 			sabu_id: new_sabu_id || null,
+			join_year: new_join_year,
+			join_semester: new_join_semester,
 		};
 		const response = await fetch('/api/user', {
 			method: 'POST',
@@ -53,6 +61,8 @@
 		new_year_id = '';
 		new_sabu_id = '';
 		new_is_ob = false;
+		new_join_year = '';
+		new_join_semester = '';
 		location.reload();
 	}
 
@@ -147,6 +157,8 @@
 					is_ob={user.is_ob}
 					sabu_id={user.sabu_id}
 					sabu_info={user.sabu_info}
+					join_year={user.join_year}
+					join_semester={user.join_semester}
 					deleteUser={deleteUser}
 					refetchUsers={fetchUsers}
 				></UserInfo>
@@ -166,6 +178,8 @@
 			<Input label="이름" bind:value={new_name}></Input>
 			<Input label="전공" bind:value={new_major}></Input>
 			<Input label="학번" bind:value={new_year_id}></Input>
+			<Input label="입부 년도" bind:value={new_join_year}></Input>
+			<Input label="입부 학기" bind:value={new_join_semester}></Input>
 			<label for="sabu-select">사부</label>
 			<select id="sabu-select" bind:value={new_sabu_id}>
 				<option value="">사부 없음</option>
