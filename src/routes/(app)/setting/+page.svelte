@@ -1,315 +1,249 @@
 <script>
-	import { writable } from 'svelte/store';
 	import { onMount } from 'svelte';
-	/*
-    export let data;
-    let users = data.users;
-    let searchTerm = '';
-    $: filteredUser = users.filter((user) => user.name.indexOf(searchTerm) !== -1);
+	import timetableIcon from '$lib/images/timetable.svg';
+	import statIcon from '$lib/images/stat.svg';
+	import settingIcon from '$lib/images/setting.svg';
+	import githubIcon from '$lib/images/github.svg';
 
-    const sortKey = writable('name');
-    const sortDirection = writable(1);
+	function navigate(url) {
+		window.location.href = url;
+	}
 
-    $: sortUsers = [...filteredUser].sort((a, b) => {
-        const aVal = a[$sortKey];
-        const bVal = b[$sortKey];
+	let selectedString = '';
 
-        if (aVal < bVal) return -1 * $sortDirection;
-        if (aVal > bVal) return 1 * $sortDirection;
-        return 0;
-    });
+	const strings = [
+		{ text: '오늘도 풍성한 선곡 부탁합니다.', probability: 0.3 },
+		{ text: '오늘의 날씨와 어울리는 선곡 부탁해요~', probability: 0.02 },
+		{ text: '오늘은 이안니스 크세나키스 어때요?', probability: 0.01 },
+		{ text: '오늘은  21세기 음악 트는거 어때요?', probability: 0.03 },
+		{ text: '오늘은 20세기 후반 음악 트는거 어때요?', probability: 0.03 },
+		{ text: '오늘은 바로크 음악 트는거 어때요?', probability: 0.03 },
+		{ text: '오늘은 후기낭만 음악 트는거 어때요?', probability: 0.03 },
+		{ text: '오늘은 20세기 초반 음악 트는거 어때요?', probability: 0.03 },
+		{ text: '＼＼٩(๑`^´๑)۶//／／오늘 하루도 파이팅!＼＼٩(๑`^´๑)۶//／／', probability: 0.05 },
+		{ text: '다음주 쯤엔 특집 한 번 해보시죠!', probability: 0.02 },
+		{ text: '왜 지금 학교에 계시죠..?ㅎ', probability: 0.03 },
+		{ text: '이 글을 보셨다면 오늘 아주 좋은 일이 가득하겠군요:)', probability: 0.02 },
+		{ text: '소리지기에 오신것을 환영합니다!!', probability: 0.4 }
+	];
 
-    const sortTable = (key) => {
-        if ($sortKey === key) {
-            sortDirection.update((n) => -n);
-        } else {
-            sortKey.set(key);
-            sortDirection.set(1);
-        }
-    };
+	function selectStringWithProbability(strings) {
+		const rand = Math.random();
+		let sum = 0;
 
-    let name = '';
-    let major = '';
-    let yearId = '';
-    let isOb = false;
-    async function addNewUser(event) {
-        event.preventDefault();
-        const newUser = {
-            name,
-            major,
-            year_id: yearId,
-            is_ob: isOb
-        };
-        const response = await fetch(`/api/user`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(newUser)
-        });
-        name = '';
-        major = '';
-        yearId = '';
-        isOb = false;
-        location.reload();
-    }
-    let edit = false;
-    let editId = '';
-    let editName = '';
-    let editMajor = '';
-    let editYearId = '';
-    let editIsOb = false;
-    async function editUser(event) {
-        event.preventDefault();
-        const newUser = {
-            name: editName,
-            major: editMajor,
-            year_id: editYearId,
-            is_ob: editIsOb
-        };
-        const response = await fetch(`/api/user/${editId}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(newUser)
-        });
-        if (response.ok) {
-        } else {
-            console.error("Failed to update user");
-        }
-        edit = false;
-        editName = '';
-        editMajor = '';
-        editYearId = '';
-        editIsOb = false;
-        location.reload();
-    }
-    function openEditForm(user) {
-        edit = false;
-        edit = true;
-        editId = user.id;
-        editName = user.name;
-        editMajor = user.major;
-        editYearId = user.year_id;
-        editIsOb = user.is_ob;
-    }
-
-    import { ButtonGroup } from 'flowbite-svelte';
-
-    let year;
-    let semester;
-    let time_num = 4;
-    let semesterId;
-    let startTime;
-    let endTime;
-    let restTime;
-    $: timetable = Array.from({ length: time_num }, () => 
-        Array.from({ length: 5 }, () => 
-            Array.from({ length: 2 }, () => 
-                new Array(6).fill("")
-            )
-        )
-    );
-    function updateDate() {
-        const currentDate = new Date();
-        year = currentDate.getFullYear();
-        const month = currentDate.getMonth();
-        semester = (month >= 2 && month <= 7) ? 1 : 2;
-    }
-
-    async function fetchData(year, semester) {
-        const response = await fetch(`/api/semester/${year}/${semester}`);
-        if (!response.ok) {
-            console.log("Error");
-        }
-        return await response.json();
-    }
-
-    async function fetchSemester(year, semester) {
-        const response = await fetch(`/api/semesterinfo/${year}/${semester}`);
-        if (!response.ok) {
-            console.log("Error");
-        }
-        return await response.json();
-    }
-
-    onMount(() => {
-        updateDate();
-    });
-
-    $: if (year && semester && time_num) {
-        fetchSemester(year, semester).then(data => {
-            if(data.total_time != null){
-                time_num = data.total_time;
-                semesterId = data.id;
-                startTime = data.start_time;
-                endTime = data.end_time;
-                restTime = data.rest_time;
-            }else{
-                time_num = 4;
-                semesterId = null;
-            }
-        });
-        timetable = Array.from({ length: time_num }, () => 
-            Array.from({ length: 5 }, () => 
-                Array.from({ length: 2 }, () => 
-                    new Array(6).fill("")
-                )
-            )
-        );
-        fetchData(year, semester).then(data => {
-            data.forEach(element => {
-                timetable[element.time-1][element.day-1][0][0] = element.user.name;
-                timetable[element.time-1][element.day-1][0][1] = element.user.major;
-                timetable[element.time-1][element.day-1][0][2] = element.user.year_id;
-                timetable[element.time-1][element.day-1][0][3] = element.user.is_ob;
-                timetable[element.time-1][element.day-1][0][4] = element.user.id;
-                timetable[element.time-1][element.day-1][0][5] = element.id;
-                if (element.mentee != null){
-                    timetable[element.time-1][element.day-1][1][0] = element.mentee.name;
-                    timetable[element.time-1][element.day-1][1][1] = element.mentee.major;
-                    timetable[element.time-1][element.day-1][1][2] = element.mentee.year_id;
-                    timetable[element.time-1][element.day-1][1][3] = element.mentee.is_ob;
-                    timetable[element.time-1][element.day-1][1][4] = element.mentee.id;
-                }
-            });
-        });
-    }
-        
-
-    function goToNextSemester() {
-        if (semester == 1) {
-            semester = 2;
-        } else {
-            year += 1;
-            semester = 1;
-        }
-    }
-    function goToPreviousSemester() {
-        if (semester == 2) {
-            semester = 1;
-        } else {
-            year -= 1;
-            semester = 2;
-        }
-    }
-
-    let timeEdit = false;
-    function startTimeEdit() {
-        timeEdit = true;
-    }
-
-    function endEdit() {
-        timeEdit = false;
-        year = year+1;
-        year = year-1;
-    }
-
-    async function saveTimeEdit() {
-        timeEdit = false;
-        event.preventDefault();
-        const newSemester = {
-            year,
-            semester,
-            total_time: time_num,
-            start_time: startTime,
-            end_time: endTime,
-            rest_time: restTime
-        };
-        if(semesterId == null){
-            const response = await fetch(`/api/semester/`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(newSemester)
-            });
-            if (response.ok) {
-                const data = await response.json();
-                semesterId = data.id;
-            } else {
-                console.error("Failed to create semester");
-            }
-        }else{
-            const response = await fetch(`/api/semester/${semesterId}/`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(newSemester)
-            });
-            if (response.ok) {
-            } else {
-                console.error("Failed to update timetable");
-            }
-        }
-        for(let i=0; i<time_num; i++){
-            for(let j=0; j<5; j++){
-                if(timetable[i][j][0][4] != ""){
-                    if(timetable[i][j][0][5] != ""){
-                        const newTimetable = {
-                            user: timetable[i][j][0][4],
-                            semester_info: semesterId,
-                            day: j+1,
-                            time: i+1,
-                            mentee: timetable[i][j][1][4]
-                        };
-                        const response = await fetch(`/api/semesterinfo/${timetable[i][j][0][5]}/`, {
-                            method: 'PUT',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify(newTimetable)
-                        });
-                        if (response.ok) {
-                        } else {
-                            console.error("Failed to update timetable");
-                        }
-                    }else{
-                        const newTimetable = {
-                            user: timetable[i][j][0][4],
-                            semester_info: semesterId,
-                            day: j+1,
-                            time: i+1,
-                            mentee: timetable[i][j][1][4]
-                        };
-                        const response = await fetch(`/api/semesterinfo/`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify(newTimetable)
-                        });
-                        if (response.ok) {
-                        } else {
-                            console.error("Failed to create timetable");
-                        }
-                    }
-                }
-            }
-        }
-        //location.reload();
-    }
-
-    function changeUser(newUser, i, j, k) {
-        timetable[i][j][k][0] = newUser.name;
-        timetable[i][j][k][1] = newUser.major;
-        timetable[i][j][k][2] = newUser.year_id;
-        timetable[i][j][k][3] = newUser.is_ob;
-        timetable[i][j][k][4] = newUser.id;
-    }
-    */
+		for (const item of strings) {
+			sum += item.probability;
+			if (rand <= sum) {
+				return item.text;
+			}
+		}
+		return strings[strings.length - 1].text;
+	}
+	onMount(() => {
+		selectedString = selectStringWithProbability(strings);
+	});
 </script>
 
-<div class="text">공사 중..</div>
+<div class="setting-home-screen">
+	<div class="stack">
+		<!-- <div class="div">{selectedString}&nbsp</div> -->
+		<div class="div">설정 페이지</div>
+		<div class="stack2">
+			<div class="stack3">
+				<button class="button" on:click={() => navigate('/setting/jigi')}>
+					<img src={timetableIcon} alt="timetable" class="icon" />
+				</button>
+				<div class="text">지기 관리</div>
+			</div>
+			<div class="stack3">
+				<button class="button" on:click={() => navigate('/setting/semester')}>
+					<img src={statIcon} alt="stat" class="icon" />
+				</button>
+				<div class="text">학기 관리</div>
+			</div>
+			<div class="stack3">
+				<button class="button" on:click={() => navigate('/setting/timetable')}>
+					<img src={settingIcon} alt="setting" class="icon" />
+				</button>
+				<div class="text">시간표 관리</div>
+			</div>
+		</div>
+	</div>
+	<footer>
+		<div class="footer">
+			<div class="stack5">
+				<div class="stack6">
+					<div class="sorijigi-snu-musikverein">SORIJIGI SNU MUSIKVEREIN</div>
+				</div>
+				<div class="stack6">
+					<div class="soriboard-2-0">Soriboard 2.0.0</div>
+					<div
+						class="githubbutton"
+						on:click={() => navigate('https://github.com/SNU-Sorijigi/SoriBoard-frontend')}
+					>
+						<img src={githubIcon} alt="github" class="githubicon" />
+					</div>
+				</div>
+			</div>
+		</div>
+	</footer>
+</div>
 
 <style>
-	.text {
+	.setting-home-screen {
+		background: var(--secondary-secondary-100, #fdf1e4);
+		display: flex;
+		flex-direction: column;
+		gap: 0px;
+		align-items: center;
+		justify-content: flex-start;
+		height: 100vh;
+		position: relative;
+		overflow: hidden;
+	}
+	.stack {
+		display: flex;
+		flex-direction: column;
+		gap: 40px;
+		align-items: center;
+		justify-content: center;
+		align-self: stretch;
+		flex: 1;
+		position: relative;
+	}
+	.div {
 		color: var(--gray-gray-950, #1a1a1a);
-		text-align: center;
+		text-align: left;
 		font-family: var(--xlarge-font-family);
 		font-size: var(--xlarge-font-size, 32px);
 		font-weight: var(--xlarge-font-weight, 500);
+		position: relative;
+		display: flex;
+		align-items: center;
+		justify-content: flex-start;
+	}
+	.stack2 {
+		display: flex;
+		flex-direction: row;
+		gap: 160px;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+		position: relative;
+	}
+	.stack3 {
+		display: flex;
+		flex-direction: column;
+		gap: 0px;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+		position: relative;
+	}
+	.button {
+		border-radius: 3px;
+		padding: 20px;
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+		height: auto;
+		position: relative;
+		overflow: visible;
+		background: var(--primary-primary-700);
+		filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.25));
+		border-radius: 3px;
+		cursor: pointer;
+		border: none;
+	}
+	.text {
+		color: var(--gray-gray-950, #1a1a1a);
+		text-align: left;
+		font-family: var(--large-font-family);
+		font-size: var(--large-font-size, 24px);
+		font-weight: var(--large-font-weight, 500);
+		position: relative;
+		display: flex;
+		align-items: center;
+		justify-content: flex-start;
+	}
+	.footer {
+		display: flex;
+		flex-direction: row;
+		gap: 10px;
+		align-items: center;
+		flex-shrink: 0;
+		padding: 2vh;
+	}
+	.stack5 {
+		display: flex;
+		flex-direction: column;
+		gap: 0px;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+		position: relative;
+	}
+	.sorijigi-snu-musikverein {
+		color: var(--gray-gray-950, #1a1a1a);
+		text-align: left;
+		font-family: 'Times New Roman', sans-serif;
+		font-size: 30px;
+		font-weight: 400;
+		position: relative;
+		display: flex;
+		align-items: center;
+		justify-content: flex-start;
+	}
+	.stack6 {
+		display: flex;
+		flex-direction: row;
+		gap: 10px;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+		position: relative;
+	}
+	.soriboard-2-0 {
+		color: var(--gray-gray-600, #7c7c7c);
+		text-align: left;
+		font-family: 'Times New Roman', sans-serif;
+		font-size: 18px;
+		font-weight: 400;
+		position: relative;
+		display: flex;
+		align-items: center;
+		justify-content: flex-start;
+	}
+	.icon {
+		flex-shrink: 0;
+		width: 70px;
+		height: 70px;
+		position: relative;
+		overflow: visible;
+	}
+	.githubicon {
+		flex-shrink: 0;
+		width: 35px;
+		height: 35px;
+		position: relative;
+		overflow: visible;
+	}
+	.githubbutton {
+		border-radius: 3px;
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+		height: auto;
+		position: relative;
+		overflow: visible;
+		filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.25));
+		border-radius: 3px;
+		cursor: pointer;
 	}
 </style>
