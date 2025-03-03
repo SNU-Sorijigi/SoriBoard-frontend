@@ -65,7 +65,7 @@
 				<button class="button" on:click={() => navigate('/setting/timetable')}>
 					<img src={settingIcon} alt="setting" class="icon" />
 				</button>
-				<div class="text">시간표 관리</div>
+				<div class="text">뉴스 관리</div>
 			</div>
 		</div>
 	</div>

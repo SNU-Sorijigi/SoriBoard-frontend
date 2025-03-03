@@ -2,6 +2,8 @@
 	import './display.css';
 	import { onMount } from 'svelte';
 	import { webSocketServer } from '$lib/globals';
+	import { backendServer } from '$lib/globals';
+	import { writable } from 'svelte/store';
 	let composer = '';
 	let title = '';
 	let semi_title = '';
@@ -16,8 +18,23 @@
 	let spacerSize2 = 6;
 	let spacerSize3 = 1;
 	let spacerSize4 = 1;
+	let spacerSize5 = 8;
+	let infoNewsFontSize = 2.5;
+	let instagramFontSize = 2;
+	let infoNews = '';
+	let instagram = '@snu_sorijigi';
+	const news = writable([]);
+	async function fetchNews() {
+		const response = await fetch('/api/information/');
+		const newsdata = await response.json();
+		news.set(newsdata);
+		infoNews = newsdata[0].content;
+	}
 	onMount(() => {
 		'use strict';
+		// Fetch data from backend for news and instagram
+		fetchNews();
+
 		const ws = new WebSocket(`${webSocketServer}/ws/tv_display/`);
 
 		ws.onopen = () => {
@@ -44,6 +61,7 @@
 					conductor = '';
 					players = [];
 					}
+					console.log('Update Breaktime:', data.info);
 				} else if (data.update_type == 'music') {
 					composer = data.info.composer_name;
 					title = data.info.music_title;
@@ -51,6 +69,7 @@
 					orchestra = data.info.orchestra_name;
 					conductor = data.info.conductor_name;
 					players = data.info.player_names;
+					console.log('Update Music:', data.info);
 				} else {
 					composerFontSize = data.info.composerFontSize * 2;
 					titleFontSize = data.info.titleFontSize * 2;
@@ -60,6 +79,10 @@
 					spacerSize2 = data.info.spacerSize2 * 3.5555;
 					spacerSize3 = data.info.spacerSize3 * 3.5555;
 					spacerSize4 = data.info.spacerSize4 * 3.5555;
+					spacerSize5 = data.info.spacerSize5 * 3.5555;
+					infoNewsFontSize = data.info.infoNewsFontSize * 2;
+					instagramFontSize = data.info.instagramFontSize * 2;
+					console.log('Update Music:', data.info);
 				}
 			} catch (error) {
 				console.error('Error parsing JSON:', error);
@@ -95,6 +118,11 @@
 				<div class="text" style="font-size: {playerFontSize}vw">{player}</div>
 				<div class="spacer" style="height: {spacerSize4}vh"></div>
 			{/each}
+			<div class="spacer" style="height: {spacerSize5}vh"></div>
+			<div class="info-outline">
+				<div class="text" style="font-size: {infoNewsFontSize}vw">{infoNews}</div>
+				<div class="text" style="font-size: {instagramFontSize}vw">{instagram}</div>
+			</div>
 		</div>
 	</div>
 </div>
@@ -130,5 +158,11 @@
 		flex: 1;
 		position: relative;
 		height: 100%;
+	}
+	.info-outline {
+		border: 1px solid white;
+		padding: 10px;
+		display: inline-block;
+		text-aligh: center;
 	}
 </style>
