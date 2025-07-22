@@ -98,16 +98,6 @@
 		}
 	}
 
-	$: {
-		const maxElements = 4;
-		const currentElements = (orchestra ? 1 : 0) + (conductor ? 1 : 0) + players.length;
-		const overLimit = currentElements - maxElements;
-
-		if (overLimit > 0) {
-			players = players.slice(0, players.length - overLimit);
-		}
-	}
-
 	const dispatch = createEventDispatcher();
 	function goUp() {
 		dispatch('goUp', { musicid: id });
@@ -132,9 +122,11 @@
 					<div class="row_stack">
 						<input bind:value={semiTitle} readonly={!isEditing} class="semititle" />
 					</div>
-					<div class="row_stack">
+					<div class="orchestra-conductor-row">
 						<input bind:value={orchestra} readonly={!isEditing} class="orchestra" />
 						<input bind:value={conductor} readonly={!isEditing} class="conductor" />
+					</div>
+					<div class="players-grid">
 						{#each players as player}
 							<input bind:value={player} readonly={!isEditing} class="player" />
 						{/each}
@@ -191,7 +183,8 @@
 	}
 	.musicinfo {
 		width: 920px;
-		height: 80px;
+		min-height: 80px;
+		height: auto;
 		border-style: solid;
 		border-color: var(--primary-primary-800, #6a5134);
 		border-width: 1px;
@@ -274,6 +267,20 @@
 		font-size: var(--small-font-size, 10px);
 		font-weight: var(--small-font-weight, 400);
 		width: 110px;
+	}
+	.orchestra-conductor-row {
+		display: flex;
+		flex-direction: row;
+		gap: 3px;
+		align-items: center;
+		justify-content: flex-start;
+	}
+	.players-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, 110px);
+		gap: 3px;
+		max-width: 223px; /* 2 * 110px + 3px gap */
+		align-items: center;
 	}
 	.player {
 		font-family: var(--small-font-family, 'NotoSansKr-Regular', sans-serif);
