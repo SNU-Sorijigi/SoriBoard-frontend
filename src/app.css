@@ -206,11 +206,23 @@
 	/* Effects */
 }
 
+html {
+	width: 100%;
+	min-width: 1000px; /* Ensure minimum width for proper layout */
+	overflow-x: auto; /* Allow horizontal scrolling when needed */
+	overflow-y: auto; /* Allow vertical scrolling when needed */
+}
+
 body {
 	min-height: 100vh;
+	height: auto; /* Allow body to expand based on content */
+	width: 100%;
+	min-width: 1000px; /* Match html minimum width */
 	margin: 0;
 	background-attachment: fixed;
 	background-color: var(--secondary-secondary-50);
 	background-size: cover;
 	background-blend-mode: soft-light;
+	overflow-x: hidden; /* Prevent horizontal body scrolling - let html handle it */
+	overflow-y: auto; /* Allow vertical scrolling when content exceeds viewport */
 }

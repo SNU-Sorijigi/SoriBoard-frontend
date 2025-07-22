@@ -389,7 +389,7 @@
 				></MusicInfo>
 			{/each}
 		</div>
-		<div class="input-comments-section">
+		<div class="form-section">
 			<form on:submit={handleSubmit} method="POST" class="inputfield">
 				<div class="stack">
 					<div class="box">
@@ -785,7 +785,7 @@
 		align-items: flex-start;
 		justify-content: space-around;
 		position: relative;
-		overflow: hidden;
+		overflow: visible;
 		padding: 40px;
 	}
 	@media only screen and (max-width: 1400px) {
@@ -797,11 +797,11 @@
 			align-items: center;
 			justify-content: space-around;
 			position: relative;
-			overflow: hidden;
+			overflow: visible;
 			padding: 40px;
 		}
 	}
-	.input-comments-section {
+	.form-section {
 		display: flex;
 		flex-direction: column;
 		gap: 30px;
@@ -820,11 +820,14 @@
 	.inputfield {
 		display: flex;
 		flex-direction: column;
-		gap: 0px;
+		gap: 10px;
 		align-items: center;
 		justify-content: center;
 		position: relative;
 		overflow: hidden;
+		width: 100%;
+		max-width: 500px;
+		box-sizing: border-box;
 	}
 	.player_stack {
 		display: flex;
@@ -937,49 +940,40 @@
 	.insta_content {
 		text-align: center;
 	}
-	.comment-section {
-		display: flex;
-		flex-direction: column;
-		gap: 15px;
-		width: 100%;
-		max-width: 500px;
-		margin: 0 auto;
-	}
 	.comment-fields {
 		display: flex;
 		flex-direction: column;
-		gap: 15px;
+		gap: 12px;
 		width: 100%;
 	}
 	.comments-section {
-		background-color: var(--secondary-secondary-100);
-		border-radius: 8px;
-		padding: 20px;
-		margin: 20px 0;
-		border: 1px solid var(--gray-gray-300);
-		max-width: 400px;
+		border-radius: 6px;
+		padding: 15px;
+		margin: 15px 0;
 		width: 100%;
+		max-width: 500px; /* Match the form width */
+		box-sizing: border-box; /* Include padding and border in width calculation */
 	}
 	.comment-label {
 		display: flex;
 		flex-direction: column;
-		gap: 5px;
-		font-family: var(--large-font-family, 'NotoSansKr-Medium', sans-serif);
-		font-size: var(--large-font-size, 16px);
-		font-weight: var(--large-font-weight, 500);
+		gap: 3px;
+		font-family: var(--small-medium-font-family, 'NotoSansKr-Medium', sans-serif);
+		font-size: var(--small-medium-font-size, 13px);
+		font-weight: var(--small-medium-font-weight, 500);
 		color: var(--gray-gray-950, #1a1a1a);
 	}
 	.comment-textarea {
 		background-color: var(--secondary-secondary-200);
 		color: var(--gray-gray-950);
-		font-family: var(--medium-font-family, 'NotoSansKr-Medium', sans-serif);
-		font-size: var(--medium-font-size, 16px);
-		font-weight: var(--medium-font-weight, 500);
+		font-family: var(--small-medium-font-family, 'NotoSansKr-Medium', sans-serif);
+		font-size: var(--small-medium-font-size, 13px);
+		font-weight: var(--small-medium-font-weight, 400);
 		border: 1px solid var(--gray-gray-400);
 		border-radius: 4px;
-		padding: 10px;
+		padding: 8px;
 		resize: vertical;
-		min-height: 80px;
+		min-height: 60px;
 		width: 100%;
 		box-sizing: border-box;
 	}
@@ -991,26 +985,35 @@
 	.comment-form {
 		display: flex;
 		flex-direction: column;
-		gap: 15px;
+		gap: 12px;
 		width: 100%;
 	}
 	.comment-submit {
-		margin-top: 10px;
+		margin-top: 8px;
 		background-color: var(--primary-primary-700);
 		color: var(--gray-gray-50);
+		font-size: var(--small-medium-font-size, 13px);
+		padding: 6px 20px 6px 20px;
+		border: 1px solid var(--primary-primary-700);
+		border-radius: 6px;
+		border-width: 2px;
+		cursor: pointer;
+		font-family: var(--medium-font-family);
+		font-weight: var(--medium-font-weight, 500);
+		text-align: center;
 	}
 	.comment-submit:hover {
 		background-color: var(--primary-primary-800);
 	}
 	.comments-title {
 		color: var(--primary-primary-700);
-		font-family: var(--large-font-family, 'NotoSansKr-Medium', sans-serif);
-		font-size: 18px;
+		font-family: var(--medium-font-family, 'NotoSansKr-Medium', sans-serif);
+		font-size: var(--medium-font-size, 16px);
 		font-weight: 600;
-		margin-bottom: 15px;
+		margin-bottom: 12px;
 		text-align: center;
 		border-bottom: 2px solid var(--primary-primary-700);
-		padding-bottom: 8px;
+		padding-bottom: 6px;
 	}
 	.hide-scrollbar {
 		-ms-overflow-style: none; /* Internet Explorer 10+ */
