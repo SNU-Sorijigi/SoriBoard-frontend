@@ -988,20 +988,23 @@
 		gap: 12px;
 		width: 100%;
 	}
-	.comment-submit {
-		margin-top: 8px;
-		background-color: var(--primary-primary-700);
-		color: var(--gray-gray-50);
-		font-size: var(--small-medium-font-size, 13px);
-		padding: 6px 20px 6px 20px;
-		border: 1px solid var(--primary-primary-700);
-		border-radius: 6px;
-		border-width: 2px;
-		cursor: pointer;
-		font-family: var(--medium-font-family);
-		font-weight: var(--medium-font-weight, 500);
-		text-align: center;
-	}
+        .comment-submit {
+                margin-top: 8px;
+                background-color: var(--primary-primary-700);
+                color: var(--gray-gray-50);
+                font-size: var(--small-medium-font-size, 13px);
+                padding: 6px 20px 6px 20px;
+                border: 1px solid var(--primary-primary-700);
+                border-radius: 6px;
+                border-width: 2px;
+                cursor: pointer;
+                font-family: var(--medium-font-family);
+                font-weight: var(--medium-font-weight, 500);
+                text-align: center;
+                width: fit-content;
+                align-self: center;
+                min-width: 0;
+        }
 	.comment-submit:hover {
 		background-color: var(--primary-primary-800);
 	}
