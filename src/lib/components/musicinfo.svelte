@@ -6,6 +6,8 @@
 	import checkIcon from '$lib/images/check.svg';
 	import upIcon from '$lib/images/up.svg';
 	import downIcon from '$lib/images/down.svg';
+	import plusIcon from '$lib/images/plus.svg';
+	import minusIcon from '$lib/images/minus.svg';
 	import { webSocketServer } from '$lib/globals';
 	import { onMount } from 'svelte';
 	import { displayComposer } from '$lib/displayStore';
@@ -98,22 +100,20 @@
 		}
 	}
 
-	$: {
-		const maxElements = 4;
-		const currentElements = (orchestra ? 1 : 0) + (conductor ? 1 : 0) + players.length;
-		const overLimit = currentElements - maxElements;
-
-		if (overLimit > 0) {
-			players = players.slice(0, players.length - overLimit);
-		}
-	}
-
 	const dispatch = createEventDispatcher();
 	function goUp() {
 		dispatch('goUp', { musicid: id });
 	}
 	function goDown() {
 		dispatch('goDown', { musicid: id });
+	}
+
+	function addPlayer() {
+		players = [...players, ''];
+	}
+
+	function removePlayer(index) {
+		players = players.filter((_, i) => i !== index);
 	}
 </script>
 
@@ -132,12 +132,27 @@
 					<div class="row_stack">
 						<input bind:value={semiTitle} readonly={!isEditing} class="semititle" />
 					</div>
-					<div class="row_stack">
+					<div class="orchestra-conductor-row">
 						<input bind:value={orchestra} readonly={!isEditing} class="orchestra" />
 						<input bind:value={conductor} readonly={!isEditing} class="conductor" />
-						{#each players as player}
-							<input bind:value={player} readonly={!isEditing} class="player" />
+					</div>
+					<div class="players-grid">
+						{#each players as player, index}
+							<div class="player-row">
+								<input bind:value={player} readonly={!isEditing} class="player" />
+								{#if isEditing}
+									<button class="player-delete-btn" on:click={() => removePlayer(index)}>
+										<img src={minusIcon} alt="remove player" class="small-icon" />
+									</button>
+								{/if}
+							</div>
 						{/each}
+						{#if isEditing}
+							<button class="player-add-btn" on:click={addPlayer}>
+								<img src={plusIcon} alt="add player" class="small-icon" />
+								<div class="add-label">연주자 추가</div>
+							</button>
+						{/if}
 					</div>
 				</div>
 				<div class="col_stack">
@@ -191,7 +206,8 @@
 	}
 	.musicinfo {
 		width: 920px;
-		height: 80px;
+		min-height: 80px;
+		height: auto;
 		border-style: solid;
 		border-color: var(--primary-primary-800, #6a5134);
 		border-width: 1px;
@@ -267,19 +283,80 @@
 		font-family: var(--small-font-family, 'NotoSansKr-Regular', sans-serif);
 		font-size: var(--small-font-size, 10px);
 		font-weight: var(--small-font-weight, 400);
-		width: 110px;
+		width: 130px;
 	}
 	.conductor {
 		font-family: var(--small-font-family, 'NotoSansKr-Regular', sans-serif);
 		font-size: var(--small-font-size, 10px);
 		font-weight: var(--small-font-weight, 400);
-		width: 110px;
+		width: 130px;
+	}
+	.orchestra-conductor-row {
+		display: flex;
+		flex-direction: row;
+		gap: 3px;
+		align-items: center;
+		justify-content: flex-start;
+	}
+	.players-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+		gap: 3px;
+		max-width: 270px; /* Increased to accommodate larger player fields */
+		align-items: start;
+	}
+	.player-row {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		gap: 2px;
+		width: 100%;
+		min-height: 20px;
 	}
 	.player {
 		font-family: var(--small-font-family, 'NotoSansKr-Regular', sans-serif);
 		font-size: var(--small-font-size, 10px);
 		font-weight: var(--small-font-weight, 400);
-		width: 110px;
+		width: 108px; /* Increased to match larger grid, minus space for delete button */
+		flex-shrink: 0;
+	}
+	.player-delete-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 16px;
+		height: 16px;
+		border: 1px solid var(--primary-primary-500);
+		background-color: var(--primary-primary-200);
+		border-radius: 50%;
+		cursor: pointer;
+		padding: 0;
+		box-shadow: 1px 1px 2px 0px rgba(0, 0, 0, 0.15);
+	}
+	.player-add-btn {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		gap: 4px;
+		width: 130px;
+		height: 28px;
+		border: 1px dashed var(--primary-primary-500);
+		background-color: var(--primary-primary-100);
+		border-radius: 4px;
+		cursor: pointer;
+		padding: 4px;
+	}
+	.small-icon {
+		width: 10px;
+		height: 10px;
+	}
+	.add-label {
+		color: var(--gray-gray-950, #1a1a1a);
+		font-family: var(--small-font-family, 'NotoSansKr-Regular', sans-serif);
+		font-size: var(--small-font-size, 10px);
+		font-weight: var(--small-font-weight, 400);
+		white-space: nowrap;
 	}
 	.button {
 		display: flex;

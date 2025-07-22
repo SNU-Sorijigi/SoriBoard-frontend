@@ -12,7 +12,8 @@
 </script>
 
 <div class="side-bar">
-	<div class="stack">
+	<div class="spacer-top"></div>
+	<div class="main-buttons">
 		<button class="button" on:click={() => navigate('/')}>
 			<img src={homeIcon} alt="home" class="icon" />
 		</button>
@@ -27,12 +28,12 @@
 		<button class="button" on:click={() => navigate('/stat')}>
 			<img src={statIcon} alt="stats" class="icon" />
 		</button>
-		<div class="spacer"></div>
-		<div class="divider"></div>
-		<button class="button" on:click={() => navigate('/setting')}>
-			<img src={settingIcon} alt="settings" class="icon" />
-		</button>
 	</div>
+	<div class="spacer-bottom"></div>
+	<div class="divider"></div>
+	<button class="button" on:click={() => navigate('/setting')}>
+		<img src={settingIcon} alt="settings" class="icon" />
+	</button>
 </div>
 
 <style>
@@ -44,26 +45,32 @@
 		border-color: var(--gray-gray-400, #bcbcbc);
 		border-width: 1px;
 		flex-direction: column;
-		gap: 10px;
-		align-items: flex-start;
-		justify-content: center;
-		height: 100%;
+		gap: 4px;
+		align-items: stretch;
+		justify-content: flex-start;
+		height: 100vh; /* Full viewport height */
+		min-height: 100vh; /* Ensure minimum full height */
+		width: 58px; /* Fixed width for sidebar */
 		position: relative;
 		box-shadow: 0px 4px 5px 0px rgba(0, 0, 0, 0.25);
 		overflow: hidden;
-		padding-left: 4px;
-		padding-right: 4px;
-	}
-	.stack {
 		padding: 4px;
+		flex-shrink: 0;
+	}
+	.spacer-top {
+		flex: 1; /* Take up half the available space */
+		min-height: 50px; /* Minimum spacing */
+	}
+	.main-buttons {
 		display: flex;
 		flex-direction: column;
 		gap: 10px;
 		align-items: center;
-		justify-content: flex-start;
-		flex-shrink: 0;
-		height: 336px;
-		position: relative;
+		justify-content: center;
+	}
+	.spacer-bottom {
+		flex: 1; /* Take up half the available space */
+		min-height: 50px; /* Minimum spacing */
 	}
 	.button {
 		border-radius: 3px;
@@ -88,20 +95,6 @@
 		height: 34px;
 		background-size: cover;
 	}
-	.spacer {
-		background: var(--secondary-secondary-100, #fef9f3);
-		padding: 10px;
-		display: flex;
-		flex-direction: column;
-		gap: 10px;
-		align-items: center;
-		justify-content: center;
-		align-self: stretch;
-		flex-shrink: 0;
-		height: 60px;
-		position: relative;
-		overflow: hidden;
-	}
 	.divider {
 		background: var(--gray-gray-300, #d4d4d4);
 		align-self: stretch;
@@ -109,5 +102,6 @@
 		height: 2px;
 		position: relative;
 		overflow: hidden;
+		margin: 4px 0;
 	}
 </style>

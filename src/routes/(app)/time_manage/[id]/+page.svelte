@@ -27,6 +27,11 @@
 	let mentee_arrival_time;
 	let date;
 
+	// Comment fields
+	let time_comment_music = '';
+	let time_comment_gigi = '';
+	let time_comment_etc = '';
+
 	let composer = '';
 	let title = '';
 	let detail = '';
@@ -112,6 +117,12 @@
 			mentee_id = data.mentee ? data.mentee : '';
 			arrival_time = data.arrival_time;
 			mentee_arrival_time = data.mentee_arrival_time ? data.mentee_arrival_time : '';
+			
+			// Load comment fields
+			time_comment_music = data.time_comment_music || '';
+			time_comment_gigi = data.time_comment_gigi || '';
+			time_comment_etc = data.time_comment_etc || '';
+			
 			date = date.toISOString().split('T')[0];
 		} catch (error) {
 			console.log('Error');
@@ -214,6 +225,37 @@
 			location.reload();
 		} else {
 			console.error('Failed to edit TimeInfo');
+		}
+	}
+
+	async function handleCommentSubmit(event) {
+		event.preventDefault();
+		const formData = {
+			date: date,
+			time: time,
+			user: mento_id,
+			mentee: mentee_id,
+			arrival_time: arrival_time,
+			mentee_arrival_time: mentee_arrival_time,
+			time_comment_music: time_comment_music,
+			time_comment_gigi: time_comment_gigi,
+			time_comment_etc: time_comment_etc
+		};
+
+		const response = await fetch(`/api/time/${id}`, {
+			method: 'PUT',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify(formData)
+		});
+		if (response.ok) {
+			const data = await response.json();
+			alert('코멘트가 저장되었습니다.');
+			// Don't reload - keep the form with current values for further editing
+		} else {
+			console.error('Failed to save comments');
+			alert('코멘트 저장에 실패했습니다.');
 		}
 	}
 
@@ -347,43 +389,78 @@
 				></MusicInfo>
 			{/each}
 		</div>
-		<form on:submit={handleSubmit} method="POST" class="inputfield">
-			<div class="stack">
-				<div class="box">
-					<div class="label">신청곡</div>
-					<button type="button" class="checkbox" on:click={toggleCheck} class:checked={is_requested}>
-						{#if is_requested}
-							<img src={checkicon} alt="check" class="check" />
-						{/if}
-					</button>
-				</div>
-				<Input label="음원 종류" width="100px" bind:value={source}></Input>
-				<Input label="음반 번호" width="100px" bind:value={cd_id}></Input>
-			</div>
-			<Input label="작곡가" bind:value={composer}></Input>
-			<Input label="제목" bind:value={title}></Input>
-			<Input label="곡 세부 정보(악장 등)" bind:value={detail}></Input>
-			<Input label="오케스트라/실내악단" bind:value={orchestra}></Input>
-			<Input label="지휘자" bind:value={conductor}></Input>
-			{#each $players as player, i}
-				<div class="player_stack">
-					<Input
-						label={'연주자 ' + (i + 1)}
-						bind:value={$players[i]}
-						width={i != 0 ? '265px' : '300px'}
-					></Input>
-					{#if i > 0}
-						<button type="button" class="minus" on:click={() => deletePlayer(i)}>
-							<img src={minusicon} alt="minus" />
+		<div class="form-section">
+			<form on:submit={handleSubmit} method="POST" class="inputfield">
+				<div class="stack">
+					<div class="box">
+						<div class="label">신청곡</div>
+						<button type="button" class="checkbox" on:click={toggleCheck} class:checked={is_requested}>
+							{#if is_requested}
+								<img src={checkicon} alt="check" class="check" />
+							{/if}
 						</button>
-					{/if}
+					</div>
+					<Input label="음원 종류" width="100px" bind:value={source}></Input>
+					<Input label="음반 번호" width="100px" bind:value={cd_id}></Input>
 				</div>
-			{/each}
-			<button type="button" class="plus" on:click={addPlayer}>
-				<img src={plusicon} alt="plus" />
-			</button>
-			<input id="submit1" type="submit" value="곡 추가하기" class="submit" />
-		</form>
+				<Input label="작곡가" bind:value={composer}></Input>
+				<Input label="제목" bind:value={title}></Input>
+				<Input label="곡 세부 정보(악장 등)" bind:value={detail}></Input>
+				<Input label="오케스트라/실내악단" bind:value={orchestra}></Input>
+				<Input label="지휘자" bind:value={conductor}></Input>
+				{#each $players as player, i}
+					<div class="player_stack">
+						<Input
+							label={'연주자 ' + (i + 1)}
+							bind:value={$players[i]}
+							width={i != 0 ? '265px' : '300px'}
+						></Input>
+						{#if i > 0}
+							<button type="button" class="minus" on:click={() => deletePlayer(i)}>
+								<img src={minusicon} alt="minus" />
+							</button>
+						{/if}
+					</div>
+				{/each}
+				<button type="button" class="plus" on:click={addPlayer}>
+					<img src={plusicon} alt="plus" />
+				</button>
+				<input id="submit1" type="submit" value="곡 추가하기" class="submit" />
+			</form>
+			
+			<div class="comments-section">
+				<h3 class="comments-title">타임 코멘트</h3>
+				<form on:submit={handleCommentSubmit} method="POST" class="comment-form">
+					<div class="comment-fields">
+						<label class="comment-label">음반 관련 코멘트
+							<textarea
+								bind:value={time_comment_music}
+								placeholder="음악 관련 코멘트를 입력하세요..."
+								rows="4"
+								class="comment-textarea"
+							></textarea>
+						</label>
+						<label class="comment-label">기기 관련 코멘트
+							<textarea
+								bind:value={time_comment_gigi}
+								placeholder="기기 관련 코멘트를 입력하세요..."
+								rows="4"
+								class="comment-textarea"
+							></textarea>
+						</label>
+						<label class="comment-label">기타 코멘트
+							<textarea
+								bind:value={time_comment_etc}
+								placeholder="기타 코멘트를 입력하세요..."
+								rows="4"
+								class="comment-textarea"
+							></textarea>
+						</label>
+					</div>
+					<input type="submit" value="코멘트 저장" class="submit comment-submit" />
+				</form>
+			</div>
+		</div>
 	</div>
 </div>
 
@@ -708,10 +785,10 @@
 		align-items: flex-start;
 		justify-content: space-around;
 		position: relative;
-		overflow: hidden;
+		overflow: visible;
 		padding: 40px;
 	}
-	@media only screen and (max-width: 1200px) {
+	@media only screen and (max-width: 1400px) {
 		.content {
 			display: flex;
 			flex-direction: column;
@@ -720,9 +797,18 @@
 			align-items: center;
 			justify-content: space-around;
 			position: relative;
-			overflow: hidden;
+			overflow: visible;
 			padding: 40px;
 		}
+	}
+	.form-section {
+		display: flex;
+		flex-direction: column;
+		gap: 30px;
+		align-items: center;
+		justify-content: flex-start;
+		max-width: 500px;
+		width: 100%;
 	}
 	.playlist {
 		display: flex;
@@ -734,11 +820,14 @@
 	.inputfield {
 		display: flex;
 		flex-direction: column;
-		gap: 0px;
+		gap: 10px;
 		align-items: center;
 		justify-content: center;
 		position: relative;
 		overflow: hidden;
+		width: 100%;
+		max-width: 500px;
+		box-sizing: border-box;
 	}
 	.player_stack {
 		display: flex;
@@ -850,6 +939,81 @@
 	}
 	.insta_content {
 		text-align: center;
+	}
+	.comment-fields {
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+		width: 100%;
+	}
+	.comments-section {
+		border-radius: 6px;
+		padding: 15px;
+		margin: 15px 0;
+		width: 100%;
+		max-width: 500px; /* Match the form width */
+		box-sizing: border-box; /* Include padding and border in width calculation */
+	}
+	.comment-label {
+		display: flex;
+		flex-direction: column;
+		gap: 3px;
+		font-family: var(--small-medium-font-family, 'NotoSansKr-Medium', sans-serif);
+		font-size: var(--small-medium-font-size, 13px);
+		font-weight: var(--small-medium-font-weight, 500);
+		color: var(--gray-gray-950, #1a1a1a);
+	}
+	.comment-textarea {
+		background-color: var(--secondary-secondary-200);
+		color: var(--gray-gray-950);
+		font-family: var(--small-medium-font-family, 'NotoSansKr-Medium', sans-serif);
+		font-size: var(--small-medium-font-size, 13px);
+		font-weight: var(--small-medium-font-weight, 400);
+		border: 1px solid var(--gray-gray-400);
+		border-radius: 4px;
+		padding: 8px;
+		resize: vertical;
+		min-height: 60px;
+		width: 100%;
+		box-sizing: border-box;
+	}
+	.comment-textarea:focus {
+		outline: none;
+		border-color: var(--primary-primary-700);
+		box-shadow: 0 0 0 2px rgba(183, 148, 108, 0.2);
+	}
+	.comment-form {
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+		width: 100%;
+	}
+	.comment-submit {
+		margin-top: 8px;
+		background-color: var(--primary-primary-700);
+		color: var(--gray-gray-50);
+		font-size: var(--small-medium-font-size, 13px);
+		padding: 6px 20px 6px 20px;
+		border: 1px solid var(--primary-primary-700);
+		border-radius: 6px;
+		border-width: 2px;
+		cursor: pointer;
+		font-family: var(--medium-font-family);
+		font-weight: var(--medium-font-weight, 500);
+		text-align: center;
+	}
+	.comment-submit:hover {
+		background-color: var(--primary-primary-800);
+	}
+	.comments-title {
+		color: var(--primary-primary-700);
+		font-family: var(--medium-font-family, 'NotoSansKr-Medium', sans-serif);
+		font-size: var(--medium-font-size, 16px);
+		font-weight: 600;
+		margin-bottom: 12px;
+		text-align: center;
+		border-bottom: 2px solid var(--primary-primary-700);
+		padding-bottom: 6px;
 	}
 	.hide-scrollbar {
 		-ms-overflow-style: none; /* Internet Explorer 10+ */
