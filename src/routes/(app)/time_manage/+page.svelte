@@ -3,6 +3,8 @@
 	import { fade, fly } from 'svelte/transition';
 	import { onMount } from 'svelte';
 	import { writable } from 'svelte/store';
+	import plusicon from '$lib/images/plus.svg';
+	import minusicon from '$lib/images/minus.svg';
 
 	let semester_exists = false;
 
@@ -103,17 +105,38 @@
 	let date = writable('');
 	let mento_time = writable('');
 	let mentee_time = writable('');
-	$: mento = '';
-	$: mentee = '';
-	$: mento_id = '';
-	$: mentee_id = '';
-	let users = [
-		['강태현', '조형근', '오유진', '윤지호', '백서연'],
-		['문도희', '한유진', '김동민', '이하정', '신재원'],
-		['박인서', '이재원', '이윤재', '홍주한', '최창인'],
-		['김진웅', '이채은', '한지호', '오윤서', '이현서'],
-		['정수현', '김태후', '호원재', '박석진', '현상윤']
-	];
+	let mento = '';
+	let mentee = '';
+	let mento_id = [];
+	let mentee_id = [];
+
+	function addMentoRow() {
+		mento_id = [...mento_id, ''];
+	}
+	function removeMentoRow(index) {
+		mento_id = mento_id.filter((_, i) => i !== index);
+	}
+
+	function addMenteeRow() {
+		mentee_id = [...mentee_id, ''];
+	}
+	function removeMenteeRow(index) {
+		mentee_id = mentee_id.filter((_, i) => i !== index);
+	}
+
+	// Load all users for selection
+	const allUsers = writable([]);
+	async function fetchUsers() {
+		try {
+			const res = await fetch('/api/user/');
+			if (res.ok) {
+				const data = await res.json();
+				allUsers.set(data);
+			}
+		} catch (e) {
+			console.error('Failed to fetch users');
+		}
+	}
 
 	let jigis = [];
 
@@ -124,7 +147,7 @@
 			alert('해당 학기가 존재하지 않습니다.');
 			return;
 		}
-		if (timeUnitData.jigi_info === "") {
+		if (!timeUnitData.jigi_info || timeUnitData.jigi_info.length === 0) {
 			alert('해당 타임의 시간표 정보가 존재하지 않습니다.');
 			return;
 		}
@@ -133,11 +156,18 @@
 		mentee_time.set(now.toISOString().substring(11, 16));
 		date.set(formatDate(year, month, day));
 		num.set(time);
-		// mento = users[d.getDay() - 1][time - 1];
-		mento = timeUnitData.jigi_info;
-		mento_id = timeUnitData.user;
-		mentee = timeUnitData.mentee_info;
-		mentee_id = timeUnitData.mentee;
+		// Prefill from timetable unit
+		mento = Array.isArray(timeUnitData.jigi_info)
+			? timeUnitData.jigi_info.join(', ')
+			: timeUnitData.jigi_info;
+		mento_id = (timeUnitData.users || []).map(String);
+		mentee = Array.isArray(timeUnitData.mentee_info)
+			? timeUnitData.mentee_info.join(', ')
+			: timeUnitData.mentee_info || '';
+		mentee_id = (timeUnitData.mentees || []).map(String);
+
+		// Ensure user list is loaded before showing modal
+		await fetchUsers();
 		toggle();
 	}
 
@@ -150,8 +180,8 @@
 		const formData = {
 			date: $date,
 			time: $num,
-			user: mento_id,
-			mentee: mentee_id,
+			users: mento_id.map(Number),
+			mentees: mentee_id.map(Number),
 			arrival_time: $mento_time,
 			mentee_arrival_time: $mentee_time
 		};
@@ -228,17 +258,27 @@
 				</div>
 				<br />
 				<div class="stack">
-					<label
-						>지기<input
-							name="name"
-							type="text"
-							required
-							style="width:5em"
-							autocomplete="off"
-							bind:value={mento}
-							readonly
-						/></label
-					>
+					<div class="col">
+						<label for="mento-row-0">지기</label>
+						{#each mento_id as id, i}
+							<div class="row">
+								<select id={`mento-row-${i}`} bind:value={mento_id[i]} aria-label={`지기 ${i + 1}`}>
+									<option value="" disabled>선택</option>
+									{#each $allUsers as u}
+										<option value={String(u.id)}>{u.name} {u.major} {u.year_id}</option>
+									{/each}
+								</select>
+								{#if i > 0}
+									<button type="button" class="minus" on:click={() => removeMentoRow(i)}>
+										<img src={minusicon} alt="minus" />
+									</button>
+								{/if}
+							</div>
+						{/each}
+						<button type="button" class="plus" on:click={addMentoRow}>
+							<img src={plusicon} alt="plus" />
+						</button>
+					</div>
 					<label
 						>출근 시간 <input
 							name="time"
@@ -250,17 +290,32 @@
 					>
 				</div>
 				<div class="stack">
-					<label
-						>제자<input
-							name="subname"
-							type="text"
-							style="width:5em"
-							autocomplete="off"
-							bind:value={mentee}
-							readonly
-						/></label
-					>
-					<label style="visibility: {mentee ? 'visible' : 'hidden'};"
+					<div class="col">
+						<label for="mentee-row-0">제자</label>
+						{#each mentee_id as id, i}
+							<div class="row">
+								<select
+									id={`mentee-row-${i}`}
+									bind:value={mentee_id[i]}
+									aria-label={`제자 ${i + 1}`}
+								>
+									<option value="" disabled>선택</option>
+									{#each $allUsers as u}
+										<option value={String(u.id)}>{u.name} {u.major} {u.year_id}</option>
+									{/each}
+								</select>
+								{#if i > 0}
+									<button type="button" class="minus" on:click={() => removeMenteeRow(i)}>
+										<img src={minusicon} alt="minus" />
+									</button>
+								{/if}
+							</div>
+						{/each}
+						<button type="button" class="plus" on:click={addMenteeRow}>
+							<img src={plusicon} alt="plus" />
+						</button>
+					</div>
+					<label style="visibility: {mentee_id.length ? 'visible' : 'hidden'};"
 						>출근 시간 <input
 							name="time"
 							type="time"
@@ -362,5 +417,29 @@
 		font-family: var(--large-font-family, 'NotoSansKr-Medium', sans-serif);
 		font-size: var(--large-font-size, 16px);
 		font-weight: var(--large-font-weight, 500);
+	}
+	.col {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+	}
+	.row {
+		display: flex;
+		flex-direction: row;
+		gap: 6px;
+		align-items: center;
+	}
+	.plus,
+	.minus {
+		width: 32px;
+		height: 32px;
+		border: none;
+		background: var(--secondary-secondary-50);
+		cursor: pointer;
+	}
+	.plus img,
+	.minus img {
+		width: 16px;
+		height: 16px;
 	}
 </style>

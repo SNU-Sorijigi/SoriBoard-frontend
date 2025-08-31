@@ -4,6 +4,8 @@
 	import { writable } from 'svelte/store';
 	import editIcon from '$lib/images/edit.svg';
 	import checkIcon from '$lib/images/check.svg';
+	import plusicon from '$lib/images/plus.svg';
+	import minusicon from '$lib/images/minus.svg';
 
 	export let id;
 
@@ -12,11 +14,11 @@
 	let day = '';
 	let time = '';
 	let timetable_id = '';
-	let jigi_id = '';
-	let mentee_id = '';
+	let jigi_ids = [];
+	let mentee_ids = [];
 
-	let jigi_info = '';
-	let mentee_info = '';
+	let jigi_info = [];
+	let mentee_info = [];
 
 	async function fetchUsers() {
 		try {
@@ -29,14 +31,14 @@
 	}
 
 	async function fetchUnitData(id) {
-		if (id == "") {
+		if (id == '') {
 			day = '';
 			time = '';
 			timetable_id = '';
-			jigi_id = '';
-			mentee_id = '';
-			jigi_info = '';
-			mentee_info = '';
+			jigi_ids = [];
+			mentee_ids = [];
+			jigi_info = [];
+			mentee_info = [];
 		} else {
 			try {
 				const response = await fetch(`/api/timetableunit/${id}`);
@@ -44,10 +46,10 @@
 				day = data.day;
 				time = data.time;
 				timetable_id = data.timetable;
-				jigi_id = data.user;
-				mentee_id = data.mentee;
-				jigi_info = data.jigi_info;
-				mentee_info = data.mentee_info;
+				jigi_ids = (data.users || []).map(String);
+				mentee_ids = (data.mentees || []).map(String);
+				jigi_info = data.jigi_info || [];
+				mentee_info = data.mentee_info || [];
 			} catch (error) {
 				console.error('Failed to fetch timetableunit data');
 			}
@@ -61,6 +63,13 @@
 		isJigiEditing = !isJigiEditing;
 	}
 
+	function addJigiRow() {
+		jigi_ids = [...jigi_ids, ''];
+	}
+	function removeJigiRow(index) {
+		jigi_ids = jigi_ids.filter((_, i) => i !== index);
+	}
+
 	function confirmJigiEdit() {
 		updateData(id);
 		toggleJigiEdit();
@@ -71,14 +80,21 @@
 		isMenteeEditing = !isMenteeEditing;
 	}
 
+	function addMenteeRow() {
+		mentee_ids = [...mentee_ids, ''];
+	}
+	function removeMenteeRow(index) {
+		mentee_ids = mentee_ids.filter((_, i) => i !== index);
+	}
+
 	function confirmMenteeEdit() {
 		updateData(id);
 		toggleMenteeEdit();
 	}
 
 	function resetUnit() {
-		jigi_id = "";
-		mentee_id = "";
+		jigi_ids = [];
+		mentee_ids = [];
 	}
 
 	async function updateData(id) {
@@ -86,8 +102,8 @@
 			day: day,
 			time: time,
 			timetable: timetable_id,
-			user: jigi_id,
-			mentee: mentee_id
+			users: jigi_ids.map(Number),
+			mentees: mentee_ids.map(Number)
 		};
 		const response = await fetch(`/api/timetableunit/${id}`, {
 			method: 'PUT',
@@ -112,18 +128,32 @@
 	<div class="col_stack">
 		<div class="row_stack">
 			<div class="col_stack">
-				<label>지기</label>
+				<label for={`jigi-select-${id}`}>지기</label>
 			</div>
 			<div class="col_stack">
 				{#if isJigiEditing}
-					<select bind:value={jigi_id}>
-						<option value="">해당 없음</option>
-						{#each $users as user}
-							<option value={user.id}>{user.name} {user.major} {user.year_id}</option>
+					<div class="col_stack">
+						{#each jigi_ids as jid, i}
+							<div class="row_stack">
+								<select bind:value={jigi_ids[i]}>
+									<option value="" disabled>선택</option>
+									{#each $users as user}
+										<option value={String(user.id)}>{user.name} {user.major} {user.year_id}</option>
+									{/each}
+								</select>
+								{#if i > 0}
+									<button class="iconbtn" type="button" on:click={() => removeJigiRow(i)}
+										><img src={minusicon} alt="-" /></button
+									>
+								{/if}
+							</div>
 						{/each}
-					</select>
+						<button class="iconbtn" type="button" on:click={addJigiRow}
+							><img src={plusicon} alt="+" /></button
+						>
+					</div>
 				{:else}
-					<div>{jigi_info}</div>
+					<div>{jigi_info && jigi_info.length ? jigi_info.join(', ') : ''}</div>
 				{/if}
 			</div>
 			<div class="col_stack">
@@ -140,18 +170,32 @@
 		</div>
 		<div class="row_stack">
 			<div class="col_stack">
-				<label>견습</label>
+				<label for={`mentee-select-${id}`}>견습</label>
 			</div>
 			<div class="col_stack">
 				{#if isMenteeEditing}
-					<select bind:value={mentee_id}>
-						<option value="">해당 없음</option>
-						{#each $users as user}
-							<option value={user.id}>{user.name} {user.major} {user.year_id}</option>
+					<div class="col_stack">
+						{#each mentee_ids as mid, i}
+							<div class="row_stack">
+								<select bind:value={mentee_ids[i]}>
+									<option value="" disabled>선택</option>
+									{#each $users as user}
+										<option value={String(user.id)}>{user.name} {user.major} {user.year_id}</option>
+									{/each}
+								</select>
+								{#if i > 0}
+									<button class="iconbtn" type="button" on:click={() => removeMenteeRow(i)}
+										><img src={minusicon} alt="-" /></button
+									>
+								{/if}
+							</div>
 						{/each}
-					</select>
+						<button class="iconbtn" type="button" on:click={addMenteeRow}
+							><img src={plusicon} alt="+" /></button
+						>
+					</div>
 				{:else}
-					<div>{mentee_info}</div>
+					<div>{mentee_info && mentee_info.length ? mentee_info.join(', ') : ''}</div>
 				{/if}
 			</div>
 			<div class="col_stack">
@@ -190,5 +234,16 @@
 		gap: 3px;
 		align-items: center;
 		justify-content: flex-start;
+	}
+	.iconbtn {
+		width: 28px;
+		height: 28px;
+		border: none;
+		background: var(--secondary-secondary-50);
+		cursor: pointer;
+	}
+	.iconbtn img {
+		width: 14px;
+		height: 14px;
 	}
 </style>

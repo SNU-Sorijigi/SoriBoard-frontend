@@ -19,8 +19,8 @@
 	let timeUser = '';
 	let timeMusic = [];
 	let time;
-	let mento_id;
-	let mentee_id;
+	let mento_ids = [];
+	let mentee_ids = [];
 	let mento;
 	let mentee;
 	let arrival_time;
@@ -50,6 +50,21 @@
 		players.update((currentPlayers) => {
 			return currentPlayers.filter((_, i) => i !== index);
 		});
+	}
+
+	// Dynamic rows for selecting 지기/견습 (like players UI)
+	function addMentoRow() {
+		mento_ids = [...mento_ids, ''];
+	}
+	function removeMentoRow(index) {
+		mento_ids = mento_ids.filter((_, i) => i !== index);
+	}
+
+	function addMenteeRow() {
+		mentee_ids = [...mentee_ids, ''];
+	}
+	function removeMenteeRow(index) {
+		mentee_ids = mentee_ids.filter((_, i) => i !== index);
 	}
 
 	function toggleCheck() {
@@ -108,21 +123,26 @@
 			const month = date.getMonth() + 1;
 			const day = date.getDate();
 			time = data.time;
-			const mento_name = data.jigi_info;
-			const mentee_name = data.mentee ? ` / ${data.mentee_info}` : '';
+			const mento_name = Array.isArray(data.jigi_info)
+				? data.jigi_info.join(', ')
+				: data.jigi_info || '';
+			const mentee_name =
+				Array.isArray(data.mentee_info) && data.mentee_info.length
+					? ` / ${data.mentee_info.join(', ')}`
+					: '';
 			timeMusic = data.time_music;
 			timeDate = `${year}년 ${month}월 ${day}일 ${time}타임`;
 			timeUser = `${mento_name}${mentee_name}`;
-			mento_id = data.user;
-			mentee_id = data.mentee ? data.mentee : '';
+			mento_ids = (data.users || []).map(String);
+			mentee_ids = (data.mentees || []).map(String);
 			arrival_time = data.arrival_time;
 			mentee_arrival_time = data.mentee_arrival_time ? data.mentee_arrival_time : '';
-			
+
 			// Load comment fields
 			time_comment_music = data.time_comment_music || '';
 			time_comment_gigi = data.time_comment_gigi || '';
 			time_comment_etc = data.time_comment_etc || '';
-			
+
 			date = date.toISOString().split('T')[0];
 		} catch (error) {
 			console.log('Error');
@@ -207,8 +227,8 @@
 		const formData = {
 			date: date,
 			time: time,
-			user: mento_id,
-			mentee: mentee_id,
+			users: mento_ids.filter((v) => v && v !== '').map((v) => Number(v)),
+			mentees: mentee_ids.filter((v) => v && v !== '').map((v) => Number(v)),
 			arrival_time: arrival_time,
 			mentee_arrival_time: mentee_arrival_time
 		};
@@ -233,8 +253,8 @@
 		const formData = {
 			date: date,
 			time: time,
-			user: mento_id,
-			mentee: mentee_id,
+			users: mento_ids.filter((v) => v && v !== '').map((v) => Number(v)),
+			mentees: mentee_ids.filter((v) => v && v !== '').map((v) => Number(v)),
 			arrival_time: arrival_time,
 			mentee_arrival_time: mentee_arrival_time,
 			time_comment_music: time_comment_music,
@@ -394,7 +414,12 @@
 				<div class="stack">
 					<div class="box">
 						<div class="label">신청곡</div>
-						<button type="button" class="checkbox" on:click={toggleCheck} class:checked={is_requested}>
+						<button
+							type="button"
+							class="checkbox"
+							on:click={toggleCheck}
+							class:checked={is_requested}
+						>
 							{#if is_requested}
 								<img src={checkicon} alt="check" class="check" />
 							{/if}
@@ -427,12 +452,13 @@
 				</button>
 				<input id="submit1" type="submit" value="곡 추가하기" class="submit" />
 			</form>
-			
+
 			<div class="comments-section">
 				<h3 class="comments-title">타임 코멘트</h3>
 				<form on:submit={handleCommentSubmit} method="POST" class="comment-form">
 					<div class="comment-fields">
-						<label class="comment-label">음반 관련 코멘트
+						<label class="comment-label"
+							>음반 관련 코멘트
 							<textarea
 								bind:value={time_comment_music}
 								placeholder="음악 관련 코멘트를 입력하세요..."
@@ -440,7 +466,8 @@
 								class="comment-textarea"
 							></textarea>
 						</label>
-						<label class="comment-label">기기 관련 코멘트
+						<label class="comment-label"
+							>기기 관련 코멘트
 							<textarea
 								bind:value={time_comment_gigi}
 								placeholder="기기 관련 코멘트를 입력하세요..."
@@ -448,7 +475,8 @@
 								class="comment-textarea"
 							></textarea>
 						</label>
-						<label class="comment-label">기타 코멘트
+						<label class="comment-label"
+							>기타 코멘트
 							<textarea
 								bind:value={time_comment_etc}
 								placeholder="기타 코멘트를 입력하세요..."
@@ -551,14 +579,31 @@
 				</div>
 				<br />
 				<div class="stack">
-					<label >지기 이름
-						<select bind:value={mento_id}>
-							<option value="">해당 없음</option>
-							{#each $users as user}
-								<option value={user.id}>{user.name} {user.major} {user.year_id}</option>
-							{/each}
-						</select>
-					</label >
+					<div class="col">
+						<label for="mento-row-0">지기 이름</label>
+						{#each mento_ids as val, i}
+							<div class="player_stack">
+								<select
+									id={`mento-row-${i}`}
+									bind:value={mento_ids[i]}
+									aria-label={`지기 ${i + 1}`}
+								>
+									<option value="" disabled>선택</option>
+									{#each $users as user}
+										<option value={String(user.id)}>{user.name} {user.major} {user.year_id}</option>
+									{/each}
+								</select>
+								{#if i > 0}
+									<button type="button" class="minus" on:click={() => removeMentoRow(i)}>
+										<img src={minusicon} alt="minus" />
+									</button>
+								{/if}
+							</div>
+						{/each}
+						<button type="button" class="plus" on:click={addMentoRow}>
+							<img src={plusicon} alt="plus" />
+						</button>
+					</div>
 					<label
 						>출근 시간 <input
 							name="time"
@@ -570,15 +615,35 @@
 					>
 				</div>
 				<div class="stack">
-					<label>견습 이름
-						<select bind:value={mentee_id}>
-							<option value="">해당 없음</option>
-							{#each $users as user}
-								<option value={user.id}>{user.name} {user.major} {user.year_id}</option>
-							{/each}
-						</select>
-					</label >
-					<label style="visibility: {mentee_id ? 'visible' : 'hidden'};"
+					<div class="col">
+						<label for="mentee-row-0">견습 이름</label>
+						{#each mentee_ids as val, i}
+							<div class="player_stack">
+								<select
+									id={`mentee-row-${i}`}
+									bind:value={mentee_ids[i]}
+									aria-label={`견습 ${i + 1}`}
+								>
+									<option value="" disabled>선택</option>
+									{#each $users as user}
+										<option value={String(user.id)}>{user.name} {user.major} {user.year_id}</option>
+									{/each}
+								</select>
+								{#if i > 0}
+									<button type="button" class="minus" on:click={() => removeMenteeRow(i)}>
+										<img src={minusicon} alt="minus" />
+									</button>
+								{/if}
+							</div>
+						{/each}
+						<button type="button" class="plus" on:click={addMenteeRow}>
+							<img src={plusicon} alt="plus" />
+						</button>
+					</div>
+					<label
+						style="visibility: {mentee_ids.filter((v) => v && v !== '').length
+							? 'visible'
+							: 'hidden'};"
 						>출근 시간 <input
 							name="time"
 							type="time"
@@ -988,23 +1053,23 @@
 		gap: 12px;
 		width: 100%;
 	}
-        .comment-submit {
-                margin-top: 8px;
-                background-color: var(--primary-primary-700);
-                color: var(--gray-gray-50);
-                font-size: var(--small-medium-font-size, 13px);
-                padding: 6px 20px 6px 20px;
-                border: 1px solid var(--primary-primary-700);
-                border-radius: 6px;
-                border-width: 2px;
-                cursor: pointer;
-                font-family: var(--medium-font-family);
-                font-weight: var(--medium-font-weight, 500);
-                text-align: center;
-                width: fit-content;
-                align-self: center;
-                min-width: 0;
-        }
+	.comment-submit {
+		margin-top: 8px;
+		background-color: var(--primary-primary-700);
+		color: var(--gray-gray-50);
+		font-size: var(--small-medium-font-size, 13px);
+		padding: 6px 20px 6px 20px;
+		border: 1px solid var(--primary-primary-700);
+		border-radius: 6px;
+		border-width: 2px;
+		cursor: pointer;
+		font-family: var(--medium-font-family);
+		font-weight: var(--medium-font-weight, 500);
+		text-align: center;
+		width: fit-content;
+		align-self: center;
+		min-width: 0;
+	}
 	.comment-submit:hover {
 		background-color: var(--primary-primary-800);
 	}
