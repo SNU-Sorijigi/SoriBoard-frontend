@@ -136,6 +136,8 @@
 		color: var(--gray-gray-950, #1a1a1a);
 	}
 	.history {
+		-webkit-user-select: none;
+		user-select: none;
 		margin-top: 8px;
 		padding: 10px 12px;
 		border: 1px solid var(--primary-primary-700, #b7946c);
