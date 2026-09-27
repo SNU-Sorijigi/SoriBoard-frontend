@@ -35,7 +35,7 @@
 		cursor: pointer;
 	}
 	.toggle button.active {
-		background: var(--primary-primary-700, #b7946c);
-		color: #fff;
+		background: var(--action-bg);
+		color: var(--action-fg);
 	}
 </style>

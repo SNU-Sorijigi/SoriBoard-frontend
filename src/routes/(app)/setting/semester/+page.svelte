@@ -235,8 +235,8 @@
 	}
 
 	.xbutton:hover {
-		color: #fff !important;
-		background-color: #f44336 !important;
+		color: var(--gray-gray-50) !important;
+		background-color: var(--red-red-700) !important;
 	}
 
 	.submit {

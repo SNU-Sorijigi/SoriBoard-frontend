@@ -49,6 +49,14 @@
 </div>
 
 <style>
+	.button {
+		background-color: var(--gray-gray-50);
+		color: var(--gray-gray-950);
+		border: 1px solid var(--gray-gray-600);
+		border-radius: 3px;
+		box-shadow: 2px 2px 0 0 var(--button-shadow);
+		cursor: pointer;
+	}
 	.semestercalendar {
 		display: flex;
 		flex-direction: column;

@@ -143,7 +143,7 @@
 		background-color: var(--black);
 	}
 	.text {
-		color: var(--gray-gray-50, #fcfcfc);
+		color: #ffffff;
 		text-align: center;
 		font-family: 'NotoSansKr-Bold', sans-serif;
 		position: relative;
@@ -160,7 +160,7 @@
 		height: 100%;
 	}
 	.info-outline {
-		border: 1px solid white;
+		border: 1px solid #ffffff;
 		padding: 10px;
 		display: inline-block;
 		text-aligh: center;

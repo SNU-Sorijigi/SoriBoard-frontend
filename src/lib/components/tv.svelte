@@ -274,8 +274,8 @@
 <style>
 	button {
 		margin-top: 4px;
-		background: var(--gray-gray-500);
-		color: var(--gray-gray-50, #fcfcfc);
+		background: var(--neutral-bg);
+		color: var(--neutral-fg);
 		text-align: center;
 		font-family: var(--small-medium-font-family,);
 		font-size: var(--small-medium-font-size, 13px);
@@ -292,7 +292,7 @@
 		width: 100px;
 		height: 45px;
 		position: relative;
-		box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
+		box-shadow: 4px 4px 0 0 var(--button-shadow);
 		cursor: pointer;
 		border: none;
 	}
@@ -336,10 +336,49 @@
 		height: 100%;
 	}
 	.text {
-		color: var(--gray-gray-50, #fcfcfc);
+		color: var(--white);
 		text-align: center;
 		font-family: 'NotoSansKr-Bold', sans-serif;
 		position: relative;
 		font-weight: 700;
+	}
+	/* size sliders: browser-default blue replaced by exact swatches (Micron track, Stretch Limo thumb).
+	   The input keeps a 16px hit area; only the 4px track is painted. */
+	input[type='range'] {
+		-webkit-appearance: none;
+		appearance: none;
+		height: 16px;
+		border: none;
+		background: transparent;
+		cursor: pointer;
+	}
+	input[type='range']::-webkit-slider-runnable-track {
+		height: 4px;
+		border: none;
+		border-radius: 2px;
+		background: var(--control-border);
+	}
+	input[type='range']::-webkit-slider-thumb {
+		-webkit-appearance: none;
+		appearance: none;
+		width: 14px;
+		height: 14px;
+		margin-top: -5px;
+		border: none;
+		border-radius: 50%;
+		background: var(--gray-gray-950);
+	}
+	input[type='range']::-moz-range-track {
+		height: 4px;
+		border: none;
+		border-radius: 2px;
+		background: var(--control-border);
+	}
+	input[type='range']::-moz-range-thumb {
+		width: 14px;
+		height: 14px;
+		border: none;
+		border-radius: 50%;
+		background: var(--gray-gray-950);
 	}
 </style>

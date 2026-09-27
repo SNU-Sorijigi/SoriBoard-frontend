@@ -89,7 +89,7 @@
 		border-style: solid;
 		border-color: var(--gray-gray-400, #bcbcbc);
 		border-width: 1px;
-		box-shadow: 0px 4px 5px 0px rgba(0, 0, 0, 0.25);
+		box-shadow: 4px 4px 5px 0px rgba(0, 0, 0, 0.25);
 	}
 	.newsinfo {
 		margin-left: 120px;

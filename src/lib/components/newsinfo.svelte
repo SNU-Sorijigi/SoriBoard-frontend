@@ -3,7 +3,7 @@
 	import { onMount } from 'svelte';
 	import { writable } from 'svelte/store';
 	import editIcon from '$lib/images/edit.svg';
-	import checkIcon from '$lib/images/check.svg';
+	import checkDarkIcon from '$lib/images/check-dark.svg';
 
 	export let id = '';
 	export let content = '';
@@ -65,7 +65,7 @@
 				</button>
 			{:else}
 				<button class="edit_button" on:click={confirmEdit}>
-					<img src={checkIcon} alt="edit" class="icon icon-black" />
+					<img src={checkDarkIcon} alt="edit" class="icon" />
 					<div class="button_label">확인</div>
 				</button>
 			{/if}
@@ -163,14 +163,14 @@
 		font-weight: var(--small-font-weight, 400);
 		width: 40px;
 	}
-	.button {
+	.edit_button {
 		display: flex;
 		flex-direction: column;
 		gap: 1px;
 		align-items: center;
 		justify-content: flex-start;
 		position: relative;
-		box-shadow: 2px 2px 4px 0px rgba(0, 0, 0, 0.25);
+		box-shadow: 2px 2px 0 0 var(--button-shadow);
 		padding: 4px;
 		border-color: var(--primary-primary-500, #6a5134);
 		border-width: 1px;
@@ -192,9 +192,6 @@
 		height: 14px;
 		position: relative;
 		overflow: visible;
-	}
-	.icon-black {
-		filter: invert(100%);
 	}
 	.button_label {
 		color: var(--gray-gray-950, #1a1a1a);

@@ -14,7 +14,7 @@
 
 <style>
 	.screen {
-		background: var(--secondary-secondary-100, #fdf1e4);
+		background: var(--secondary-secondary-50);
 		display: flex;
 		flex-direction: row;
 		gap: 0px;

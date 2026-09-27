@@ -86,15 +86,15 @@
 	.set {
 		display: flex;
 		flex-direction: row;
-		gap: 4px;
+		gap: 8px; /* room for the 4px diagonal button shadow */
 		align-items: center;
 		justify-content: center;
 	}
 	.sleep {
-		background: var(--blue-blue-600);
+		background: var(--rest-bg);
 	}
 	.button {
-		color: var(--gray-gray-50, #fcfcfc);
+		color: var(--rest-fg);
 		text-align: center;
 		font-family: var(--small-medium-font-family,);
 		font-size: var(--small-medium-font-size, 13px);
@@ -111,7 +111,7 @@
 		width: 100px;
 		height: 45px;
 		position: relative;
-		box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
+		box-shadow: 4px 4px 0 0 var(--button-shadow);
 		cursor: pointer;
 		border: none;
 	}

@@ -270,16 +270,16 @@
 		width: 24px;
 		height: 24px;
 		border-radius: 4px;
-		border: 2px solid var(--primary-primary-700);
+		border: 2px solid var(--control-border);
 		cursor: pointer;
 		background-color: var(--primary-primary-100);
 	}
 	.checked {
-		background-color: var(--primary-primary-700);
+		background-color: var(--checked-bg);
 	}
 	.delete {
 		text-align: center;
-		color: var(--gray-gray-50);
+		color: var(--danger-fg);
 		font-family: var(--small-medium-font-family,);
 		font-size: var(--small-medium-font-size, 13px);
 		font-weight: var(--small-medium-font-weight, 500);
@@ -295,10 +295,10 @@
 		width: 60px;
 		height: 40px;
 		position: absolute;
-		box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
+		box-shadow: 4px 4px 0 0 var(--button-shadow);
 		cursor: pointer;
 		border: none;
-		background: var(--red-red-700);
+		background: var(--danger-bg);
 		margin-left: 10px;
 	}
 	.check {
@@ -326,7 +326,7 @@
 		border-style: solid;
 		border-color: var(--gray-gray-400, #bcbcbc);
 		border-width: 1px;
-		box-shadow: 0px 4px 5px 0px rgba(0, 0, 0, 0.25);
+		box-shadow: 4px 4px 5px 0px rgba(0, 0, 0, 0.25);
 	}
 	.userinfo {
 		margin-left: 120px;
@@ -344,7 +344,7 @@
 		align-items: center;
 	}
 	.button {
-		color: var(--gray-gray-50, #fcfcfc);
+		color: var(--action-fg);
 		text-align: center;
 		font-family: var(--small-medium-font-family,);
 		font-size: var(--small-medium-font-size, 13px);
@@ -361,7 +361,7 @@
 		width: 100px;
 		height: 45px;
 		position: relative;
-		box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
+		box-shadow: 4px 4px 0 0 var(--button-shadow);
 		cursor: pointer;
 		border: none;
 	}
@@ -406,7 +406,7 @@
 		overflow: hidden;
 	}
 	.submit {
-		background-color: var(--secondary-secondary-50);
+		background-color: transparent; /* shows the page or modal colour underneath (both exact) */
 		color: var(--gray-gray-950, #1a1a1a);
 		text-align: center;
 		font-family: var(--medium-font-family,);
@@ -432,8 +432,8 @@
 		border-radius: 10%;
 	}
 	.xbutton:hover {
-		color: #fff !important;
-		background-color: #f44336 !important;
+		color: var(--gray-gray-50) !important;
+		background-color: var(--red-red-700) !important;
 	}
 	.modal {
 		z-index: 3;
