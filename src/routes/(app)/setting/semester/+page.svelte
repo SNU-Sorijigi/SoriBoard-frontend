@@ -1,5 +1,5 @@
 <script>
-	import SemesterCalendar from '$lib/components/SemesterCalendar.svelte';
+	import SemesterCalendar from '$lib/components/semestercalendar.svelte';
 	import { fade, fly } from 'svelte/transition';
 	import { writable } from 'svelte/store';
 	import { onMount } from 'svelte';
