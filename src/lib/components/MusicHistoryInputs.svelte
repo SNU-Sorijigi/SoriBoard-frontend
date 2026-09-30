@@ -140,7 +140,7 @@
 		user-select: none;
 		margin-top: 8px;
 		padding: 10px 12px;
-		border: 1px solid var(--primary-primary-700, #b7946c);
+		border: 1px solid var(--control-border);
 		border-radius: 6px;
 		background: var(--secondary-secondary-100, #fef9f3);
 		max-height: 240px;

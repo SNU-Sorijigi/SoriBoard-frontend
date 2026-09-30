@@ -407,8 +407,8 @@
 	}
 
 	.xbutton:hover {
-		color: #fff !important;
-		background-color: #f44336 !important;
+		color: var(--gray-gray-50) !important;
+		background-color: var(--red-red-700) !important;
 	}
 
 	.submit {
@@ -434,7 +434,7 @@
 		width: 32px;
 		height: 32px;
 		border: none;
-		background: var(--secondary-secondary-50);
+		background: var(--primary-primary-100);
 		cursor: pointer;
 	}
 	.plus img,

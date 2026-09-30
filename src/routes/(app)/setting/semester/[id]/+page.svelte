@@ -274,7 +274,7 @@
 		border-style: solid;
 		border-color: var(--gray-gray-400, #bcbcbc);
 		border-width: 1px;
-		box-shadow: 0px 4px 5px 0px rgba(0, 0, 0, 0.25);
+		box-shadow: 4px 4px 5px 0px rgba(0, 0, 0, 0.25);
 	}
 	.manage-screen {
 		width: 100%;
@@ -296,7 +296,7 @@
 		position: relative;
 	}
 	.semester_edit {
-		background: var(--gray-gray-500);
+		background: var(--neutral-bg);
 	}
 	.buttons {
 		gap: 40px;
@@ -305,7 +305,7 @@
 		align-items: center;
 	}
 	.button {
-		color: var(--gray-gray-50, #fcfcfc);
+		color: var(--neutral-fg);
 		text-align: center;
 		font-family: var(--small-medium-font-family,);
 		font-size: var(--small-medium-font-size, 13px);
@@ -322,7 +322,7 @@
 		width: 100px;
 		height: 45px;
 		position: relative;
-		box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
+		box-shadow: 4px 4px 0 0 var(--button-shadow);
 		cursor: pointer;
 		border: none;
 	}
@@ -340,8 +340,8 @@
 		border-radius: 10%;
 	}
 	.xbutton:hover {
-		color: #fff !important;
-		background-color: #f44336 !important;
+		color: var(--gray-gray-50) !important;
+		background-color: var(--red-red-700) !important;
 	}
 	.modal {
 		z-index: 3;
@@ -394,7 +394,7 @@
 		border-style: solid;
 	}
 	.submit {
-		background-color: var(--secondary-secondary-50);
+		background-color: transparent; /* shows the page or modal colour underneath (both exact) */
 		color: var(--gray-gray-950, #1a1a1a);
 		text-align: center;
 		font-family: var(--medium-font-family,);
@@ -413,5 +413,14 @@
 		font-size: 32px;
 		font-weight: 400;
 		position: relative;
+	}
+	.delete {
+		/* the 삭제 button had no rule and painted browser defaults; same danger pair as the session delete */
+		background: var(--danger-bg);
+		color: var(--danger-fg);
+		border: none;
+		border-radius: 3px;
+		padding: 4px 10px;
+		cursor: pointer;
 	}
 </style>

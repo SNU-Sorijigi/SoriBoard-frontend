@@ -49,10 +49,24 @@
 		font-family: var(--medium-font-family, 'Noto Sans KR', sans-serif);
 		font-size: var(--medium-font-size, 16px);
 		padding: 6px 10px;
-		border: 1px solid var(--primary-primary-600, #c8ad8f);
+		border: 1px solid var(--control-border);
 		border-radius: 6px;
 		background: var(--secondary-secondary-50, #fffdfc);
 		color: var(--gray-gray-950, #1a1a1a);
+	}
+	.mentee input[type='checkbox'] {
+		appearance: none;
+		width: 16px;
+		height: 16px;
+		margin: 0;
+		border: 2px solid var(--control-border);
+		border-radius: 3px;
+		background: var(--primary-primary-100);
+		cursor: pointer;
+	}
+	.mentee input[type='checkbox']:checked {
+		/* same Cloud Dancer tick on Micron as the app's other checkboxes */
+		background: var(--checked-bg) url('../../images/check.svg') center / 14px no-repeat;
 	}
 	.mentee {
 		font-family: var(--small-medium-font-family, 'Noto Sans KR', sans-serif);

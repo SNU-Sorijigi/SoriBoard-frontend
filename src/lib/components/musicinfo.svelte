@@ -3,7 +3,7 @@
 	import showIcon from '$lib/images/show.svg';
 	import editIcon from '$lib/images/edit.svg';
 	import xIcon from '$lib/images/x.svg';
-	import checkIcon from '$lib/images/check.svg';
+	import checkDarkIcon from '$lib/images/check-dark.svg';
 	import upIcon from '$lib/images/up.svg';
 	import downIcon from '$lib/images/down.svg';
 	import plusIcon from '$lib/images/plus.svg';
@@ -119,7 +119,7 @@
 
 <div class="musicinfo">
 	<div class="textstack">
-		<button class="button" on:click={() => deleteMusic(id)}>
+		<button class="button delete" on:click={() => deleteMusic(id)}>
 			<img src={xIcon} alt="x" class="icon" />
 			<div class="button_label">삭제</div>
 		</button>
@@ -158,25 +158,25 @@
 				<div class="col_stack">
 					<div class="row_stack">
 						<div class="col_stack">
-							<button class="button" on:click={goUp}>
+							<button class="button tool" on:click={goUp}>
 								<img src={upIcon} alt="up" class="arrow_icon" />
 							</button>
-							<button class="button" on:click={goDown}>
+							<button class="button tool" on:click={goDown}>
 								<img src={downIcon} alt="down" class="arrow_icon" />
 							</button>
 						</div>
 						{#if !isEditing}
-							<button class="button" on:click={toggleEdit}>
+							<button class="button tool" on:click={toggleEdit}>
 								<img src={editIcon} alt="edit" class="icon" />
 								<div class="button_label">수정</div>
 							</button>
 						{:else}
-							<button class="button" on:click={confirmEdit}>
-								<img src={checkIcon} alt="edit" class="icon icon-black" />
+							<button class="button tool" on:click={confirmEdit}>
+								<img src={checkDarkIcon} alt="edit" class="icon" />
 								<div class="button_label">확인</div>
 							</button>
 						{/if}
-						<button class="button" on:click={showDisplay}>
+						<button class="button tool" on:click={showDisplay}>
 							<img src={showIcon} alt="show" class="icon" />
 							<div class="button_label">판서</div>
 						</button>
@@ -331,7 +331,7 @@
 		border-radius: 50%;
 		cursor: pointer;
 		padding: 0;
-		box-shadow: 1px 1px 2px 0px rgba(0, 0, 0, 0.15);
+		box-shadow: 1px 1px 0 0 var(--button-shadow);
 	}
 	.player-add-btn {
 		display: flex;
@@ -365,7 +365,7 @@
 		align-items: center;
 		justify-content: flex-start;
 		position: relative;
-		box-shadow: 2px 2px 4px 0px rgba(0, 0, 0, 0.25);
+		box-shadow: 2px 2px 0 0 var(--button-shadow);
 		padding: 4px;
 		border-color: var(--primary-primary-500, #6a5134);
 		border-width: 1px;
@@ -373,6 +373,12 @@
 		background-color: var(--primary-primary-200);
 		border-radius: 10%;
 		cursor: pointer;
+	}
+	.tool {
+		background-color: var(--tool-bg);
+	}
+	.delete {
+		background-color: var(--danger-bg);
 	}
 	.icon {
 		flex-shrink: 0;
@@ -387,9 +393,6 @@
 		height: 14px;
 		position: relative;
 		overflow: visible;
-	}
-	.icon-black {
-		filter: invert(100%);
 	}
 	.button_label {
 		color: var(--gray-gray-950, #1a1a1a);

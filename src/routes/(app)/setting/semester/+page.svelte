@@ -1,5 +1,5 @@
 <script>
-	import SemesterCalendar from '$lib/components/SemesterCalendar.svelte';
+	import SemesterCalendar from '$lib/components/semestercalendar.svelte';
 	import { fade, fly } from 'svelte/transition';
 	import { writable } from 'svelte/store';
 	import { onMount } from 'svelte';
@@ -235,8 +235,8 @@
 	}
 
 	.xbutton:hover {
-		color: #fff !important;
-		background-color: #f44336 !important;
+		color: var(--gray-gray-50) !important;
+		background-color: var(--red-red-700) !important;
 	}
 
 	.submit {

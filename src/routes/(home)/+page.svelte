@@ -90,7 +90,7 @@
 
 <style>
 	.home-screen {
-		background: var(--secondary-secondary-100, #fdf1e4);
+		background: var(--secondary-secondary-50);
 		display: flex;
 		flex-direction: column;
 		gap: 0px;
@@ -151,8 +151,8 @@
 		height: auto;
 		position: relative;
 		overflow: visible;
-		background: var(--primary-primary-700);
-		filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.25));
+		filter: drop-shadow(4px 4px 0 var(--button-shadow));
+		background: var(--action-bg);
 		border-radius: 3px;
 		cursor: pointer;
 		border: none;
@@ -241,7 +241,7 @@
 		height: auto;
 		position: relative;
 		overflow: visible;
-		filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.25));
+		filter: drop-shadow(4px 4px 0 var(--button-shadow));
 		border-radius: 3px;
 		cursor: pointer;
 	}

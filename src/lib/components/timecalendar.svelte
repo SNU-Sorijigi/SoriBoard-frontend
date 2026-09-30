@@ -112,7 +112,7 @@
 		font-family: var(--medium-font-family, 'NotoSansKr-Medium', sans-serif);
 		font-size: var(--medium-font-size, 16px);
 		font-weight: var(--medium-font-weight, 500);
-		box-shadow: 2px 2px 4px 0px rgba(0, 0, 0, 0.25);
+		box-shadow: 2px 2px 0 0 var(--button-shadow);
 		padding: 5px;
 		border-color: var(--gray-gray-600, #6a5134);
 		border-width: 1px;

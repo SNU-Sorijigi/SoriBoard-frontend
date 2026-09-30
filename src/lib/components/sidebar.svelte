@@ -52,7 +52,7 @@
 		min-height: 100vh; /* Ensure minimum full height */
 		width: 58px; /* Fixed width for sidebar */
 		position: relative;
-		box-shadow: 0px 4px 5px 0px rgba(0, 0, 0, 0.25);
+		box-shadow: 4px 4px 5px 0px rgba(0, 0, 0, 0.25);
 		overflow: hidden;
 		padding: 4px;
 		flex-shrink: 0;
@@ -84,8 +84,8 @@
 		height: 45px;
 		position: relative;
 		overflow: visible;
-		background: var(--primary-primary-700);
-		filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.25));
+		filter: drop-shadow(4px 4px 0 var(--button-shadow));
+		background: var(--action-bg);
 		border-radius: 3px;
 		cursor: pointer;
 		border: none;

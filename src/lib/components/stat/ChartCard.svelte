@@ -53,7 +53,7 @@
 		background: var(--secondary-secondary-50, #fffdfc);
 		border: 1px solid var(--gray-gray-300, #d4d4d4);
 		border-radius: 8px;
-		box-shadow: 0px 4px 5px 0px rgba(0, 0, 0, 0.08);
+		box-shadow: 4px 4px 5px 0px rgba(0, 0, 0, 0.08);
 		padding: 12px;
 		display: flex;
 		flex-direction: column;
@@ -82,7 +82,10 @@
 		background: var(--secondary-secondary-200, #fdf1e4);
 	}
 	.tool-btn:disabled {
-		opacity: 0.4;
+		/* exact swatches instead of a 40% opacity blend */
+		color: var(--gray-gray-500);
+		border-color: var(--gray-gray-400);
+		background: var(--secondary-secondary-50);
 		cursor: default;
 	}
 	.chart-area {

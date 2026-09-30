@@ -30,7 +30,7 @@
 	input[type='text'] {
 		width: var(--width);
 		padding: 8px;
-		border: 1px solid var(--primary-primary-700);
+		border: 1px solid var(--control-border);
 		border-radius: 6px;
 		border-width: 2px;
 		color: var(--gray-gray-950, #1a1a1a);

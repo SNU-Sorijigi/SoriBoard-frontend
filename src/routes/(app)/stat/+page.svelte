@@ -415,8 +415,8 @@
 		cursor: pointer;
 	}
 	.bucket-toggle button.active {
-		background: var(--primary-primary-600, #c8ad8f);
-		color: #fff;
+		background: var(--action-bg);
+		color: var(--action-fg);
 	}
 	.diversity-kpi {
 		grid-template-columns: repeat(3, 1fr);
