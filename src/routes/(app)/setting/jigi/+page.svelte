@@ -74,7 +74,7 @@
 	async function deleteUser(id) {
 		const isConfirmed = confirm('삭제하시겠습니까?');
 		if (isConfirmed) {
-			const response = await fetch(`/api/user/${id}`, {
+			await fetch(`/api/user/${id}`, {
 				method: 'DELETE'
 			});
 			fetchUsers();
@@ -248,13 +248,6 @@
 		flex-shrink: 0;
 		position: relative;
 	}
-	.form {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		gap: 12px;
-	}
 	.box {
 		margin-top: 14px;
 		display: flex;
@@ -282,30 +275,6 @@
 	.checked {
 		background-color: var(--checked-bg);
 	}
-	.delete {
-		text-align: center;
-		color: var(--danger-fg);
-		font-family: var(--small-medium-font-family,);
-		font-size: var(--small-medium-font-size, 13px);
-		font-weight: var(--small-medium-font-weight, 500);
-		position: relative;
-		border-radius: 3px;
-		padding: 4px 7px 4px 7px;
-		display: flex;
-		flex-direction: row;
-		gap: 4px;
-		align-items: center;
-		justify-content: center;
-		flex-shrink: 0;
-		width: 60px;
-		height: 40px;
-		position: absolute;
-		box-shadow: 4px 4px 0 0 var(--button-shadow);
-		cursor: pointer;
-		border: none;
-		background: var(--danger-bg);
-		margin-left: 10px;
-	}
 	.check {
 		width: 22px;
 		height: 22px;
@@ -332,43 +301,6 @@
 		border-color: var(--gray-gray-400, #bcbcbc);
 		border-width: 1px;
 		box-shadow: 4px 4px 5px 0px rgba(0, 0, 0, 0.25);
-	}
-	.userinfo {
-		margin-left: 120px;
-		color: var(--gray-gray-950, #1a1a1a);
-		text-align: center;
-		font-family: var(--medium-font-family, 'NotoSansKr-Medium', sans-serif);
-		font-size: var(--medium-font-size, 16px);
-		font-weight: var(--medium-font-weight, 500);
-		position: relative;
-	}
-	.buttons {
-		gap: 40px;
-		display: flex;
-		justify-content: center;
-		align-items: center;
-	}
-	.button {
-		color: var(--action-fg);
-		text-align: center;
-		font-family: var(--small-medium-font-family,);
-		font-size: var(--small-medium-font-size, 13px);
-		font-weight: var(--small-medium-font-weight, 500);
-		position: relative;
-		border-radius: 3px;
-		padding: 4px 7px 4px 7px;
-		display: flex;
-		flex-direction: row;
-		gap: 4px;
-		align-items: center;
-		justify-content: center;
-		flex-shrink: 0;
-		width: 100px;
-		height: 45px;
-		position: relative;
-		box-shadow: 4px 4px 0 0 var(--button-shadow);
-		cursor: pointer;
-		border: none;
 	}
 	.content {
 		display: flex;
@@ -422,61 +354,6 @@
 		border-width: 2px;
 		padding: 6px 20px 6px 20px;
 		cursor: pointer;
-	}
-	.xbutton {
-		position: absolute;
-		right: 0;
-		top: 0;
-		display: inline-block;
-		text-decoration: none;
-		text-align: center;
-		cursor: pointer;
-		padding: 8px 16px;
-		font-weight: bold;
-		font-size: 1.4em;
-		border-radius: 10%;
-	}
-	.xbutton:hover {
-		color: var(--gray-gray-50) !important;
-		background-color: var(--red-red-700) !important;
-	}
-	.modal {
-		z-index: 3;
-		display: block;
-		padding-top: 10vh;
-		position: absolute;
-		left: 0;
-		top: 0;
-		width: 100%;
-		height: 100%;
-		margin-left: 58px;
-	}
-	.edit_modal {
-		backdrop-filter: blur(15px);
-	}
-	.modal-content {
-		margin: auto;
-		background-color: var(--primary-primary-100);
-		position: relative;
-		padding-top: 30px;
-		padding-bottom: 50px;
-		outline: 0;
-		width: 44vw;
-		border-radius: 2%;
-		border-color: var(--gray-gray-400);
-		border-style: solid;
-	}
-	.modal-content2 {
-		margin: auto;
-		background-color: var(--primary-primary-100);
-		position: relative;
-		padding-top: 30px;
-		padding-bottom: 50px;
-		outline: 0;
-		width: 60vw;
-		border-radius: 2%;
-		border-color: var(--gray-gray-400);
-		border-style: solid;
 	}
 	.hide-scrollbar {
 		-ms-overflow-style: none; /* Internet Explorer 10+ */
