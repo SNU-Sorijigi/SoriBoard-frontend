@@ -178,11 +178,12 @@
 
 	async function handleSubmit(event) {
 		event.preventDefault();
+		// a row added with + and left at 선택 is '': skip it, or the backend refuses the whole session
 		const formData = {
 			date: $date,
 			time: $num,
-			users: mento_id.map(Number),
-			mentees: mentee_id.map(Number),
+			users: mento_id.filter(Boolean).map(Number),
+			mentees: mentee_id.filter(Boolean).map(Number),
 			arrival_time: $mento_time,
 			mentee_arrival_time: $mentee_time
 		};
@@ -204,6 +205,7 @@
 			navigate('/time_manage/' + data.id);
 		} else {
 			console.error('Failed to create TimeInfo');
+			alert('타임 생성에 실패했습니다.');
 		}
 	}
 </script>
