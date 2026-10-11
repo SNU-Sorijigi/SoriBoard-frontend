@@ -21,6 +21,8 @@
 	let timeUser = '';
 	let timeMusic = [];
 	let time;
+	let savedTimeInfo = null;
+	// 타임 정보 수정 fields, filled from savedTimeInfo (see fillEditForm)
 	let mento_ids = [];
 	let mentee_ids = [];
 	let arrival_time;
@@ -137,10 +139,8 @@
 			timeMusic = data.time_music;
 			timeDate = `${year}년 ${month}월 ${day}일 ${time}타임`;
 			timeUser = `${mento_name}${mentee_name}`;
-			mento_ids = (data.users || []).map(String);
-			mentee_ids = (data.mentees || []).map(String);
-			arrival_time = data.arrival_time;
-			mentee_arrival_time = data.mentee_arrival_time ? data.mentee_arrival_time : '';
+			savedTimeInfo = data;
+			fillEditForm();
 
 			// Load comment fields
 			time_comment_music = data.time_comment_music || '';
@@ -151,6 +151,16 @@
 		} catch (error) {
 			console.log('Error');
 		}
+	}
+
+	// Also run on every open of 타임 정보 수정, so an edit closed with × or a click
+	// outside is not shown again or sent with the next 타임 수정하기.
+	function fillEditForm() {
+		if (!savedTimeInfo) return;
+		mento_ids = (savedTimeInfo.users || []).map(String);
+		mentee_ids = (savedTimeInfo.mentees || []).map(String);
+		arrival_time = savedTimeInfo.arrival_time;
+		mentee_arrival_time = savedTimeInfo.mentee_arrival_time || '';
 	}
 
 	function timeChange(time) {
@@ -327,7 +337,8 @@
 			users: mento_ids.filter((v) => v && v !== '').map((v) => Number(v)),
 			mentees: mentee_ids.filter((v) => v && v !== '').map((v) => Number(v)),
 			arrival_time: arrival_time,
-			mentee_arrival_time: mentee_arrival_time
+			// An empty time input is '', which is not a time: null means no 견습 time.
+			mentee_arrival_time: mentee_arrival_time || null
 		};
 
 		const response = await fetch(`/api/time/${id}`, {
@@ -341,6 +352,7 @@
 			location.reload();
 		} else {
 			console.error('Failed to edit TimeInfo');
+			alert('타임 정보 수정에 실패했습니다.');
 		}
 	}
 
@@ -381,6 +393,9 @@
 	}
 
 	function edit_toggle() {
+		if (!editing) {
+			fillEditForm();
+		}
 		editing = !editing;
 		visible = false;
 		display = false;
