@@ -98,12 +98,13 @@
 	}
 
 	async function updateData(id) {
+		// a row added with + and left at 선택 is '': skip it, or the backend refuses the whole edit
 		const formData = {
 			day: day,
 			time: time,
 			timetable: timetable_id,
-			users: jigi_ids.map(Number),
-			mentees: mentee_ids.map(Number)
+			users: jigi_ids.filter(Boolean).map(Number),
+			mentees: mentee_ids.filter(Boolean).map(Number)
 		};
 		const response = await fetch(`/api/timetableunit/${id}`, {
 			method: 'PUT',
