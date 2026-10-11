@@ -2,7 +2,6 @@
 	import YearBlock from './yearBlock.svelte';
 	let currentDate = new Date();
 	let year = currentDate.getFullYear();
-	let createdList = [];
 
 	function prevYear() {
 		year--;

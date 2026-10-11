@@ -2,7 +2,6 @@
 	import './display.css';
 	import { onMount } from 'svelte';
 	import { webSocketServer } from '$lib/globals';
-	import { backendServer } from '$lib/globals';
 	import { writable } from 'svelte/store';
 	let composer = '';
 	let title = '';

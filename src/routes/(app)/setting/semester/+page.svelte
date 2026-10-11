@@ -1,8 +1,7 @@
 <script>
 	import SemesterCalendar from '$lib/components/semestercalendar.svelte';
-	import { fade, fly } from 'svelte/transition';
+	import { fly } from 'svelte/transition';
 	import { writable } from 'svelte/store';
-	import { onMount } from 'svelte';
 	import { closeOnKey } from '$lib/closeKey.js';
 
 	function clickOutside(node) {

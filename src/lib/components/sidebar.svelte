@@ -1,8 +1,6 @@
 <script>
 	import homeIcon from '$lib/images/home.svg';
 	import timetableIcon from '$lib/images/timetable.svg';
-	import playlistIcon from '$lib/images/playlist.svg';
-	import displayIcon from '$lib/images/display.svg';
 	import statIcon from '$lib/images/stat.svg';
 	import settingIcon from '$lib/images/setting.svg';
 

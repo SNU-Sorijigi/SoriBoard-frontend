@@ -1,5 +1,4 @@
 <script>
-	import { onMount } from 'svelte';
 	import timetableIcon from '$lib/images/timetable.svg';
 	import statIcon from '$lib/images/stat.svg';
 	import settingIcon from '$lib/images/setting.svg';
@@ -8,45 +7,10 @@
 	function navigate(url) {
 		window.location.href = url;
 	}
-
-	let selectedString = '';
-
-	const strings = [
-		{ text: '오늘도 풍성한 선곡 부탁합니다.', probability: 0.3 },
-		{ text: '오늘의 날씨와 어울리는 선곡 부탁해요~', probability: 0.02 },
-		{ text: '오늘은 이안니스 크세나키스 어때요?', probability: 0.01 },
-		{ text: '오늘은  21세기 음악 트는거 어때요?', probability: 0.03 },
-		{ text: '오늘은 20세기 후반 음악 트는거 어때요?', probability: 0.03 },
-		{ text: '오늘은 바로크 음악 트는거 어때요?', probability: 0.03 },
-		{ text: '오늘은 후기낭만 음악 트는거 어때요?', probability: 0.03 },
-		{ text: '오늘은 20세기 초반 음악 트는거 어때요?', probability: 0.03 },
-		{ text: '＼＼٩(๑`^´๑)۶//／／오늘 하루도 파이팅!＼＼٩(๑`^´๑)۶//／／', probability: 0.05 },
-		{ text: '다음주 쯤엔 특집 한 번 해보시죠!', probability: 0.02 },
-		{ text: '왜 지금 학교에 계시죠..?ㅎ', probability: 0.03 },
-		{ text: '이 글을 보셨다면 오늘 아주 좋은 일이 가득하겠군요:)', probability: 0.02 },
-		{ text: '소리지기에 오신것을 환영합니다!!', probability: 0.4 }
-	];
-
-	function selectStringWithProbability(strings) {
-		const rand = Math.random();
-		let sum = 0;
-
-		for (const item of strings) {
-			sum += item.probability;
-			if (rand <= sum) {
-				return item.text;
-			}
-		}
-		return strings[strings.length - 1].text;
-	}
-	onMount(() => {
-		selectedString = selectStringWithProbability(strings);
-	});
 </script>
 
 <div class="setting-home-screen">
 	<div class="stack">
-		<!-- <div class="div">{selectedString}&nbsp</div> -->
 		<div class="div">설정 페이지</div>
 		<div class="stack2">
 			<div class="stack3">
