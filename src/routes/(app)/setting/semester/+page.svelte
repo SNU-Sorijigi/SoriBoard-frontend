@@ -67,6 +67,7 @@
 			navigate('/setting/semester/' + data.id);
 		} else {
 			console.error('Failed to create SemesterInfo');
+			alert('학기 생성에 실패했습니다.');
 		}
 	}
 

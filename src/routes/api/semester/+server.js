@@ -24,4 +24,5 @@ export async function POST({ request }) {
 		const data = await response.json();
 		return json(data);
 	}
+	return json({ message: 'Error creating semester' }, { status: 400 });
 }
