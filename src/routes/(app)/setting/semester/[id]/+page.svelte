@@ -47,17 +47,30 @@
 
 	let editing = false;
 
+	// 학기 정보 수정 edits copies, filled from the saved values on every open, so an
+	// edit closed with × or a click outside is dropped (a changed 타임 clears the timetable).
+	let editTimePerDay;
+	let editTimeStart;
+	let editTimeEnd;
+	let editRestTime;
+
 	function edit_toggle() {
+		if (!editing) {
+			editTimePerDay = timePerDay;
+			editTimeStart = timeStart;
+			editTimeEnd = timeEnd;
+			editRestTime = restTime;
+		}
 		editing = !editing;
 	}
 
 	async function handleEdit(event) {
 		event.preventDefault();
 		const formData = {
-			total_time: timePerDay,
-			start_time: timeStart,
-			end_time: timeEnd,
-			rest_time: restTime
+			total_time: editTimePerDay,
+			start_time: editTimeStart,
+			end_time: editTimeEnd,
+			rest_time: editRestTime
 		};
 
 		const response = await fetch(`/api/semester/${id}`, {
@@ -77,6 +90,10 @@
 	}
 
 	async function deleteSemester() {
+		const isConfirmed = confirm('삭제하시겠습니까?');
+		if (!isConfirmed) {
+			return;
+		}
 		const response = await fetch(`/api/semester/${id}`, {
 			method: 'DELETE'
 		});
@@ -171,7 +188,7 @@
 							name="number"
 							type="number"
 							required
-							bind:value={timePerDay}
+							bind:value={editTimePerDay}
 							style="width:120px"
 						/>타임</label
 					>
@@ -180,21 +197,9 @@
 				<div class="stack">
 					<label
 						>운영 시간
-						<input
-							name="time"
-							type="time"
-							required
-							bind:value={timeStart}
-							style="width:8em"
-						/>
+						<input name="time" type="time" required bind:value={editTimeStart} style="width:8em" />
 						~
-						<input
-							name="time"
-							type="time"
-							required
-							bind:value={timeEnd}
-							style="width:8em"
-						/>
+						<input name="time" type="time" required bind:value={editTimeEnd} style="width:8em" />
 					</label >
 				</div>
 				<br />
@@ -204,7 +209,7 @@
 							name="number"
 							type="number"
 							required
-							bind:value={restTime}
+							bind:value={editRestTime}
 							style="width:8em"
 						/></label
 					>
