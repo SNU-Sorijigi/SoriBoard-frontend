@@ -349,13 +349,9 @@
 
 	async function handleCommentSubmit(event) {
 		event.preventDefault();
+		// Only the comments: the backend updates TimeInfo partially, and the 지기/견습/출근
+		// variables may hold an edit that was closed in 타임 정보 수정 without saving.
 		const formData = {
-			date: date,
-			time: time,
-			users: mento_ids.filter((v) => v && v !== '').map((v) => Number(v)),
-			mentees: mentee_ids.filter((v) => v && v !== '').map((v) => Number(v)),
-			arrival_time: arrival_time,
-			mentee_arrival_time: mentee_arrival_time,
 			time_comment_music: time_comment_music,
 			time_comment_gigi: time_comment_gigi,
 			time_comment_etc: time_comment_etc
@@ -369,7 +365,6 @@
 			body: JSON.stringify(formData)
 		});
 		if (response.ok) {
-			const data = await response.json();
 			alert('코멘트가 저장되었습니다.');
 			// Don't reload - keep the form with current values for further editing
 		} else {
