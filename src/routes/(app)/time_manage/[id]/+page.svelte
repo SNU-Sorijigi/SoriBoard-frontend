@@ -23,8 +23,6 @@
 	let time;
 	let mento_ids = [];
 	let mentee_ids = [];
-	let mento;
-	let mentee;
 	let arrival_time;
 	let mentee_arrival_time;
 	let date;
@@ -80,7 +78,7 @@
 	async function deleteMusic(music_id) {
 		const isConfirmed = confirm('삭제하시겠습니까?');
 		if (isConfirmed) {
-			const response = await fetch(`/api/music/${music_id}`, {
+			await fetch(`/api/music/${music_id}`, {
 				method: 'DELETE'
 			});
 			loadTimeInfo(id);
@@ -340,7 +338,6 @@
 			body: JSON.stringify(formData)
 		});
 		if (response.ok) {
-			const data = await response.json();
 			location.reload();
 		} else {
 			console.error('Failed to edit TimeInfo');
@@ -417,7 +414,7 @@
 	async function deleteTime() {
 		const isConfirmed = confirm('삭제하시겠습니까?');
 		if (isConfirmed) {
-			const response = await fetch(`/api/time/${id}`, {
+			await fetch(`/api/time/${id}`, {
 				method: 'DELETE'
 			});
 			goto('/time_manage');
@@ -435,7 +432,6 @@
 			if (!response.ok) {
 				throw new Error('Network response was not ok');
 			}
-			const data = await response.json();
 		} catch (error) {
 			console.error('Error swapping orders:', error);
 		}
@@ -548,7 +544,7 @@
 					<div class="player_stack">
 						<Input
 							label={'연주자 ' + (i + 1)}
-							bind:value={$players[i]}
+							bind:value={player}
 							width={i != 0 ? '265px' : '300px'}
 						></Input>
 						{#if i > 0}
@@ -710,11 +706,7 @@
 						<label for="mento-row-0">지기 이름</label>
 						{#each mento_ids as val, i}
 							<div class="player_stack">
-								<select
-									id={`mento-row-${i}`}
-									bind:value={mento_ids[i]}
-									aria-label={`지기 ${i + 1}`}
-								>
+								<select id={`mento-row-${i}`} bind:value={val} aria-label={`지기 ${i + 1}`}>
 									<option value="" disabled>선택</option>
 									{#each $users as user}
 										<option value={String(user.id)}>{user.name} {user.major} {user.year_id}</option>
@@ -746,11 +738,7 @@
 						<label for="mentee-row-0">견습 이름</label>
 						{#each mentee_ids as val, i}
 							<div class="player_stack">
-								<select
-									id={`mentee-row-${i}`}
-									bind:value={mentee_ids[i]}
-									aria-label={`견습 ${i + 1}`}
-								>
+								<select id={`mentee-row-${i}`} bind:value={val} aria-label={`견습 ${i + 1}`}>
 									<option value="" disabled>선택</option>
 									{#each $users as user}
 										<option value={String(user.id)}>{user.name} {user.major} {user.year_id}</option>
