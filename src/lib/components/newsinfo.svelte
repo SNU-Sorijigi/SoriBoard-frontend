@@ -30,9 +30,10 @@
 		fetchNews();
 		isEditing = !isEditing;
 	}
-	function confirmEdit() {
-		isEditing = false;
-		updateData(id);
+	async function confirmEdit() {
+		if (await updateData(id)) {
+			isEditing = false;
+		}
 	}
 
 	async function updateData(id) {
@@ -48,8 +49,10 @@
 		});
 		if (!response.ok) {
 			console.error('Failed to update data');
+			alert('뉴스 수정에 실패했습니다.');
 		}
 		fetchNews();
+		return response.ok;
 	}
 	const dispatch = createEventDispatcher();
 </script>

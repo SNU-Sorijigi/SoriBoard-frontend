@@ -16,7 +16,7 @@ export async function PUT({ params, request }) {
 		const data = await response.json();
 		return json(data);
 	}
-	return json({ message: 'Error updating user info' }, 400);
+	return json({ message: 'Error updating user info' }, { status: 400 });
 }
 
 export async function DELETE({ params }) {
