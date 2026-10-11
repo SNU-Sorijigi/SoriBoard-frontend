@@ -1,9 +1,7 @@
 <script>
-	import { writable } from 'svelte/store';
 	import { onMount } from 'svelte';
 	import { page} from '$app/stores';
 	import { fly } from 'svelte/transition';
-	import Input from '$lib/components/input.svelte';
 	import TimeTable from '$lib/components/timetable.svelte';
 	import { closeOnKey } from '$lib/closeKey.js';
 
@@ -82,7 +80,6 @@
 		});
 
 		if (response.ok) {
-			const data = await response.json();
 			location.reload();
 		} else {
 			console.error('Failed to update semester info');
@@ -119,16 +116,6 @@
 				document.removeEventListener('click', handleClick, true);
 			}
 		};
-	}
-
-	function debug() {
-		console.log(semesterYear);
-		console.log(semesterNum);
-		console.log(timePerDay);
-		console.log(timeStart);
-		console.log(timeEnd);
-		console.log(restTime);
-		console.log(timetableid);
 	}
 
 	onMount(() => {
@@ -238,13 +225,6 @@
 		font-size: var(--large-font-size, 16px);
 		font-weight: var(--large-font-weight, 500);
 	}
-	.playlist {
-		display: flex;
-		flex-direction: column;
-		gap: 10px;
-		align-items: center;
-		justify-content: center;
-	}
 	.stack {
 		display: flex;
 		flex-direction: row;
@@ -260,14 +240,6 @@
 		align-items: center;
 		justify-content: center;
 		gap: 12px;
-	}
-	.label {
-		color: var(--primary-primary-700, #b7946c);
-		text-align: center;
-		font-family: var(--small-medium-font-family, 'NotoSansKr-Regular', sans-serif);
-		font-size: var(--small-medium-font-size, 10px);
-		font-weight: var(--small-medium-font-weight, 400);
-		position: relative;
 	}
 	.header {
 		padding: 16px;
