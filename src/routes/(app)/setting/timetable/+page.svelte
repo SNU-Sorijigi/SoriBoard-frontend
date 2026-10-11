@@ -61,13 +61,6 @@
 
 
 <style>
-	.text {
-		color: var(--gray-gray-950, #1a1a1a);
-		text-align: center;
-		font-family: var(--xlarge-font-family);
-		font-size: var(--xlarge-font-size, 32px);
-		font-weight: var(--xlarge-font-weight, 500);
-	}
 	.setting-news-screen {
 		width: 100%;
 		display: flex;
@@ -90,15 +83,6 @@
 		border-color: var(--gray-gray-400, #bcbcbc);
 		border-width: 1px;
 		box-shadow: 4px 4px 5px 0px rgba(0, 0, 0, 0.25);
-	}
-	.newsinfo {
-		margin-left: 120px;
-		color: var(--gray-gray-950, #1a1a1a);
-		text-align: center;
-		font-family: var(--medium-font-family, 'NotoSansKr-Medium', sans-serif);
-		font-size: var(--medium-font-size, 16px);
-		font-weight: var(--medium-font-weight, 500);
-		position: relative;
 	}
 	.newslist {
 		display: flex;

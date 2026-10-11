@@ -1,33 +1,12 @@
 <script>
-	import { createEventDispatcher } from 'svelte';
-	import { onMount } from 'svelte';
-	import { writable } from 'svelte/store';
 	import editIcon from '$lib/images/edit.svg';
 	import checkDarkIcon from '$lib/images/check-dark.svg';
 
 	export let id = '';
 	export let content = '';
 
-	export let refetchNews;
-
-	const news = writable([]);
-	async function fetchNews() {
-		try {
-			const response = await fetch('/api/information');
-			const data = await response.json();
-			news.set(data);
-		} catch (error) {
-			console.error('Failed to fetch news');
-		}
-	}
-
-	onMount(() => {
-		fetchNews();
-	});
-
 	let isEditing = false;
 	function toggleEdit() {
-		fetchNews();
 		isEditing = !isEditing;
 	}
 	async function confirmEdit() {
@@ -51,10 +30,8 @@
 			console.error('Failed to update data');
 			alert('뉴스 수정에 실패했습니다.');
 		}
-		fetchNews();
 		return response.ok;
 	}
-	const dispatch = createEventDispatcher();
 </script>
 
 <div class="newsinfo">
@@ -110,22 +87,6 @@
 		flex: 1;
 		min_width: 0;
 	}
-	.textstack {
-		padding-top: 6px;
-		padding-bottom: 6px;
-		display: flex;
-		flex-direction: row;
-		align-items: center;
-		justify-content: flex-start;
-		gap: 5px;
-	}
-	.name {
-		font-family: var(--medium-font-family, 'NotoSansKr-Medium', sans-serif);
-		font-size: var(--medium-font-size, 16px);
-		font-weight: var(--medium-font-weight, 500);
-		width: 150px;
-		text-align: center;
-	}
 	.col_stack {
 		display: flex;
 		flex-direction: column;
@@ -141,30 +102,6 @@
 		gap: 3px;
 		align-items: center;
 		justify-content: flex-start;
-	}
-	.major {
-		font-family: var(--small-medium-font-family);
-		font-size: var(--medium-font-size, 13px);
-		font-weight: var(--small-medium-font-weight, 500);
-		width: 110px;
-	}
-	.sabu {
-		font-family: var(--small-font-family, 'NotoSansKr-Regular', sans-serif);
-		font-size: var(--small-font-size, 10px);
-		font-weight: var(--small-font-weight, 400);
-		width: 200px;
-	}
-	.join {
-		font-family: var(--small-font-family, 'NotoSansKr-Regular', sans-serif);
-		font-size: var(--small-font-size, 10px);
-		font-weight: var(--small-font-weight, 400);
-		width: 100px;
-	}
-	.year_id {
-		font-family: var(--small-font-family, 'NotoSansKr-Regular', sans-serif);
-		font-size: var(--small-font-size, 10px);
-		font-weight: var(--small-font-weight, 400);
-		width: 40px;
 	}
 	.edit_button {
 		display: flex;
@@ -189,13 +126,6 @@
 		position: relative;
 		overflow: visible;
 	}
-	.arrow_icon {
-		flex-shrink: 0;
-		width: 14px;
-		height: 14px;
-		position: relative;
-		overflow: visible;
-	}
 	.button_label {
 		color: var(--gray-gray-950, #1a1a1a);
 		text-align: left;
@@ -203,14 +133,6 @@
 		font-size: var(--xsmall-font-size, 8px);
 		font-weight: var(--xsmall-font-weight, 400);
 		position: relative;
-	}
-	.divider {
-		background: var(--primary-primary-800, #6a5134);
-		align-self: stretch;
-		flex-shrink: 0;
-		width: 1px;
-		position: relative;
-		overflow: hidden;
 	}
 </style>
 
