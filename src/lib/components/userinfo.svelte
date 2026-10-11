@@ -1,5 +1,4 @@
 <script>
-	import { createEventDispatcher } from 'svelte';
 	import { onMount } from 'svelte';
 	import { writable } from 'svelte/store';
 	import editIcon from '$lib/images/edit.svg';
@@ -74,7 +73,6 @@
 		}
 		refetchUsers();
 	}
-	const dispatch = createEventDispatcher();
 </script>
 
 <div class="userinfo">
@@ -84,9 +82,16 @@
 			<div class="button_label">삭제</div>
 		</button>
 		<input bind:value={name} readonly={!isEditing} class="name" />
-		<label>OB</label>
+		<label for={`user-ob-${id}`}>OB</label>
 		{#if isEditing}
-			<button tdype="button" class="checkbox" on:click={toggleCheck} class:checked={is_ob}>
+			<button
+				type="button"
+				id={`user-ob-${id}`}
+				class="checkbox"
+				aria-pressed={is_ob}
+				on:click={toggleCheck}
+				class:checked={is_ob}
+			>
 				{#if is_ob}
 					<img src={checkIcon} alt="check" class="check" />
 				{:else}
@@ -124,15 +129,25 @@
 				<div class="col_stack">
 					<div class="row_stack">
 						{#if isEditing}
-							<label>입부 년도</label>
+							<label for={`user-join-year-${id}`}>입부 년도</label>
 						{/if}
-						<input bind:value={join_year} readonly={!isEditing} class="join" />
+						<input
+							id={`user-join-year-${id}`}
+							bind:value={join_year}
+							readonly={!isEditing}
+							class="join"
+						/>
 					</div>
 					<div class="row_stack">
 						{#if isEditing}
-							<label>입부 학기</label>
+							<label for={`user-join-semester-${id}`}>입부 학기</label>
 						{/if}
-						<input bind:value={join_semester} readonly={!isEditing} class="join" />
+						<input
+							id={`user-join-semester-${id}`}
+							bind:value={join_semester}
+							readonly={!isEditing}
+							class="join"
+						/>
 					</div>
 				</div>
 				<div class="col_stack">
@@ -272,13 +287,6 @@
 		flex-shrink: 0;
 		width: 24px;
 		height: 24px;
-		position: relative;
-		overflow: visible;
-	}
-	.arrow_icon {
-		flex-shrink: 0;
-		width: 14px;
-		height: 14px;
 		position: relative;
 		overflow: visible;
 	}
