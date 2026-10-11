@@ -76,12 +76,9 @@
 				</div>
 				<div class="stack6">
 					<div class="soriboard-2-0">Soriboard 2.0.0</div>
-					<div
-						class="githubbutton"
-						on:click={() => navigate('https://github.com/SNU-Sorijigi/SoriBoard-frontend')}
-					>
+					<a class="githubbutton" href="https://github.com/SNU-Sorijigi/SoriBoard-frontend">
 						<img src={githubIcon} alt="github" class="githubicon" />
-					</div>
+					</a>
 				</div>
 			</div>
 		</div>
