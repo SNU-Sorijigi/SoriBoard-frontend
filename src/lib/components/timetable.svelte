@@ -91,9 +91,9 @@
 
 <div class="stack">
 	{#if dataLoaded && timeScheduleLoaded}
-		{#each Array(timePerDay) as _, index}
+		{#each timeSchedule as slot, index}
 		<div class="stack2">
-			<div class="stack">{index+1}타임: {timeSchedule[index]}</div>
+			<div class="stack">{index + 1}타임: {slot}</div>
 			{#each timetable as day, dayIndex}
 				<TimetableUnit id={day[index]}> </TimetableUnit>
 			{/each}
