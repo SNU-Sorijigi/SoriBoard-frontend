@@ -36,6 +36,8 @@
 	let time_comment_music = '';
 	let time_comment_gigi = '';
 	let time_comment_etc = '';
+	// The comments as last loaded, and for which 타임 (see loadTimeInfo)
+	let loadedComments = {};
 
 	let composer = '';
 	let title = '';
@@ -142,10 +144,18 @@
 			savedTimeInfo = data;
 			fillEditForm();
 
-			// Load comment fields
-			time_comment_music = data.time_comment_music || '';
-			time_comment_gigi = data.time_comment_gigi || '';
-			time_comment_etc = data.time_comment_etc || '';
+			// Load comment fields. This also runs after 곡 추가, 삭제 and ↑/↓: a field edited
+			// since this 타임 was last loaded keeps its text then, as it is not saved yet.
+			const saved = {
+				music: data.time_comment_music || '',
+				gigi: data.time_comment_gigi || '',
+				etc: data.time_comment_etc || ''
+			};
+			const edited = (shown, key) => loadedComments.id === id && shown !== loadedComments[key];
+			if (!edited(time_comment_music, 'music')) time_comment_music = saved.music;
+			if (!edited(time_comment_gigi, 'gigi')) time_comment_gigi = saved.gigi;
+			if (!edited(time_comment_etc, 'etc')) time_comment_etc = saved.etc;
+			loadedComments = { id, ...saved };
 
 			date = date.toISOString().split('T')[0];
 		} catch (error) {
