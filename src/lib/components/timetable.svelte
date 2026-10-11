@@ -1,5 +1,4 @@
 <script>
-	import { writable } from 'svelte/store';
 	import { onMount } from 'svelte';
 	import TimetableUnit from '$lib/components/timetableunit.svelte';
 	export let timePerDay;
@@ -8,22 +7,11 @@
 	export let restTime;
 	export let timetableId;
 
-	function debug() {
-		console.log("debugging whether the values are passed correctly");
-		console.log(timePerDay);
-		console.log(timeStart);
-		console.log(timeEnd);
-		console.log(restTime);
-		console.log(timetableId);
-		console.log("debugging end");
-	}
-
 	// Calculate start and end time of each time unit
 	// with given timePerDay, timeStart, timeEnd, and restTime(=break time in minutes)
 	// and store it in timeSchedule in form of "HH:MM~HH:MM"
 	let timeSchedule = [];
 	let timeScheduleLoaded = false;
-	let dayName = ['월', '화', '수', '목', '금'];
 	function calculateTime() {
 		const startTime = new Date(`1970-01-01T${timeStart}`);
 		const endTime = new Date(`1970-01-01T${timeEnd}`);
@@ -82,7 +70,6 @@
 	}
 
 	onMount(() => {
-		// debug();
 		calculateTime();
 		fetchTimetable(timetableId);
 	});
@@ -94,7 +81,7 @@
 		{#each timeSchedule as slot, index}
 		<div class="stack2">
 			<div class="stack">{index + 1}타임: {slot}</div>
-			{#each timetable as day, dayIndex}
+			{#each timetable as day}
 				<TimetableUnit id={day[index]}> </TimetableUnit>
 			{/each}
 		</div>

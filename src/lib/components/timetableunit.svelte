@@ -1,9 +1,6 @@
 <script>
-	import { createEventDispatcher } from 'svelte';
 	import { onMount } from 'svelte';
 	import { writable } from 'svelte/store';
-	import editIcon from '$lib/images/edit.svg';
-	import checkIcon from '$lib/images/check.svg';
 	import plusicon from '$lib/images/plus.svg';
 	import minusicon from '$lib/images/minus.svg';
 
@@ -136,7 +133,7 @@
 					<div class="col_stack">
 						{#each jigi_ids as jid, i}
 							<div class="row_stack">
-								<select bind:value={jigi_ids[i]}>
+								<select bind:value={jid}>
 									<option value="" disabled>선택</option>
 									{#each $users as user}
 										<option value={String(user.id)}>{user.name} {user.major} {user.year_id}</option>
@@ -178,7 +175,7 @@
 					<div class="col_stack">
 						{#each mentee_ids as mid, i}
 							<div class="row_stack">
-								<select bind:value={mentee_ids[i]}>
+								<select bind:value={mid}>
 									<option value="" disabled>선택</option>
 									{#each $users as user}
 										<option value={String(user.id)}>{user.name} {user.major} {user.year_id}</option>
