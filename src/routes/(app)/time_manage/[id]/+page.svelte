@@ -292,13 +292,18 @@
 			loadTimeInfo(id);
 		} else {
 			console.error('Failed to create');
+			alert('곡 추가에 실패했습니다.');
 		}
 	}
 
 	async function handleSubmit(event) {
 		event.preventDefault();
-		const isValid = $players.every((player) => player !== '' && !player.includes(':'));
-		if (isValid) {
+		// The backend trims each player, skips empty ones and splits the rest on ': '.
+		const isValid = $players.every((player) => {
+			const trimmed = player.trim();
+			return trimmed === '' || trimmed.split(': ').length === 2;
+		});
+		if (!isValid) {
 			alert("'{악기/역할} : {연주자 이름}' 형식으로 적어주세요");
 			return;
 		}
