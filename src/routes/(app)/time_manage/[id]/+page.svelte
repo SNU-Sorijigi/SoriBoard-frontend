@@ -13,6 +13,7 @@
 	import minusicon from '$lib/images/minus.svg';
 	import checkicon from '$lib/images/check.svg';
 	import Tv from '$lib/components/tv.svelte';
+	import { closeOnKey } from '$lib/closeKey.js';
 
 	$: id = $page.params.id;
 
@@ -637,7 +638,7 @@
 				class="xbutton"
 				title="close"
 				on:click={toggle}
-				on:keydown={toggle}>&times;</span
+				on:keydown={closeOnKey(toggle)}>&times;</span
 			>
 			<div class="title">인스타 업로드 형식</div>
 			<div class="insta_content">
@@ -679,7 +680,7 @@
 				class="xbutton"
 				title="close"
 				on:click={edit_toggle}
-				on:keydown={edit_toggle}>&times;</span
+				on:keydown={closeOnKey(edit_toggle)}>&times;</span
 			>
 			<div class="title">타임 정보 수정</div>
 			<br />
@@ -806,7 +807,7 @@
 				class="xbutton"
 				title="close"
 				on:click={display_toggle}
-				on:keydown={display_toggle}>&times;</span
+				on:keydown={closeOnKey(display_toggle)}>&times;</span
 			>
 			<div class="title">판서 화면 수정</div>
 			<br />

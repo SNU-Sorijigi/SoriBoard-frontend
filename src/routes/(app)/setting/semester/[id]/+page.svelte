@@ -5,6 +5,7 @@
 	import { fly } from 'svelte/transition';
 	import Input from '$lib/components/input.svelte';
 	import TimeTable from '$lib/components/timetable.svelte';
+	import { closeOnKey } from '$lib/closeKey.js';
 
 	$: id = $page.params.id;
 
@@ -159,7 +160,7 @@
 				class="xbutton"
 				title="close"
 				on:click={edit_toggle}
-				on:keydown={edit_toggle}>&times;</span
+				on:keydown={closeOnKey(edit_toggle)}>&times;</span
 			>
 			<div class="title">학기 정보 수정</div>
 			<br />

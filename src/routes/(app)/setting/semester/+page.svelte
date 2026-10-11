@@ -3,6 +3,7 @@
 	import { fade, fly } from 'svelte/transition';
 	import { writable } from 'svelte/store';
 	import { onMount } from 'svelte';
+	import { closeOnKey } from '$lib/closeKey.js';
 
 	function clickOutside(node) {
 		const handleClick = (event) => {
@@ -87,7 +88,7 @@
 				class="xbutton"
 				title="close"
 				on:click={toggle}
-				on:keydown={toggle}>&times;</span
+				on:keydown={closeOnKey(toggle)}>&times;</span
 			>
 			<div class="title">학기 생성</div>
 			<br />

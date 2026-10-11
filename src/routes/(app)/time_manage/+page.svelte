@@ -5,6 +5,7 @@
 	import { writable } from 'svelte/store';
 	import plusicon from '$lib/images/plus.svg';
 	import minusicon from '$lib/images/minus.svg';
+	import { closeOnKey } from '$lib/closeKey.js';
 
 	let semester_exists = false;
 
@@ -227,7 +228,7 @@
 				class="xbutton"
 				title="close"
 				on:click={toggle}
-				on:keydown={toggle}>&times;</span
+				on:keydown={closeOnKey(toggle)}>&times;</span
 			>
 			<div class="title">타임 생성</div>
 			<br />
