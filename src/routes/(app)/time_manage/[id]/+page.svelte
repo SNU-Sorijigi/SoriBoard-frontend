@@ -49,6 +49,8 @@
 	let is_requested = false;
 	let players = writable(['']);
 	let duplicateWarning = null;
+	// True while a 곡 추가 is checked, sent and reloaded (see whileAdding)
+	let adding = false;
 
 	function addPlayer() {
 		players.update((currentPlayers) => [...currentPlayers, '']);
@@ -308,15 +310,31 @@
 			is_requested = false;
 			players.set(['']);
 			duplicateWarning = null;
-			loadTimeInfo(id);
+			await loadTimeInfo(id);
 		} else {
 			console.error('Failed to create');
 			alert('곡 추가에 실패했습니다.');
 		}
 	}
 
-	async function handleSubmit(event) {
+	// One 곡 추가 at a time, until the playlist has reloaded: a double click, a held Enter
+	// or a second 그래도 추가 would otherwise add the piece again, with the same order.
+	async function whileAdding(task) {
+		if (adding) return;
+		adding = true;
+		try {
+			await task();
+		} finally {
+			adding = false;
+		}
+	}
+
+	function handleSubmit(event) {
 		event.preventDefault();
+		whileAdding(checkThenSubmitMusic);
+	}
+
+	async function checkThenSubmitMusic() {
 		// The backend trims each player, skips empty ones and splits the rest on ': '.
 		const isValid = $players.every((player) => {
 			const trimmed = player.trim();
@@ -328,11 +346,22 @@
 		}
 
 		const params = new URLSearchParams({ time_id: id, composer_name: composer, title, days: 7 });
-		const checkRes = await fetch(`/api/check-duplicate?${params}`);
-		const checkData = await checkRes.json();
+		let duplicates;
+		try {
+			const checkRes = await fetch(`/api/check-duplicate?${params}`);
+			const checkData = await checkRes.json();
+			if (checkRes.ok) duplicates = checkData.duplicates;
+		} catch (error) {
+			console.error('Failed to check duplicates', error);
+		}
+		// The proxy also answers 200 with a backend error body, e.g. { detail }
+		if (!Array.isArray(duplicates)) {
+			alert('곡 추가에 실패했습니다.');
+			return;
+		}
 
-		if (checkData.duplicates.length > 0) {
-			duplicateWarning = checkData.duplicates;
+		if (duplicates.length > 0) {
+			duplicateWarning = duplicates;
 			return;
 		}
 
@@ -595,7 +624,9 @@
 						<button type="button" class="warn-cancel" on:click={() => (duplicateWarning = null)}
 							>취소</button
 						>
-						<button type="button" class="warn-confirm" on:click={submitMusic}>그래도 추가</button>
+						<button type="button" class="warn-confirm" on:click={() => whileAdding(submitMusic)}
+							>그래도 추가</button
+						>
 					</div>
 				</div>
 			{/if}
