@@ -56,6 +56,11 @@
 			},
 			body: JSON.stringify(newUser),
 		});
+		if (!response.ok) {
+			console.error('Failed to create Jigi');
+			alert('지기 추가에 실패했습니다.');
+			return;
+		}
 		new_name = '';
 		new_major = '';
 		new_year_id = '';
