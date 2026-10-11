@@ -1,7 +1,6 @@
 <script>
 	import TimeCalendar from '$lib/components/timecalendar.svelte';
-	import { fade, fly } from 'svelte/transition';
-	import { onMount } from 'svelte';
+	import { fly } from 'svelte/transition';
 	import { writable } from 'svelte/store';
 	import plusicon from '$lib/images/plus.svg';
 	import minusicon from '$lib/images/minus.svg';
@@ -106,8 +105,6 @@
 	let date = writable('');
 	let mento_time = writable('');
 	let mentee_time = writable('');
-	let mento = '';
-	let mentee = '';
 	let mento_id = [];
 	let mentee_id = [];
 
@@ -139,8 +136,6 @@
 		}
 	}
 
-	let jigis = [];
-
 	async function create(event) {
 		const { year, month, day, time } = event.detail;
 		const timeUnitData = await fetchJigis(year, month, day, time);
@@ -158,13 +153,7 @@
 		date.set(formatDate(year, month, day));
 		num.set(time);
 		// Prefill from timetable unit
-		mento = Array.isArray(timeUnitData.jigi_info)
-			? timeUnitData.jigi_info.join(', ')
-			: timeUnitData.jigi_info;
 		mento_id = (timeUnitData.users || []).map(String);
-		mentee = Array.isArray(timeUnitData.mentee_info)
-			? timeUnitData.mentee_info.join(', ')
-			: timeUnitData.mentee_info || '';
 		mentee_id = (timeUnitData.mentees || []).map(String);
 
 		// Ensure user list is loaded before showing modal
@@ -263,9 +252,9 @@
 				<div class="stack">
 					<div class="col">
 						<label for="mento-row-0">지기</label>
-						{#each mento_id as id, i}
+						{#each mento_id as jid, i}
 							<div class="row">
-								<select id={`mento-row-${i}`} bind:value={mento_id[i]} aria-label={`지기 ${i + 1}`}>
+								<select id={`mento-row-${i}`} bind:value={jid} aria-label={`지기 ${i + 1}`}>
 									<option value="" disabled>선택</option>
 									{#each $allUsers as u}
 										<option value={String(u.id)}>{u.name} {u.major} {u.year_id}</option>
@@ -295,13 +284,9 @@
 				<div class="stack">
 					<div class="col">
 						<label for="mentee-row-0">제자</label>
-						{#each mentee_id as id, i}
+						{#each mentee_id as mid, i}
 							<div class="row">
-								<select
-									id={`mentee-row-${i}`}
-									bind:value={mentee_id[i]}
-									aria-label={`제자 ${i + 1}`}
-								>
+								<select id={`mentee-row-${i}`} bind:value={mid} aria-label={`제자 ${i + 1}`}>
 									<option value="" disabled>선택</option>
 									{#each $allUsers as u}
 										<option value={String(u.id)}>{u.name} {u.major} {u.year_id}</option>
