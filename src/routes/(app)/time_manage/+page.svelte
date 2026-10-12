@@ -50,6 +50,9 @@
 
 	async function fetchTimetable(semester_id) {
 		const response = await fetch(`/api/timetable/${semester_id}`);
+		if (!response.ok) {
+			throw new Error(`Failed to fetch timetable: ${response.status}`);
+		}
 		const data = await response.json();
 		return data;
 	}
@@ -138,7 +141,15 @@
 
 	async function create(event) {
 		const { year, month, day, time } = event.detail;
-		const timeUnitData = await fetchJigis(year, month, day, time);
+		let timeUnitData;
+		try {
+			timeUnitData = await fetchJigis(year, month, day, time);
+		} catch (error) {
+			// The 타임 생성 modal is not opened for a 타임 whose timetable did not load
+			console.error('Failed to load the timetable', error);
+			alert('시간표 정보를 불러오지 못했습니다.');
+			return;
+		}
 		if (semester_exists === false) {
 			alert('해당 학기가 존재하지 않습니다.');
 			return;

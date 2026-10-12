@@ -48,6 +48,9 @@
 	async function fetchTimetable(id) {
 		try {
 			const response = await fetch(`/api/timetable/${id}`);
+			if (!response.ok) {
+				throw new Error(`Failed to fetch timetable: ${response.status}`);
+			}
 			const data = await response.json();
 			timetableUnitIdData = data.table;
 			console.log(timetableUnitIdData);
@@ -55,6 +58,7 @@
 		} catch (error) {
 			console.error(error);
 			console.error(`Failed to fetch timetable id ${id}`);
+			alert('시간표 정보를 불러오지 못했습니다.');
 		}
 	}
 
