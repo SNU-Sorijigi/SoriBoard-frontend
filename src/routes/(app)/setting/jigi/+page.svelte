@@ -7,14 +7,17 @@
 
 	const users = writable([]);
 
+	// After a failure the list keeps the members it shows
 	async function fetchUsers() {
 		try {
 			const response = await fetch('/api/user/');
-			const data = await response.json();
-			users.set(data);
-			console.log(data);
+			if (!response.ok) {
+				throw new Error(`Failed to fetch users: ${response.status}`);
+			}
+			users.set(await response.json());
 		} catch (error) {
-			console.error('Failed to fetch users');
+			console.error('Failed to fetch users', error);
+			alert('지기 목록을 불러오지 못했습니다.');
 		}
 	}
 
