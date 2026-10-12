@@ -106,10 +106,11 @@
 		visible = !visible;
 	}
 
+	// The clicked day as YYYY-MM-DD. Not through toISOString(): that is UTC, and gave the
+	// day after in a browser at UTC or west of it.
 	function formatDate(year, month, day) {
-		const date = new Date(year, month - 1, day + 1);
-		const formattedDate = date.toISOString().split('T')[0];
-		return formattedDate;
+		const pad = (n) => String(n).padStart(2, '0');
+		return `${year}-${pad(month)}-${pad(day)}`;
 	}
 
 	let visible = false;

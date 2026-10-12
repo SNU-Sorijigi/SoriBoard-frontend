@@ -155,10 +155,10 @@
 			// The page moved to another 타임 meanwhile (◀/▶, back/forward): its own load shows it.
 			if (timeId !== id) return;
 			shownId = timeId;
-			date = new Date(data.date);
-			const year = date.getFullYear();
-			const month = date.getMonth() + 1;
-			const day = date.getDate();
+			// data.date is YYYY-MM-DD. new Date() reads it as UTC midnight, which is the day
+			// before in a browser west of UTC.
+			const [year, month, day] = data.date.split('-').map(Number);
+			date = data.date;
 			time = data.time;
 			const mento_name = Array.isArray(data.jigi_info)
 				? data.jigi_info.join(', ')
@@ -185,8 +185,6 @@
 			if (!edited(time_comment_gigi, 'gigi')) time_comment_gigi = saved.gigi;
 			if (!edited(time_comment_etc, 'etc')) time_comment_etc = saved.etc;
 			loadedComments = { id: timeId, ...saved };
-
-			date = date.toISOString().split('T')[0];
 		} catch (error) {
 			console.error('Failed to load', error);
 			// A 타임 deleted elsewhere, or the backend down: the page keeps what it shows.
