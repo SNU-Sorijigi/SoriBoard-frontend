@@ -66,27 +66,38 @@
 		return res.json();
 	}
 
+	// 가장 최근에 시작한 로드만 반영한다. 늦게 도착한 이전 로드의 응답은 버린다.
+	let loadId = 0;
+
 	async function loadAll() {
 		// 개인 범위인데 지기 미선택이면 로드 보류.
 		if (scope === 'individual' && !userId) return;
+		const id = ++loadId;
 		loading = true;
 		try {
+			const results = await Promise.all([
+				getJson('summary'),
+				getJson('composers', { limit: 12 }),
+				getJson('soloists', { limit: 12 }),
+				getJson('conductors', { limit: 10 }),
+				getJson('orchestras', { limit: 10 }),
+				getJson('timeline', { bucket: timelineBucket }),
+				getJson('eras'),
+				getJson('genres'),
+				getJson('diversity', { bucket: diversityBucket })
+			]);
+			if (id !== loadId) return;
 			[summary, composers, soloists, conductors, orchestras, timeline, eras, genres, diversity] =
-				await Promise.all([
-					getJson('summary'),
-					getJson('composers', { limit: 12 }),
-					getJson('soloists', { limit: 12 }),
-					getJson('conductors', { limit: 10 }),
-					getJson('orchestras', { limit: 10 }),
-					getJson('timeline', { bucket: timelineBucket }),
-					getJson('eras'),
-					getJson('genres'),
-					getJson('diversity', { bucket: diversityBucket })
-				]);
+				results;
 		} catch (e) {
+			if (id !== loadId) return;
 			console.error('통계 로딩 실패', e);
+			// 이전 필터의 수치가 새 필터의 이름으로 남아 보이지 않도록 비운다.
+			[summary, composers, soloists, conductors, orchestras, timeline, eras, genres, diversity] =
+				[];
+			alert('통계를 불러오지 못했습니다.');
 		} finally {
-			loading = false;
+			if (id === loadId) loading = false;
 		}
 	}
 
