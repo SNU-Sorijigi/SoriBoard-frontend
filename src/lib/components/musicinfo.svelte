@@ -37,9 +37,28 @@
 		isEditing = !isEditing;
 	}
 
-	function confirmEdit() {
-		isEditing = false;
-		updateData(id);
+	async function confirmEdit() {
+		// Same rule as 곡 추가: a player, trimmed, is empty or splits in two on ': ' (as the backend does).
+		const isValid = players.every((player) => {
+			const trimmed = player.trim();
+			return trimmed === '' || trimmed.split(': ').length === 2;
+		});
+		if (!isValid) {
+			alert("'{악기/역할} : {연주자 이름}' 형식으로 적어주세요");
+			return;
+		}
+
+		let saved = false;
+		try {
+			saved = await updateData(id);
+		} catch (error) {
+			console.error('failed to edit', error);
+		}
+		if (saved) {
+			isEditing = false;
+		} else {
+			alert('곡 수정에 실패했습니다.');
+		}
 	}
 
 	async function updateData(id) {
@@ -52,7 +71,8 @@
 			composer_name: composer,
 			conductor_name: conductor,
 			orchestra_name: orchestra,
-			player_names: players
+			// Upstream's backend fails on an empty player, after saving the rest of the edit
+			player_names: players.filter((player) => player.trim() !== '')
 		};
 		const response = await fetch(`/api/music/${id}`, {
 			method: 'PUT',
@@ -64,6 +84,7 @@
 		if (!response.ok) {
 			console.error('failed to edit');
 		}
+		return response.ok;
 	}
 	let ws;
 	onMount(() => {
