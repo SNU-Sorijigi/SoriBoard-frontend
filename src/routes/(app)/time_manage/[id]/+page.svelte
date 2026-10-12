@@ -4,6 +4,7 @@
 	import { page } from '$app/stores';
 	import { fly } from 'svelte/transition';
 	import { goto } from '$app/navigation';
+	import { browser } from '$app/environment';
 	import MusicInfo from '$lib/components/musicinfo.svelte';
 	import Input from '$lib/components/input.svelte';
 	import MusicHistoryInputs from '$lib/components/MusicHistoryInputs.svelte';
@@ -108,7 +109,7 @@
 	async function fetchData(id) {
 		const response = await fetch(`/api/time/${id}`);
 		if (!response.ok) {
-			console.log('Error');
+			throw new Error(`Failed to load the 타임: ${response.status}`);
 		}
 		return await response.json();
 	}
@@ -178,7 +179,10 @@
 
 			date = date.toISOString().split('T')[0];
 		} catch (error) {
-			console.log('Error');
+			console.error('Failed to load', error);
+			// A 타임 deleted elsewhere, or the backend down: the page keeps what it shows.
+			// Nothing to report for a 타임 the page has left meanwhile.
+			if (timeId === id) alert('타임 정보를 불러오지 못했습니다.');
 		}
 	}
 
@@ -292,10 +296,10 @@
 
 	onMount(() => {
 		fetchUsers();
-		loadTimeInfo(id);
 	});
 
-	$: if (id) {
+	// Also the first load. Browser only: the server's fetch cannot reach '/api/…'.
+	$: if (browser && id) {
 		reloadAll(id);
 	}
 
@@ -499,9 +503,19 @@
 	async function deleteTime() {
 		const isConfirmed = confirm('삭제하시겠습니까?');
 		if (isConfirmed) {
-			await fetch(`/api/time/${shownId}`, {
-				method: 'DELETE'
-			});
+			let deleted = false;
+			try {
+				const response = await fetch(`/api/time/${shownId}`, {
+					method: 'DELETE'
+				});
+				deleted = response.ok;
+			} catch (error) {
+				console.error('Failed to delete', error);
+			}
+			if (!deleted) {
+				alert('타임 삭제에 실패했습니다.');
+				return;
+			}
 			goto('/time_manage');
 		}
 	}

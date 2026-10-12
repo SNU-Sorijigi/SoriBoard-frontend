@@ -8,7 +8,7 @@ export async function GET({ params }) {
 		const data = await response.json();
 		return json(data);
 	}
-	return json({ message: 'Error' }, 400);
+	return json({ message: 'Error' }, { status: 400 });
 }
 
 export async function PUT({ params, request }) {
@@ -38,5 +38,5 @@ export async function DELETE({ params }) {
 	if (response.ok) {
 		return json({ message: 'Time info successfully deleted' });
 	}
-	return json({ message: 'Error deleting time info' }, 400);
+	return json({ message: 'Error deleting time info' }, { status: 400 });
 }
