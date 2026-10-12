@@ -1,6 +1,6 @@
 <script>
 	import DayBlock from './dayBlock.svelte';
-	import { onMount } from 'svelte';
+	import { onMount, createEventDispatcher } from 'svelte';
 	export let week;
 	export let month;
 	export let year;
@@ -45,13 +45,15 @@
 			`/api/time/${start_year}/${start_month}/${start_day}/${end_year}/${end_month}/${end_day}`
 		);
 		if (!response.ok) {
-			console.log('Error');
-			return [];
+			throw new Error(`Failed to fetch the week's 타임: ${response.status}`);
 		}
 		return await response.json();
 	}
 
+	const dispatch = createEventDispatcher();
+
 	onMount(() => {
+		let destroyed = false;
 		fetchData(
 			daysOfWeek[0].year,
 			daysOfWeek[0].month + 1,
@@ -59,9 +61,16 @@
 			daysOfWeek[daysOfWeek.length - 1].year,
 			daysOfWeek[daysOfWeek.length - 1].month + 1,
 			daysOfWeek[daysOfWeek.length - 1].date
-		).then((array) => {
-			createdList = array;
-		});
+		)
+			.then((array) => {
+				createdList = array;
+			})
+			.catch((error) => {
+				// The week shows no 타임; the calendar says so, unless it has left this month
+				console.error('Failed to load the week', error);
+				if (!destroyed) dispatch('loadError');
+			});
+		return () => (destroyed = true);
 	});
 </script>
 

@@ -49,6 +49,15 @@
 		}
 		return list;
 	}
+	// A month whose weeks fail to load says so once, not once per week
+	let loadErrorShown = false;
+	$: year, month, (loadErrorShown = false);
+	function reportLoadError() {
+		if (loadErrorShown) return;
+		loadErrorShown = true;
+		alert('타임 정보를 불러오지 못했습니다.');
+	}
+
 	$: weeksInMonth = calculateWeeksInMonth(year, month);
 	$: weekList = createWeekList(weeksInMonth);
 </script>
@@ -78,7 +87,8 @@
 		</div>
 		<div class="month-block">
 			{#each weekList as index (year.toString() + '-' + month.toString() + '-' + index)}
-				<WeekBlock week={index} {month} {year} on:createTime></WeekBlock>
+				<WeekBlock week={index} {month} {year} on:createTime on:loadError={reportLoadError}
+				></WeekBlock>
 			{/each}
 		</div>
 	</div>
