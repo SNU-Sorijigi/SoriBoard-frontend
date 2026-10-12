@@ -192,8 +192,13 @@
 		window.location.href = url;
 	}
 
+	// True from a 타임 생성 until it failed or the page navigates: a double click or a held Enter
+	// would otherwise send it twice, and the refused second one alerts a failure.
+	let creating = false;
+
 	async function handleSubmit(event) {
 		event.preventDefault();
+		if (creating) return;
 		// a row added with + and left at 선택 is '': skip it, or the backend refuses the whole session
 		const formData = {
 			date: $date,
@@ -209,20 +214,26 @@
 			return;
 		}
 
-		const response = await fetch('/api/time', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify(formData)
-		});
-		if (response.ok) {
-			const data = await response.json();
-			navigate('/time_manage/' + data.id);
-		} else {
-			console.error('Failed to create TimeInfo');
-			alert('타임 생성에 실패했습니다.');
+		creating = true;
+		try {
+			const response = await fetch('/api/time', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(formData)
+			});
+			if (response.ok) {
+				const data = await response.json();
+				navigate('/time_manage/' + data.id);
+				return;
+			}
+		} catch (error) {
+			console.error('Failed to send the new TimeInfo', error);
 		}
+		creating = false;
+		console.error('Failed to create TimeInfo');
+		alert('타임 생성에 실패했습니다.');
 	}
 </script>
 

@@ -33,12 +33,17 @@
 	let new_join_year = '';
 	let new_join_semester = '';
 
+	// True from a 지기 추가 until it failed or the page reloads: a double click or a held Enter
+	// would otherwise add the member twice (the backend accepts identical members).
+	let creating = false;
+
 	function toggleCheck() {
 		new_is_ob = !new_is_ob;
 	}
 
 	async function createNewUser(event) {
 		event.preventDefault();
+		if (creating) return;
 		if (new_join_semester != 1 && new_join_semester != 2) {
 			alert('Semester must be 1 or 2');
 			return;
@@ -52,14 +57,22 @@
 			join_year: new_join_year,
 			join_semester: new_join_semester,
 		};
-		const response = await fetch('/api/user', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-			},
-			body: JSON.stringify(newUser),
-		});
-		if (!response.ok) {
+		creating = true;
+		let created = false;
+		try {
+			const response = await fetch('/api/user', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(newUser)
+			});
+			created = response.ok;
+		} catch (error) {
+			console.error('Failed to send the new Jigi', error);
+		}
+		if (!created) {
+			creating = false;
 			console.error('Failed to create Jigi');
 			alert('지기 추가에 실패했습니다.');
 			return;
