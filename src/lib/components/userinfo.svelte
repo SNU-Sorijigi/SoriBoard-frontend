@@ -46,9 +46,20 @@
 		isEditing = !isEditing;
 	}
 
-	function confirmEdit() {
-		isEditing = false;
-		updateData(id);
+	async function confirmEdit() {
+		let saved = false;
+		try {
+			saved = await updateData(id);
+		} catch (error) {
+			console.error('failed to edit', error);
+		}
+		// After a failure the row stays editable with the typed values (a refetch would overwrite them)
+		if (saved) {
+			isEditing = false;
+			refetchUsers();
+		} else {
+			alert('지기 정보 수정에 실패했습니다.');
+		}
 	}
 
 	async function updateData(id) {
@@ -71,7 +82,7 @@
 		if (!response.ok) {
 			console.error('failed to edit');
 		}
-		refetchUsers();
+		return response.ok;
 	}
 </script>
 
