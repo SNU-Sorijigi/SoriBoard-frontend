@@ -56,6 +56,8 @@
 	let duplicateWarning = null;
 	// True while a 곡 추가 is checked, sent and reloaded (see whileAdding)
 	let adding = false;
+	// True while a ↑/↓ swap is sent and the playlist reloaded (see moveMusic)
+	let reordering = false;
 
 	function addPlayer() {
 		players.update((currentPlayers) => [...currentPlayers, '']);
@@ -520,6 +522,7 @@
 		}
 	}
 
+	// Resolves to whether the backend swapped the two pieces' orders
 	async function swapOrders(id1, id2) {
 		try {
 			const response = await fetch(`/api/music/${id1}/${id2}/`, {
@@ -531,28 +534,37 @@
 			if (!response.ok) {
 				throw new Error('Network response was not ok');
 			}
+			return true;
 		} catch (error) {
 			console.error('Error swapping orders:', error);
+			return false;
 		}
 	}
 
-	async function goDown(event) {
-		const { musicid } = event.detail;
+	// One ↑/↓ at a time, until the playlist has reloaded: a second click before that reads
+	// the old order and would swap the same two pieces back (the backend swaps their orders).
+	async function moveMusic(musicid, step) {
+		if (reordering) return;
 		const index = findItemIndexById(musicid);
-		if (index === -1 || index === timeMusic.length - 1) return;
-		const currentItem = timeMusic[index];
-		const nextItem = timeMusic[index + 1];
-		await swapOrders(currentItem.id, nextItem.id);
-		loadTimeInfo(id);
+		if (index === -1 || !timeMusic[index + step]) return;
+		reordering = true;
+		try {
+			const swapped = await swapOrders(timeMusic[index].id, timeMusic[index + step].id);
+			if (!swapped) {
+				alert('곡 순서 변경에 실패했습니다.');
+			}
+			// Also after a failure: a piece deleted elsewhere then leaves the playlist
+			await loadTimeInfo(id);
+		} finally {
+			reordering = false;
+		}
 	}
-	async function goUp(event) {
-		const { musicid } = event.detail;
-		const index = findItemIndexById(musicid);
-		if (index <= 0) return;
-		const currentItem = timeMusic[index];
-		const prevItem = timeMusic[index - 1];
-		await swapOrders(currentItem.id, prevItem.id);
-		loadTimeInfo(id);
+
+	function goDown(event) {
+		moveMusic(event.detail.musicid, 1);
+	}
+	function goUp(event) {
+		moveMusic(event.detail.musicid, -1);
 	}
 </script>
 
@@ -598,7 +610,8 @@
 	</div>
 	<div class="content">
 		<div class="playlist hide-scrollbar">
-			{#each timeMusic as music}
+			<!-- Keyed: a piece in 수정 stays in 수정 when ↑/↓ or 삭제 moves it to another row -->
+			{#each timeMusic as music (music.id)}
 				<MusicInfo
 					on:goDown={goDown}
 					on:goUp={goUp}
