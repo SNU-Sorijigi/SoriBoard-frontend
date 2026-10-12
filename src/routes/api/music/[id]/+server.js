@@ -24,7 +24,7 @@ export async function PUT({ params, request }) {
 
 export async function DELETE({ params }) {
 	const { id } = params;
-	const response = await fetch(`${backendServer}/time_manage/timemusic/${id}`, {
+	const response = await fetch(`${backendServer}/time_manage/timemusic/${id}/`, {
 		method: 'DELETE'
 	});
 	if (!response.ok) {
@@ -32,8 +32,6 @@ export async function DELETE({ params }) {
 			status: 400
 		});
 	}
-	if (response.ok) {
-		const data = await response.json();
-		return json(data);
-	}
+	// The backend answers 204 No Content: there is no body to read.
+	return json({ message: 'TimeMusic successfully deleted' });
 }

@@ -88,9 +88,19 @@
 	async function deleteMusic(music_id) {
 		const isConfirmed = confirm('삭제하시겠습니까?');
 		if (isConfirmed) {
-			await fetch(`/api/music/${music_id}`, {
-				method: 'DELETE'
-			});
+			let deleted = false;
+			try {
+				const response = await fetch(`/api/music/${music_id}`, {
+					method: 'DELETE'
+				});
+				deleted = response.ok;
+			} catch (error) {
+				console.error('Failed to delete', error);
+			}
+			if (!deleted) {
+				alert('곡 삭제에 실패했습니다.');
+			}
+			// Also after a failure: a piece already deleted elsewhere then leaves the playlist
 			loadTimeInfo(id);
 		}
 	}
