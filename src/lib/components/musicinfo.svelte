@@ -89,6 +89,8 @@
 	let ws;
 	onMount(() => {
 		ws = new WebSocket(`${webSocketServer}/ws/tv_display/`);
+		// Close it with the row: an open socket gets every TV update until the tab reloads
+		return () => ws.close();
 	});
 	function showDisplay() {
 		displayComposer.set(composer);

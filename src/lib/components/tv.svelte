@@ -48,6 +48,8 @@
 		_spacerSize3 = $spacerSize3;
 		_spacerSize4 = $spacerSize4;
 		_spacerSize5 = $spacerSize5;
+		// Close it with the modal: an open socket gets every TV update until the tab reloads
+		return () => ws.close();
 	});
 	onDestroy(() => {
 		composerFontSize.set(_composerFontSize);

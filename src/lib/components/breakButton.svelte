@@ -33,6 +33,8 @@
 	onMount(() => {
 		updateBreakTime(time);
 		ws = new WebSocket(`${webSocketServer}/ws/tv_display/`);
+		// Close it with the button: an open socket gets every TV update until the tab reloads
+		return () => ws.close();
 	});
 
 	function showDisplay() {
