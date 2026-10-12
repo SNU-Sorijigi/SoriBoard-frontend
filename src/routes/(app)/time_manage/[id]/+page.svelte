@@ -424,14 +424,20 @@
 			mentee_arrival_time: mentee_arrival_time || null
 		};
 
-		const response = await fetch(`/api/time/${shownId}`, {
-			method: 'PUT',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify(formData)
-		});
-		if (response.ok) {
+		let saved = false;
+		try {
+			const response = await fetch(`/api/time/${shownId}`, {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(formData)
+			});
+			saved = response.ok;
+		} catch (error) {
+			console.error('Failed to edit TimeInfo', error);
+		}
+		if (saved) {
 			location.reload();
 		} else {
 			console.error('Failed to edit TimeInfo');
@@ -449,14 +455,20 @@
 			time_comment_etc: time_comment_etc
 		};
 
-		const response = await fetch(`/api/time/${shownId}`, {
-			method: 'PUT',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify(formData)
-		});
-		if (response.ok) {
+		let saved = false;
+		try {
+			const response = await fetch(`/api/time/${shownId}`, {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(formData)
+			});
+			saved = response.ok;
+		} catch (error) {
+			console.error('Failed to save comments', error);
+		}
+		if (saved) {
 			alert('코멘트가 저장되었습니다.');
 			// Don't reload - keep the form with current values for further editing
 		} else {

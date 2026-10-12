@@ -19,18 +19,25 @@
 		const formData = {
 			content: content
 		};
-		const response = await fetch(`/api/information/${id}`, {
-			method: 'PUT',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify(formData)
-		});
-		if (!response.ok) {
+		let saved = false;
+		try {
+			const response = await fetch(`/api/information/${id}`, {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(formData)
+			});
+			saved = response.ok;
+		} catch (error) {
+			console.error('Failed to update data', error);
+		}
+		// After a failure the row stays in edit mode with the typed text
+		if (!saved) {
 			console.error('Failed to update data');
 			alert('뉴스 수정에 실패했습니다.');
 		}
-		return response.ok;
+		return saved;
 	}
 </script>
 
