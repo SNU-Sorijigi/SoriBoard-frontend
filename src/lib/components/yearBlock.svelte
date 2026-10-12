@@ -5,19 +5,23 @@
 	let createdList = [];
 
 	async function fetchData(year) {
-		const response = await fetch(
-			`/api/semester/year/${year}`
-		);
+		const response = await fetch(`/api/semester/year/${year}`);
 		if (!response.ok) {
-			console.log('Error fetching semester data');
+			throw new Error(`Failed to fetch semester data: ${response.status}`);
 		}
 		return await response.json();
 	}
 
 	onMount(() => {
-		fetchData(year).then((array) => {
-			createdList = array;
-		});
+		fetchData(year)
+			.then((array) => {
+				createdList = array;
+			})
+			.catch((error) => {
+				// without the list both 학기 would look not created yet
+				console.error('Error fetching semester data', error);
+				alert('학기 정보를 불러오지 못했습니다.');
+			});
 	});
 
 </script>

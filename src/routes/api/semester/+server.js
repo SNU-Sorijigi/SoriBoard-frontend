@@ -7,7 +7,7 @@ export async function GET() {
 		const data = await response.json();
 		return json(data);
 	}
-	return json({ message: 'Error' }, 400);
+	return json({ message: 'Error' }, { status: 400 });
 }
 
 export async function POST({ request }) {

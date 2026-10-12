@@ -26,6 +26,9 @@
 
 	async function getSemesterId(year, month) {
 		const response = await fetch(`/api/semester/year/${year}`);
+		if (!response.ok) {
+			throw new Error(`Failed to fetch semester list: ${response.status}`);
+		}
 		const data = await response.json();
 		let semester_id;
 		if (month <= 7) {
@@ -40,8 +43,10 @@
 		if (id) {
 			semester_exists = true;
 			const response = await fetch(`/api/semester/${id}`);
+			if (!response.ok) {
+				throw new Error(`Failed to fetch semester: ${response.status}`);
+			}
 			const data = await response.json();
-			console.log(data);
 			return data;
 		} else {
 			semester_exists = false;
@@ -153,7 +158,7 @@
 		try {
 			timeUnitData = await fetchJigis(year, month, day, time);
 		} catch (error) {
-			// The 타임 생성 modal is not opened for a 타임 whose timetable did not load
+			// The 타임 생성 modal is not opened for a 타임 whose semester or timetable did not load
 			console.error('Failed to load the timetable', error);
 			alert('시간표 정보를 불러오지 못했습니다.');
 			return;
