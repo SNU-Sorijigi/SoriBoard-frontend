@@ -46,6 +46,7 @@
 		);
 		if (!response.ok) {
 			console.log('Error');
+			return [];
 		}
 		return await response.json();
 	}
@@ -73,7 +74,7 @@
 			time={i !== 0 && i !== 6}
 			{isToday}
 			{isThisMonth}
-			create={createdList[i]}
+			create={createdList[i] || []}
 			on:createTime
 		></DayBlock>
 	{/each}
