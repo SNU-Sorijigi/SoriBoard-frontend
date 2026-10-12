@@ -28,5 +28,5 @@ export async function DELETE({ params }) {
 	if (response.ok) {
 		return json({ message: 'Information (News) successfully deleted' });
 	}
-	return json({ message: 'Error deleting Information (News)' }, 400);
+	return json({ message: 'Error deleting Information (News)' }, { status: 400 });
 }

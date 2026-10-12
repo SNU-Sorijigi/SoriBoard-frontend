@@ -23,11 +23,19 @@
 	let infoNews = '';
 	let instagram = '@snu_sorijigi';
 	const news = writable([]);
+	// A failed load leaves the news line empty; no alert, nobody is at the TV to close it
 	async function fetchNews() {
-		const response = await fetch('/api/information/');
-		const newsdata = await response.json();
-		news.set(newsdata);
-		infoNews = newsdata[0].content;
+		try {
+			const response = await fetch('/api/information/');
+			if (!response.ok) {
+				throw new Error(`Failed to fetch news: ${response.status}`);
+			}
+			const newsdata = await response.json();
+			news.set(newsdata);
+			infoNews = newsdata[0]?.content ?? '';
+		} catch (error) {
+			console.error('Failed to fetch news', error);
+		}
 	}
 	onMount(() => {
 		'use strict';

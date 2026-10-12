@@ -8,10 +8,13 @@
 	async function fetchNews() {
 		try {
 			const response = await fetch('/api/information');
-			const data = await response.json();
-			news.set(data);
+			if (!response.ok) {
+				throw new Error(`Failed to fetch news: ${response.status}`);
+			}
+			news.set(await response.json());
 		} catch (error) {
-			console.error('Failed to fetch news');
+			console.error('Failed to fetch news', error);
+			alert('뉴스 정보를 불러오지 못했습니다.');
 		}
 	}
 
