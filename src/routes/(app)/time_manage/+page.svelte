@@ -40,17 +40,12 @@
 	}
 
 	async function fetchSemester(id) {
-		if (id) {
-			semester_exists = true;
-			const response = await fetch(`/api/semester/${id}`);
-			if (!response.ok) {
-				throw new Error(`Failed to fetch semester: ${response.status}`);
-			}
-			const data = await response.json();
-			return data;
-		} else {
-			semester_exists = false;
+		const response = await fetch(`/api/semester/${id}`);
+		if (!response.ok) {
+			throw new Error(`Failed to fetch semester: ${response.status}`);
 		}
+		const data = await response.json();
+		return data;
 	}
 
 	async function fetchTimetable(semester_id) {
@@ -79,12 +74,13 @@
 		const semester_id = await getSemesterId(y, m);
 		// console.log(`semester_id: ${semester_id}`);
 
+		// null: no semester for this date
+		if (!semester_id) {
+			return null;
+		}
+
 		const semester_data = await fetchSemester(semester_id);
 		// console.log(`semester_data: ${JSON.stringify(semester_data)}`);
-
-		if (semester_exists === false) {
-			return;
-		}
 
 		const timetable_data = await fetchTimetable(semester_data.timetable_id);
 		// console.log(`timetable_data: ${JSON.stringify(timetable_data)}`);
@@ -140,6 +136,7 @@
 
 	// Load all users for selection
 	const allUsers = writable([]);
+	// False when the list did not load: the modal then keeps the list of an earlier load
 	async function fetchUsers() {
 		try {
 			const res = await fetch('/api/user/');
@@ -148,24 +145,32 @@
 			}
 			const data = await res.json();
 			allUsers.set(data);
+			return true;
 		} catch (e) {
-			// The modal still opens, with the list of an earlier load if there was one
 			console.error('Failed to fetch users', e);
-			alert('지기 목록을 불러오지 못했습니다.');
+			return false;
 		}
 	}
 
+	// Counts the clicks on a 타임 not created yet. Only the last click's load opens 타임 생성 or
+	// alerts: a double click used to load twice and toggle the modal open and shut again.
+	let createRequest = 0;
+
 	async function create(event) {
+		const request = ++createRequest;
 		const { year, month, day, time } = event.detail;
 		let timeUnitData;
 		try {
 			timeUnitData = await fetchJigis(year, month, day, time);
 		} catch (error) {
+			if (request !== createRequest) return;
 			// The 타임 생성 modal is not opened for a 타임 whose semester or timetable did not load
 			console.error('Failed to load the timetable', error);
 			alert('시간표 정보를 불러오지 못했습니다.');
 			return;
 		}
+		if (request !== createRequest) return;
+		semester_exists = timeUnitData !== null;
 		if (semester_exists === false) {
 			alert('해당 학기가 존재하지 않습니다.');
 			return;
@@ -184,8 +189,12 @@
 		mentee_id = (timeUnitData.mentees || []).map(String);
 
 		// Ensure user list is loaded before showing modal
-		await fetchUsers();
-		toggle();
+		const usersLoaded = await fetchUsers();
+		if (request !== createRequest) return;
+		if (!usersLoaded) {
+			alert('지기 목록을 불러오지 못했습니다.');
+		}
+		visible = true;
 	}
 
 	function navigate(url) {
