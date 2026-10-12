@@ -9,7 +9,7 @@ export	async function GET({ params }) {
 		const data = await response.json();
 		return json(data);
 	}
-	return json({ message: 'APIError fetching timetableunit info' }, 400);
+	return json({ message: 'APIError fetching timetableunit info' }, { status: 400 });
 }
 
 export async function PUT({ params, request }) {
@@ -27,7 +27,7 @@ export async function PUT({ params, request }) {
 		const data = await response.json();
 		return json(data);
 	}
-	return json({ message: 'APIError updating timetableunit info' }, 400);
+	return json({ message: 'APIError updating timetableunit info' }, { status: 400 });
 }
 
 export async function DELETE({ params }) {
@@ -39,5 +39,5 @@ export async function DELETE({ params }) {
 	if (response.ok) {
 		return json({ message: 'Timetableunit successfully deleted' });
 	}
-	return json({ message: 'APIError deleting timetableunit info' }, 400);
+	return json({ message: 'APIError deleting timetableunit info' }, { status: 400 });
 }

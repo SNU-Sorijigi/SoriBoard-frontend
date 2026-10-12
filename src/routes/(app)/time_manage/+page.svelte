@@ -59,6 +59,9 @@
 
 	async function fetchTimetableUnit(timetableunit_id) {
 		const response = await fetch(`/api/timetableunit/${timetableunit_id}`);
+		if (!response.ok) {
+			throw new Error(`Failed to fetch timetableunit: ${response.status}`);
+		}
 		const data = await response.json();
 		return data;
 	}
@@ -86,6 +89,11 @@
 
 		const timetableunit_id = timetable[day.getDay()][t];
 		// console.log(`timetableunit_id: ${timetableunit_id}`);
+
+		// the calendar shows 타임 1 to 5; a semester with fewer has no cell for the rest
+		if (timetableunit_id == null) {
+			return {};
+		}
 
 		const timetableunit_data = await fetchTimetableUnit(timetableunit_id);
 		// console.log(`timetableunit_data: ${JSON.stringify(timetableunit_data)}`);

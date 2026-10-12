@@ -27,6 +27,16 @@
 		}
 	}
 
+	function showUnit(data) {
+		day = data.day;
+		time = data.time;
+		timetable_id = data.timetable;
+		jigi_ids = (data.users || []).map(String);
+		mentee_ids = (data.mentees || []).map(String);
+		jigi_info = data.jigi_info || [];
+		mentee_info = data.mentee_info || [];
+	}
+
 	async function fetchUnitData(id) {
 		if (id == '') {
 			day = '';
@@ -39,16 +49,13 @@
 		} else {
 			try {
 				const response = await fetch(`/api/timetableunit/${id}`);
-				const data = await response.json();
-				day = data.day;
-				time = data.time;
-				timetable_id = data.timetable;
-				jigi_ids = (data.users || []).map(String);
-				mentee_ids = (data.mentees || []).map(String);
-				jigi_info = data.jigi_info || [];
-				mentee_info = data.mentee_info || [];
+				if (!response.ok) {
+					// keep what the cell shows: a failed load does not mean its 지기 are gone
+					throw new Error(`Failed to fetch timetableunit: ${response.status}`);
+				}
+				showUnit(await response.json());
 			} catch (error) {
-				console.error('Failed to fetch timetableunit data');
+				console.error('Failed to fetch timetableunit data', error);
 			}
 		}
 	}
@@ -67,9 +74,10 @@
 		jigi_ids = jigi_ids.filter((_, i) => i !== index);
 	}
 
-	function confirmJigiEdit() {
-		updateData(id);
-		toggleJigiEdit();
+	async function confirmJigiEdit() {
+		if (await updateData(id)) {
+			isJigiEditing = false;
+		}
 	}
 
 	function toggleMenteeEdit() {
@@ -84,9 +92,10 @@
 		mentee_ids = mentee_ids.filter((_, i) => i !== index);
 	}
 
-	function confirmMenteeEdit() {
-		updateData(id);
-		toggleMenteeEdit();
+	async function confirmMenteeEdit() {
+		if (await updateData(id)) {
+			isMenteeEditing = false;
+		}
 	}
 
 	function resetUnit() {
@@ -103,17 +112,26 @@
 			users: jigi_ids.filter(Boolean).map(Number),
 			mentees: mentee_ids.filter(Boolean).map(Number)
 		};
-		const response = await fetch(`/api/timetableunit/${id}`, {
-			method: 'PUT',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify(formData)
-		});
-		if (!response.ok) {
-			console.error('Failed to update timetableunit');
+		try {
+			const response = await fetch(`/api/timetableunit/${id}`, {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(formData)
+			});
+			if (!response.ok) {
+				throw new Error(`Failed to update timetableunit: ${response.status}`);
+			}
+			// the answer is the saved cell, with its 지기/견습 names
+			showUnit(await response.json());
+			return true;
+		} catch (error) {
+			// stay in edit mode with the chosen rows, so the edit can be retried
+			console.error('Failed to update timetableunit', error);
+			alert('시간표 정보 수정에 실패했습니다.');
+			return false;
 		}
-		fetchUnitData(id);
 	}
 
 	onMount(() => {
