@@ -21,6 +21,10 @@
 	let timeUser = '';
 	let timeMusic = [];
 	let time;
+	// The 타임 whose data the page shows. Right after ◀/▶ (or back/forward) `id` is already
+	// the next 타임 while its data loads, so saves go to the 타임 the user sees. Null until
+	// the first load answers: a save then fails instead of sending the empty fields.
+	let shownId = null;
 	let savedTimeInfo = null;
 	// 타임 정보 수정 fields, filled from savedTimeInfo (see fillEditForm)
 	let mento_ids = [];
@@ -125,9 +129,12 @@
 		return formattedDate;
 	}
 
-	async function loadTimeInfo(id) {
+	async function loadTimeInfo(timeId) {
 		try {
-			const data = await fetchData(id);
+			const data = await fetchData(timeId);
+			// The page moved to another 타임 meanwhile (◀/▶, back/forward): its own load shows it.
+			if (timeId !== id) return;
+			shownId = timeId;
 			date = new Date(data.date);
 			const year = date.getFullYear();
 			const month = date.getMonth() + 1;
@@ -153,11 +160,11 @@
 				gigi: data.time_comment_gigi || '',
 				etc: data.time_comment_etc || ''
 			};
-			const edited = (shown, key) => loadedComments.id === id && shown !== loadedComments[key];
+			const edited = (shown, key) => loadedComments.id === timeId && shown !== loadedComments[key];
 			if (!edited(time_comment_music, 'music')) time_comment_music = saved.music;
 			if (!edited(time_comment_gigi, 'gigi')) time_comment_gigi = saved.gigi;
 			if (!edited(time_comment_etc, 'etc')) time_comment_etc = saved.etc;
-			loadedComments = { id, ...saved };
+			loadedComments = { id: timeId, ...saved };
 
 			date = date.toISOString().split('T')[0];
 		} catch (error) {
@@ -226,6 +233,8 @@
 	}
 
 	async function loadAdjacentTimeIds(currentId) {
+		// ◀/▶ lead from the 타임 in the URL, not from one the page has left meanwhile
+		if (currentId !== id) return;
 		prevId = null;
 		nextId = null;
 
@@ -243,6 +252,7 @@
 				endDate.setDate(endDate.getDate() + days);
 
 				const allTimeIds = await fetchRangeIds(startDate, endDate);
+				if (currentId !== id) return;
 				const currentIndex = allTimeIds.indexOf(numId);
 				if (currentIndex === -1) continue;
 
@@ -264,6 +274,8 @@
 		visible = false;
 		editing = false;
 		display = false;
+		// The duplicate warning is for the 타임 the page leaves
+		duplicateWarning = null;
 		await loadTimeInfo(currentId);
 		await loadAdjacentTimeIds(currentId);
 	}
@@ -279,7 +291,7 @@
 
 	async function submitMusic() {
 		const formData = {
-			time: id,
+			time: shownId,
 			order: timeMusic.length > 0 ? timeMusic[timeMusic.length - 1].order + 1 : 1,
 			is_requested: is_requested,
 			source: source,
@@ -345,7 +357,13 @@
 			return;
 		}
 
-		const params = new URLSearchParams({ time_id: id, composer_name: composer, title, days: 7 });
+		const timeId = shownId;
+		const params = new URLSearchParams({
+			time_id: timeId,
+			composer_name: composer,
+			title,
+			days: 7
+		});
 		let duplicates;
 		try {
 			const checkRes = await fetch(`/api/check-duplicate?${params}`);
@@ -354,6 +372,9 @@
 		} catch (error) {
 			console.error('Failed to check duplicates', error);
 		}
+		// ◀/▶ (or back/forward) during the check: the piece is not added to the 타임 shown
+		// now, nor where it was checked. It stays in the form.
+		if (shownId !== timeId || id !== timeId) return;
 		// The proxy also answers 200 with a backend error body, e.g. { detail }
 		if (!Array.isArray(duplicates)) {
 			alert('곡 추가에 실패했습니다.');
@@ -380,7 +401,7 @@
 			mentee_arrival_time: mentee_arrival_time || null
 		};
 
-		const response = await fetch(`/api/time/${id}`, {
+		const response = await fetch(`/api/time/${shownId}`, {
 			method: 'PUT',
 			headers: {
 				'Content-Type': 'application/json'
@@ -405,7 +426,7 @@
 			time_comment_etc: time_comment_etc
 		};
 
-		const response = await fetch(`/api/time/${id}`, {
+		const response = await fetch(`/api/time/${shownId}`, {
 			method: 'PUT',
 			headers: {
 				'Content-Type': 'application/json'
@@ -468,7 +489,7 @@
 	async function deleteTime() {
 		const isConfirmed = confirm('삭제하시겠습니까?');
 		if (isConfirmed) {
-			await fetch(`/api/time/${id}`, {
+			await fetch(`/api/time/${shownId}`, {
 				method: 'DELETE'
 			});
 			goto('/time_manage');
