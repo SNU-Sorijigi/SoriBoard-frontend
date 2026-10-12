@@ -143,12 +143,15 @@
 	async function fetchUsers() {
 		try {
 			const res = await fetch('/api/user/');
-			if (res.ok) {
-				const data = await res.json();
-				allUsers.set(data);
+			if (!res.ok) {
+				throw new Error(`Failed to fetch users: ${res.status}`);
 			}
+			const data = await res.json();
+			allUsers.set(data);
 		} catch (e) {
-			console.error('Failed to fetch users');
+			// The modal still opens, with the list of an earlier load if there was one
+			console.error('Failed to fetch users', e);
+			alert('지기 목록을 불러오지 못했습니다.');
 		}
 	}
 

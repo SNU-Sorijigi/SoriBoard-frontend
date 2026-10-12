@@ -117,13 +117,20 @@
 	}
 
 	const users = writable([]);
-	async function fetchUsers() {
+	let usersLoaded = false;
+	// Quiet on page load; 타임 정보 수정 loads the list again if it has not loaded, and says so.
+	async function fetchUsers(report = false) {
 		try {
 			const response = await fetch('/api/user');
+			if (!response.ok) {
+				throw new Error(`Failed to fetch users: ${response.status}`);
+			}
 			const data = await response.json();
 			users.set(data);
+			usersLoaded = true;
 		} catch (error) {
-			console.error('failed to fetch users');
+			console.error('failed to fetch users', error);
+			if (report) alert('지기 목록을 불러오지 못했습니다.');
 		}
 	}
 
@@ -471,6 +478,7 @@
 	function edit_toggle() {
 		if (!editing) {
 			fillEditForm();
+			if (!usersLoaded) fetchUsers(true);
 		}
 		editing = !editing;
 		visible = false;
