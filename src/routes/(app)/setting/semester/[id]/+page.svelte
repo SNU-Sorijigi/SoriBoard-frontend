@@ -17,13 +17,11 @@
 	let dataLoaded = false;
 
 	async function fetchSemester(id) {
-		try {
-			const response = await fetch(`/api/semester/${id}`);
-			const data = await response.json();
-			return data;
-		} catch (error) {
-			console.error('Failed to fetch semester');
+		const response = await fetch(`/api/semester/${id}`);
+		if (!response.ok) {
+			throw new Error(`Failed to fetch semester: ${response.status}`);
 		}
+		return await response.json();
 	}
 
 	async function loadSemesterInfo(id) {
@@ -39,7 +37,9 @@
 
 			dataLoaded = true;
 		} catch (error) {
-			console.error('Error loading semester data');
+			// No timetable is shown for a semester that did not load
+			console.error('Error loading semester data', error);
+			alert('학기 정보를 불러오지 못했습니다.');
 		}
 	}
 
@@ -71,18 +71,26 @@
 			rest_time: editRestTime
 		};
 
-		const response = await fetch(`/api/semester/${id}`, {
-			method: 'PUT',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify(formData)
-		});
+		let saved = false;
+		try {
+			const response = await fetch(`/api/semester/${id}`, {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(formData)
+			});
+			saved = response.ok;
+		} catch (error) {
+			console.error('Failed to update semester info', error);
+		}
 
-		if (response.ok) {
+		// After a failure the modal stays open with the typed values
+		if (saved) {
 			location.reload();
 		} else {
 			console.error('Failed to update semester info');
+			alert('학기 정보 수정에 실패했습니다.');
 		}
 	}
 
@@ -91,14 +99,21 @@
 		if (!isConfirmed) {
 			return;
 		}
-		const response = await fetch(`/api/semester/${id}`, {
-			method: 'DELETE'
-		});
+		let deleted = false;
+		try {
+			const response = await fetch(`/api/semester/${id}`, {
+				method: 'DELETE'
+			});
+			deleted = response.ok;
+		} catch (error) {
+			console.error('Failed to delete semester', error);
+		}
 
-		if (response.ok) {
+		if (deleted) {
 			location.href = '/setting/semester';
 		} else {
 			console.error('Failed to delete semester');
+			alert('학기 삭제에 실패했습니다.');
 		}
 	}
 
