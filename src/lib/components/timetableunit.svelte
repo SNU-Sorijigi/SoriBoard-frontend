@@ -20,10 +20,15 @@
 	async function fetchUsers() {
 		try {
 			const response = await fetch('/api/user/');
+			if (!response.ok) {
+				throw new Error(`Failed to fetch users: ${response.status}`);
+			}
 			const data = await response.json();
 			users.set(data);
 		} catch (error) {
-			console.error('Failed to fetch users');
+			// edit mode still opens, with the list of an earlier load if there was one
+			console.error('Failed to fetch users', error);
+			alert('지기 목록을 불러오지 못했습니다.');
 		}
 	}
 
