@@ -37,18 +37,40 @@
 			console.error('Failed to fetch news', error);
 		}
 	}
+	// Nobody is at the TV to reload it: after its socket closes (backend restart, network
+	// drop, the PC waking up) it connects again, after 1 s, 2 s, 4 s, … and at most 30 s.
+	const RETRY_MIN_MS = 1000;
+	const RETRY_MAX_MS = 30000;
 	onMount(() => {
 		'use strict';
 		// Fetch data from backend for news and instagram
 		fetchNews();
 
-		const ws = new WebSocket(`${webSocketServer}/ws/tv_display/`);
+		let ws;
+		let retryDelay = RETRY_MIN_MS;
+		let retryTimer;
+		let left = false;
+		connect();
 
-		ws.onopen = () => {
-			console.log('Connection established');
-		};
+		function connect() {
+			ws = new WebSocket(`${webSocketServer}/ws/tv_display/`);
+			ws.onopen = () => {
+				retryDelay = RETRY_MIN_MS;
+				console.log('Connection established');
+			};
+			ws.onmessage = handleMessage;
+			ws.onerror = (error) => {
+				console.error('WebSocket error:', error);
+			};
+			ws.onclose = (event) => {
+				console.log('WebSocket closed:', event.reason);
+				if (left) return;
+				retryTimer = setTimeout(connect, retryDelay);
+				retryDelay = Math.min(retryDelay * 2, RETRY_MAX_MS);
+			};
+		}
 
-		ws.onmessage = (event) => {
+		function handleMessage(event) {
 			try {
 				const data = JSON.parse(event.data);
 				const regexPattern = /^~(0[0-9]|1[0-9]|2[0-3]):([0-5][0-9])$/;
@@ -94,14 +116,12 @@
 			} catch (error) {
 				console.error('Error parsing JSON:', error);
 			}
-		};
+		}
 
-		ws.onerror = (error) => {
-			console.error('WebSocket error:', error);
-		};
-
-		ws.onclose = (event) => {
-			console.log('WebSocket closed:', event.reason);
+		return () => {
+			left = true;
+			clearTimeout(retryTimer);
+			ws.close();
 		};
 	});
 </script>
