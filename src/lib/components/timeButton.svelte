@@ -42,7 +42,7 @@
 	<div class="stack">
 		<div class="text">{time}타임</div>
 	</div>
-	<img src={timeIcon} alt="timeButton" class="icon" />
+	<img src={timeIcon} alt="" class="icon" />
 </button>
 
 <style>

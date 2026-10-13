@@ -34,7 +34,7 @@
 	<div class="stack">
 		<div class="text">{semester}타임</div>
 	</div>
-	<img src={semesterIcon} alt="semesterButton" class="icon" />
+	<img src={semesterIcon} alt="" class="icon" />
 </button>
 
 <style>
