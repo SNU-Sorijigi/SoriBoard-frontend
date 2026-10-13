@@ -170,36 +170,61 @@
 <div class="musicinfo">
 	<div class="textstack">
 		<button class="button delete" on:click={() => deleteMusic(id)}>
-			<img src={xIcon} alt="x" class="icon" />
+			<img src={xIcon} alt="" class="icon" />
 			<div class="button_label">삭제</div>
 		</button>
-		<input bind:value={fields.composer} readonly={!isEditing} class="composer" />
+		<input
+			bind:value={fields.composer}
+			readonly={!isEditing}
+			class="composer"
+			aria-label="작곡가"
+		/>
 		<div class="divider"></div>
 		<div class="col_stack">
 			<div class="row_stack">
 				<div class="col_stack">
-					<input bind:value={fields.title} readonly={!isEditing} class="title" />
+					<input bind:value={fields.title} readonly={!isEditing} class="title" aria-label="제목" />
 					<div class="row_stack">
-						<input bind:value={fields.semiTitle} readonly={!isEditing} class="semititle" />
+						<input
+							bind:value={fields.semiTitle}
+							readonly={!isEditing}
+							class="semititle"
+							aria-label="곡 세부 정보(악장 등)"
+						/>
 					</div>
 					<div class="orchestra-conductor-row">
-						<input bind:value={fields.orchestra} readonly={!isEditing} class="orchestra" />
-						<input bind:value={fields.conductor} readonly={!isEditing} class="conductor" />
+						<input
+							bind:value={fields.orchestra}
+							readonly={!isEditing}
+							class="orchestra"
+							aria-label="오케스트라/실내악단"
+						/>
+						<input
+							bind:value={fields.conductor}
+							readonly={!isEditing}
+							class="conductor"
+							aria-label="지휘자"
+						/>
 					</div>
 					<div class="players-grid">
 						{#each fields.players as player, index}
 							<div class="player-row">
-								<input bind:value={player} readonly={!isEditing} class="player" />
+								<input
+									bind:value={player}
+									readonly={!isEditing}
+									class="player"
+									aria-label={`연주자 ${index + 1}`}
+								/>
 								{#if isEditing}
 									<button class="player-delete-btn" on:click={() => removePlayer(index)}>
-										<img src={minusIcon} alt="remove player" class="small-icon" />
+										<img src={minusIcon} alt={`연주자 ${index + 1} 삭제`} class="small-icon" />
 									</button>
 								{/if}
 							</div>
 						{/each}
 						{#if isEditing}
 							<button class="player-add-btn" on:click={addPlayer}>
-								<img src={plusIcon} alt="add player" class="small-icon" />
+								<img src={plusIcon} alt="" class="small-icon" />
 								<div class="add-label">연주자 추가</div>
 							</button>
 						{/if}
@@ -209,31 +234,41 @@
 					<div class="row_stack">
 						<div class="col_stack">
 							<button class="button tool" on:click={goUp}>
-								<img src={upIcon} alt="up" class="arrow_icon" />
+								<img src={upIcon} alt="위로 이동" class="arrow_icon" />
 							</button>
 							<button class="button tool" on:click={goDown}>
-								<img src={downIcon} alt="down" class="arrow_icon" />
+								<img src={downIcon} alt="아래로 이동" class="arrow_icon" />
 							</button>
 						</div>
 						{#if !isEditing}
 							<button class="button tool" on:click={toggleEdit}>
-								<img src={editIcon} alt="edit" class="icon" />
+								<img src={editIcon} alt="" class="icon" />
 								<div class="button_label">수정</div>
 							</button>
 						{:else}
 							<button class="button tool" on:click={confirmEdit}>
-								<img src={checkDarkIcon} alt="edit" class="icon" />
+								<img src={checkDarkIcon} alt="" class="icon" />
 								<div class="button_label">확인</div>
 							</button>
 						{/if}
 						<button class="button tool" on:click={showDisplay}>
-							<img src={showIcon} alt="show" class="icon" />
+							<img src={showIcon} alt="" class="icon" />
 							<div class="button_label">판서</div>
 						</button>
 					</div>
 					<div class="row_stack">
-						<input bind:value={fields.cd_id} readonly={!isEditing} class="cd_id" />
-						<input bind:value={fields.source} readonly={!isEditing} class="source" />
+						<input
+							bind:value={fields.cd_id}
+							readonly={!isEditing}
+							class="cd_id"
+							aria-label="음반 번호"
+						/>
+						<input
+							bind:value={fields.source}
+							readonly={!isEditing}
+							class="source"
+							aria-label="음원 종류"
+						/>
 					</div>
 				</div>
 			</div>
