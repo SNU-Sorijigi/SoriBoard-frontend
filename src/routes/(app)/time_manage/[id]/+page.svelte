@@ -670,10 +670,12 @@
 			<form on:submit={handleSubmit} method="POST" class="inputfield">
 				<div class="stack">
 					<div class="box">
-						<div class="label">신청곡</div>
+						<label class="label" for="new-music-requested">신청곡</label>
 						<button
 							type="button"
+							id="new-music-requested"
 							class="checkbox"
+							aria-pressed={is_requested}
 							on:click={toggleCheck}
 							class:checked={is_requested}
 						>
@@ -698,13 +700,13 @@
 						></Input>
 						{#if i > 0}
 							<button type="button" class="minus" on:click={() => deletePlayer(i)}>
-								<img src={minusicon} alt="minus" />
+								<img src={minusicon} alt={`연주자 ${i + 1} 삭제`} />
 							</button>
 						{/if}
 					</div>
 				{/each}
 				<button type="button" class="plus" on:click={addPlayer}>
-					<img src={plusicon} alt="plus" />
+					<img src={plusicon} alt="연주자 추가" />
 				</button>
 				<input id="submit1" type="submit" value="곡 추가하기" class="submit" />
 			{#if duplicateWarning}
@@ -865,13 +867,13 @@
 								</select>
 								{#if i > 0}
 									<button type="button" class="minus" on:click={() => removeMentoRow(i)}>
-										<img src={minusicon} alt="minus" />
+										<img src={minusicon} alt={`지기 ${i + 1} 삭제`} />
 									</button>
 								{/if}
 							</div>
 						{/each}
 						<button type="button" class="plus" on:click={addMentoRow}>
-							<img src={plusicon} alt="plus" />
+							<img src={plusicon} alt="지기 추가" />
 						</button>
 					</div>
 					<label
@@ -897,13 +899,13 @@
 								</select>
 								{#if i > 0}
 									<button type="button" class="minus" on:click={() => removeMenteeRow(i)}>
-										<img src={minusicon} alt="minus" />
+										<img src={minusicon} alt={`견습 ${i + 1} 삭제`} />
 									</button>
 								{/if}
 							</div>
 						{/each}
 						<button type="button" class="plus" on:click={addMenteeRow}>
-							<img src={plusicon} alt="plus" />
+							<img src={plusicon} alt="견습 추가" />
 						</button>
 					</div>
 					<label
