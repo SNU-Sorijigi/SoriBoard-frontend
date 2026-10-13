@@ -42,17 +42,17 @@
 </script>
 
 <div class="newsinfo">
-	<input bind:value={content} readonly={!isEditing} class="content" />
+	<input bind:value={content} readonly={!isEditing} class="content" aria-label="뉴스" />
 	<div class="col_stack">
 		<div class="row_stack">
 			{#if !isEditing}
 				<button class="edit_button" on:click={toggleEdit}>
-					<img src={editIcon} alt="edit" class="icon" />
+					<img src={editIcon} alt="" class="icon" />
 					<div class="button_label">수정</div>
 				</button>
 			{:else}
 				<button class="edit_button" on:click={confirmEdit}>
-					<img src={checkDarkIcon} alt="edit" class="icon" />
+					<img src={checkDarkIcon} alt="" class="icon" />
 					<div class="button_label">확인</div>
 				</button>
 			{/if}
