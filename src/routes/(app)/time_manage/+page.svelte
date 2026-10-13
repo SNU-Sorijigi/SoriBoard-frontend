@@ -310,13 +310,13 @@
 								</select>
 								{#if i > 0}
 									<button type="button" class="minus" on:click={() => removeMentoRow(i)}>
-										<img src={minusicon} alt="minus" />
+										<img src={minusicon} alt={`지기 ${i + 1} 삭제`} />
 									</button>
 								{/if}
 							</div>
 						{/each}
 						<button type="button" class="plus" on:click={addMentoRow}>
-							<img src={plusicon} alt="plus" />
+							<img src={plusicon} alt="지기 추가" />
 						</button>
 					</div>
 					<label
@@ -342,13 +342,13 @@
 								</select>
 								{#if i > 0}
 									<button type="button" class="minus" on:click={() => removeMenteeRow(i)}>
-										<img src={minusicon} alt="minus" />
+										<img src={minusicon} alt={`제자 ${i + 1} 삭제`} />
 									</button>
 								{/if}
 							</div>
 						{/each}
 						<button type="button" class="plus" on:click={addMenteeRow}>
-							<img src={plusicon} alt="plus" />
+							<img src={plusicon} alt="제자 추가" />
 						</button>
 					</div>
 					<label style="visibility: {mentee_id.length ? 'visible' : 'hidden'};"
