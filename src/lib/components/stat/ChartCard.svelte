@@ -12,6 +12,8 @@
 	let chartRef;
 
 	$: hasData = data && data.labels && data.labels.length > 0;
+	// 불러오는 동안 data 는 아직 이전 필터의 것이고 차트는 내려가 있으므로 저장을 막는다.
+	$: canExport = hasData && !loading;
 
 	function exportPng() {
 		const url = chartRef && chartRef.getPng();
@@ -25,10 +27,10 @@
 
 <div class="card">
 	<div class="toolbar">
-		<button class="tool-btn" on:click={exportPng} disabled={!hasData} title="이미지(PNG)로 저장">
+		<button class="tool-btn" on:click={exportPng} disabled={!canExport} title="이미지(PNG)로 저장">
 			PNG 저장
 		</button>
-		<button class="tool-btn" on:click={exportCsv} disabled={!hasData} title="데이터(CSV)로 저장">
+		<button class="tool-btn" on:click={exportCsv} disabled={!canExport} title="데이터(CSV)로 저장">
 			CSV 저장
 		</button>
 	</div>
