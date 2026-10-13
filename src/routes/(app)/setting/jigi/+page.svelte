@@ -198,8 +198,15 @@
 		<form on:submit={createNewUser} method="POST" class="inputfield">
 			<div class="stack">
 				<div class="box">
-					<div class="label">OB 여부</div>
-					<button type="button" class="checkbox" on:click={toggleCheck} class:checked={new_is_ob}>
+					<label class="label" for="new-user-ob">OB 여부</label>
+					<button
+						type="button"
+						id="new-user-ob"
+						class="checkbox"
+						aria-pressed={new_is_ob}
+						on:click={toggleCheck}
+						class:checked={new_is_ob}
+					>
 						{#if new_is_ob}
 							<img src={checkIcon} alt="check" class="check" />
 						{/if}
