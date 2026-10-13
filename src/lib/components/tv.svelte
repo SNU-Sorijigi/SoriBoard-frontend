@@ -1,6 +1,6 @@
 <script>
 	import { onDestroy, onMount } from 'svelte';
-	import { webSocketServer } from '$lib/globals';
+	import { tvSender } from '$lib/tvSocket';
 	import {
 		displayComposer,
 		displayTitle,
@@ -23,7 +23,7 @@
 		spacerSize5,
 		fontSizeInit
 	} from '$lib/displayStore.js';
-	let ws;
+	let tv;
 	let _composerFontSize,
 		_titleFontSize,
 		_orchestraFontSize,
@@ -36,7 +36,7 @@
 		_spacerSize4,
 		_spacerSize5;
 	onMount(() => {
-		ws = new WebSocket(`${webSocketServer}/ws/tv_display/`);
+		tv = tvSender();
 		_composerFontSize = $composerFontSize;
 		_titleFontSize = $titleFontSize;
 		_orchestraFontSize = $orchestraFontSize;
@@ -48,8 +48,7 @@
 		_spacerSize3 = $spacerSize3;
 		_spacerSize4 = $spacerSize4;
 		_spacerSize5 = $spacerSize5;
-		// Close it with the modal: an open socket gets every TV update until the tab reloads
-		return () => ws.close();
+		return () => tv.close();
 	});
 	onDestroy(() => {
 		composerFontSize.set(_composerFontSize);
@@ -90,11 +89,7 @@
 		_spacerSize3 = $spacerSize3;
 		_spacerSize4 = $spacerSize4;
 		_spacerSize5 = $spacerSize5;
-		if (ws.readyState === WebSocket.OPEN) {
-			ws.send(JSON.stringify(data));
-		} else {
-			console.log('WebSocket is not open. ReadyState: ', ws.readyState);
-		}
+		tv.send(data);
 	}
 </script>
 

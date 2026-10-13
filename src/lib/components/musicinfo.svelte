@@ -8,7 +8,7 @@
 	import downIcon from '$lib/images/down.svg';
 	import plusIcon from '$lib/images/plus.svg';
 	import minusIcon from '$lib/images/minus.svg';
-	import { webSocketServer } from '$lib/globals';
+	import { tvSender } from '$lib/tvSocket';
 	import { onMount } from 'svelte';
 	import { displayComposer } from '$lib/displayStore';
 	import { displayTitle } from '$lib/displayStore';
@@ -118,11 +118,10 @@
 		}
 		return response.ok;
 	}
-	let ws;
+	let tv;
 	onMount(() => {
-		ws = new WebSocket(`${webSocketServer}/ws/tv_display/`);
-		// Close it with the row: an open socket gets every TV update until the tab reloads
-		return () => ws.close();
+		tv = tvSender();
+		return () => tv.close();
 	});
 	function showDisplay() {
 		displayComposer.set(fields.composer);
@@ -148,12 +147,7 @@
 			spacerSize4: 0.28125
 		};
     fontSizeInit();
-		if (ws.readyState === WebSocket.OPEN) {
-			ws.send(JSON.stringify(displayData));
-			ws.send(JSON.stringify(data));
-		} else {
-			console.log('WebSocket is not open. ReadyState: ', ws.readyState);
-		}
+		tv.send(displayData, data);
 	}
 
 	const dispatch = createEventDispatcher();

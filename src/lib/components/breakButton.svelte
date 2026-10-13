@@ -1,10 +1,10 @@
 <script>
 	import sleeplogo from '$lib/images/sleep.svg';
-	import { webSocketServer } from '$lib/globals';
+	import { tvSender } from '$lib/tvSocket';
 	import { onMount } from 'svelte';
 	export let time;
 	let breakTime;
-	let ws;
+	let tv;
 	let goodBye = "안녕히가세요";
 
 	function updateBreakTime(time) {
@@ -34,9 +34,8 @@
 	$: updateBreakTime(time);
 
 	onMount(() => {
-		ws = new WebSocket(`${webSocketServer}/ws/tv_display/`);
-		// Close it with the button: an open socket gets every TV update until the tab reloads
-		return () => ws.close();
+		tv = tvSender();
+		return () => tv.close();
 	});
 
 	function showDisplay() {
@@ -44,22 +43,14 @@
 			update_type: 'breaktime',
 			breaktime: '~' + breakTime
 		};
-		if (ws.readyState === WebSocket.OPEN) {
-			ws.send(JSON.stringify(displayData));
-		} else {
-			console.log('WebSocket is not open. ReadyState: ', ws.readyState);
-		}
+		tv.send(displayData);
 	}
 	function quit() {
 		const displayData = {
 			update_type: 'breaktime',
 			breaktime: goodBye,
 		};
-		if (ws.readyState === WebSocket.OPEN) {
-			ws.send(JSON.stringify(displayData));
-		} else {
-			console.log('WebSocket is not open. ReadyState: ', ws.readyState);
-		}
+		tv.send(displayData);
 	}
 </script>
 {#if time!=5}
