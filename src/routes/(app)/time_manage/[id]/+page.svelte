@@ -633,6 +633,7 @@
 				<MusicInfo
 					on:goDown={goDown}
 					on:goUp={goUp}
+					on:saved={() => loadTimeInfo(id)}
 					id={music.id}
 					is_requested={music.is_requested}
 					source={music.source}

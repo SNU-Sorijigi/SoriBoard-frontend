@@ -75,6 +75,8 @@
 		}
 		if (saved) {
 			isEditing = false;
+			// The page reloads the playlist, so 업로드 shows the saved text too
+			dispatch('saved', { musicid: id });
 		} else {
 			alert('곡 수정에 실패했습니다.');
 		}
