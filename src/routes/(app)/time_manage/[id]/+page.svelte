@@ -320,7 +320,8 @@
 			title: title,
 			semi_title: detail,
 			composer_name: composer,
-			conductor_name: conductor,
+			// The backend keeps the name as typed, and the playlist adds '지휘: ' itself
+			conductor_name: conductor.trim().replace(/^지휘자?\s*:\s*/, ''),
 			orchestra_name: orchestra,
 			player_names: $players
 		};
