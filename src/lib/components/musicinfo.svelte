@@ -61,7 +61,16 @@
 		}
 	}
 
+	// The 지휘 field shows '지휘: ' + name. The backend keeps the part after ': ',
+	// so a name typed without that prefix (or as '지휘:name') gets it added
+	function conductorName(value) {
+		const trimmed = value.trim();
+		const parts = trimmed.split(': ');
+		return parts.length === 2 ? parts[1].trim() : trimmed.replace(/^지휘\s*:\s*/, '');
+	}
+
 	async function updateData(id) {
+		const name = conductorName(conductor);
 		const formData = {
 			is_requested: is_requested,
 			source: source,
@@ -69,7 +78,7 @@
 			title: title,
 			semi_title: semiTitle,
 			composer_name: composer,
-			conductor_name: conductor,
+			conductor_name: name ? '지휘: ' + name : '',
 			orchestra_name: orchestra,
 			// Upstream's backend fails on an empty player, after saving the rest of the edit
 			player_names: players.filter((player) => player.trim() !== '')
@@ -83,6 +92,8 @@
 		});
 		if (!response.ok) {
 			console.error('failed to edit');
+		} else {
+			conductor = formData.conductor_name;
 		}
 		return response.ok;
 	}
@@ -97,7 +108,8 @@
 		displayTitle.set(title);
 		displaySemiTitle.set(semiTitle);
 		displayOrchestra.set(orchestra);
-		displayConductor.set(conductor);
+		// The preview adds ' / 지휘: ' itself, as the TV does
+		displayConductor.set(conductorName(conductor));
 		displayPlayers.set(players);
 		const displayData = {
 			time_music_id: id,
