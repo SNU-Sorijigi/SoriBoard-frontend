@@ -26,10 +26,10 @@
 		<div class="month">{formatYearDisplay(year)}</div>
 		<div class="buttons">
 			<button class="button" on:click={goToday}>&nbsp&nbsp오늘&nbsp&nbsp</button>
-			<button class="button" on:click={prevYear}
+			<button class="button" aria-label="이전 해" on:click={prevYear}
 				>&nbsp&nbsp&nbsp&nbsp{'<'}&nbsp&nbsp&nbsp&nbsp</button
 			>
-			<button class="button" on:click={nextYear}
+			<button class="button" aria-label="다음 해" on:click={nextYear}
 				>&nbsp&nbsp&nbsp&nbsp{'>'}&nbsp&nbsp&nbsp&nbsp</button
 			>
 		</div>

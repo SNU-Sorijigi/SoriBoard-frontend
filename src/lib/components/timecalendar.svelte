@@ -67,10 +67,10 @@
 		<div class="month">{formatMonthDisplay(month, year)}</div>
 		<div class="buttons">
 			<button class="button" on:click={goToday}>&nbsp&nbsp오늘&nbsp&nbsp</button>
-			<button class="button" on:click={prevMonth}
+			<button class="button" aria-label="이전 달" on:click={prevMonth}
 				>&nbsp&nbsp&nbsp&nbsp{'<'}&nbsp&nbsp&nbsp&nbsp</button
 			>
-			<button class="button" on:click={nextMonth}
+			<button class="button" aria-label="다음 달" on:click={nextMonth}
 				>&nbsp&nbsp&nbsp&nbsp{'>'}&nbsp&nbsp&nbsp&nbsp</button
 			>
 		</div>
