@@ -15,19 +15,19 @@
 		<div class="stack2">
 			<div class="stack3">
 				<button class="button" on:click={() => navigate('/setting/jigi')}>
-					<img src={timetableIcon} alt="timetable" class="icon" />
+					<img src={timetableIcon} alt="지기 관리" class="icon" />
 				</button>
 				<div class="text">지기 관리</div>
 			</div>
 			<div class="stack3">
 				<button class="button" on:click={() => navigate('/setting/semester')}>
-					<img src={statIcon} alt="stat" class="icon" />
+					<img src={statIcon} alt="학기 관리" class="icon" />
 				</button>
 				<div class="text">학기 관리</div>
 			</div>
 			<div class="stack3">
 				<button class="button" on:click={() => navigate('/setting/timetable')}>
-					<img src={settingIcon} alt="setting" class="icon" />
+					<img src={settingIcon} alt="뉴스 관리" class="icon" />
 				</button>
 				<div class="text">뉴스 관리</div>
 			</div>
