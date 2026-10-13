@@ -56,18 +56,30 @@
 {#if time!=5}
 <div class="set">
 	<button class="sleep button" on:click={showDisplay}>
-		<img src={sleeplogo} alt="sleep" />
+		<img src={sleeplogo} alt="" />
 		기기 휴식
 	</button>
-	<input name="time" type="time" bind:value={breakTime} style="width:110px" />
+	<input
+		name="time"
+		type="time"
+		bind:value={breakTime}
+		style="width:110px"
+		aria-label="휴식 종료 시각"
+	/>
 </div>
 {:else}
 <div class="set">
 	<button class="sleep button" on:click={quit}>
-		<img src={sleeplogo} alt="sleep" />
+		<img src={sleeplogo} alt="" />
 		운영 종료
 	</button>
-	<input name="time" type="text" bind:value={goodBye} style="width:110px" />
+	<input
+		name="time"
+		type="text"
+		bind:value={goodBye}
+		style="width:110px"
+		aria-label="운영 종료 문구"
+	/>
 </div>
 {/if}
 <style>
