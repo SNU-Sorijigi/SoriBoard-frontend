@@ -94,10 +94,10 @@
 <div class="userinfo">
 	<div class="textstack">
 		<button class="button" on:click={() => deleteUser(id)}>
-			<img src={xIcon} alt="x" class="icon" />
+			<img src={xIcon} alt="" class="icon" />
 			<div class="button_label">삭제</div>
 		</button>
-		<input bind:value={name} readonly={!isEditing} class="name" />
+		<input bind:value={name} readonly={!isEditing} class="name" aria-label="이름" />
 		<label for={`user-ob-${id}`}>OB</label>
 		{#if isEditing}
 			<button
@@ -126,8 +126,13 @@
 			<div class="row_stack">
 				<div class="col_stack">
 					<div class="row_stack">
-						전공:<input bind:value={major} readonly={!isEditing} class="major" />
-						학번:<input bind:value={year_id} readonly={!isEditing} class="yearid" />
+						전공:<input bind:value={major} readonly={!isEditing} class="major" aria-label="전공" />
+						학번:<input
+							bind:value={year_id}
+							readonly={!isEditing}
+							class="yearid"
+							aria-label="학번"
+						/>
 					</div>
 					<label>사부
 					{#if isEditing}
@@ -170,12 +175,12 @@
 					<div class="row_stack">
 						{#if !isEditing}
 							<button class="button" on:click={toggleEdit}>
-								<img src={editIcon} alt="edit" class="icon" />
+								<img src={editIcon} alt="" class="icon" />
 								<div class="button_label">수정</div>
 							</button>
 						{:else}
 							<button class="button" on:click={confirmEdit}>
-								<img src={checkDarkIcon} alt="edit" class="icon" />
+								<img src={checkDarkIcon} alt="" class="icon" />
 								<div class="button_label">확인</div>
 							</button>
 						{/if}
