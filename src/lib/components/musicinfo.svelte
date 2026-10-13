@@ -37,9 +37,28 @@
 		isEditing = !isEditing;
 	}
 
+	// What the inputs show and edit. A playlist reload (곡 추가, 삭제, ↑/↓) passes the saved
+	// values again: they replace these only while the row is not in 수정, so the typed text
+	// is kept until 확인 saves it.
+	let fields = {};
+	$: showSaved(composer, title, semiTitle, orchestra, conductor, players, cd_id, source);
+	function showSaved() {
+		if (isEditing) return;
+		fields = {
+			composer,
+			title,
+			semiTitle,
+			orchestra,
+			conductor,
+			players: [...players],
+			cd_id,
+			source
+		};
+	}
+
 	async function confirmEdit() {
 		// Same rule as 곡 추가: a player, trimmed, is empty or splits in two on ': ' (as the backend does).
-		const isValid = players.every((player) => {
+		const isValid = fields.players.every((player) => {
 			const trimmed = player.trim();
 			return trimmed === '' || trimmed.split(': ').length === 2;
 		});
@@ -70,18 +89,18 @@
 	}
 
 	async function updateData(id) {
-		const name = conductorName(conductor);
+		const name = conductorName(fields.conductor);
 		const formData = {
 			is_requested: is_requested,
-			source: source,
-			cd_id: cd_id,
-			title: title,
-			semi_title: semiTitle,
-			composer_name: composer,
+			source: fields.source,
+			cd_id: fields.cd_id,
+			title: fields.title,
+			semi_title: fields.semiTitle,
+			composer_name: fields.composer,
 			conductor_name: name ? '지휘: ' + name : '',
-			orchestra_name: orchestra,
+			orchestra_name: fields.orchestra,
 			// Upstream's backend fails on an empty player, after saving the rest of the edit
-			player_names: players.filter((player) => player.trim() !== '')
+			player_names: fields.players.filter((player) => player.trim() !== '')
 		};
 		const response = await fetch(`/api/music/${id}`, {
 			method: 'PUT',
@@ -93,7 +112,7 @@
 		if (!response.ok) {
 			console.error('failed to edit');
 		} else {
-			conductor = formData.conductor_name;
+			fields.conductor = formData.conductor_name;
 		}
 		return response.ok;
 	}
@@ -104,13 +123,13 @@
 		return () => ws.close();
 	});
 	function showDisplay() {
-		displayComposer.set(composer);
-		displayTitle.set(title);
-		displaySemiTitle.set(semiTitle);
-		displayOrchestra.set(orchestra);
+		displayComposer.set(fields.composer);
+		displayTitle.set(fields.title);
+		displaySemiTitle.set(fields.semiTitle);
+		displayOrchestra.set(fields.orchestra);
 		// The preview adds ' / 지휘: ' itself, as the TV does
-		displayConductor.set(conductorName(conductor));
-		displayPlayers.set(players);
+		displayConductor.set(conductorName(fields.conductor));
+		displayPlayers.set(fields.players);
 		const displayData = {
 			time_music_id: id,
 			update_type: 'music'
@@ -144,11 +163,11 @@
 	}
 
 	function addPlayer() {
-		players = [...players, ''];
+		fields.players = [...fields.players, ''];
 	}
 
 	function removePlayer(index) {
-		players = players.filter((_, i) => i !== index);
+		fields.players = fields.players.filter((_, i) => i !== index);
 	}
 </script>
 
@@ -158,21 +177,21 @@
 			<img src={xIcon} alt="x" class="icon" />
 			<div class="button_label">삭제</div>
 		</button>
-		<input bind:value={composer} readonly={!isEditing} class="composer" />
+		<input bind:value={fields.composer} readonly={!isEditing} class="composer" />
 		<div class="divider"></div>
 		<div class="col_stack">
 			<div class="row_stack">
 				<div class="col_stack">
-					<input bind:value={title} readonly={!isEditing} class="title" />
+					<input bind:value={fields.title} readonly={!isEditing} class="title" />
 					<div class="row_stack">
-						<input bind:value={semiTitle} readonly={!isEditing} class="semititle" />
+						<input bind:value={fields.semiTitle} readonly={!isEditing} class="semititle" />
 					</div>
 					<div class="orchestra-conductor-row">
-						<input bind:value={orchestra} readonly={!isEditing} class="orchestra" />
-						<input bind:value={conductor} readonly={!isEditing} class="conductor" />
+						<input bind:value={fields.orchestra} readonly={!isEditing} class="orchestra" />
+						<input bind:value={fields.conductor} readonly={!isEditing} class="conductor" />
 					</div>
 					<div class="players-grid">
-						{#each players as player, index}
+						{#each fields.players as player, index}
 							<div class="player-row">
 								<input bind:value={player} readonly={!isEditing} class="player" />
 								{#if isEditing}
@@ -217,8 +236,8 @@
 						</button>
 					</div>
 					<div class="row_stack">
-						<input bind:value={cd_id} readonly={!isEditing} class="cd_id" />
-						<input bind:value={source} readonly={!isEditing} class="source" />
+						<input bind:value={fields.cd_id} readonly={!isEditing} class="cd_id" />
+						<input bind:value={fields.source} readonly={!isEditing} class="source" />
 					</div>
 				</div>
 			</div>
