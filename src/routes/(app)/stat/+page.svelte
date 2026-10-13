@@ -272,12 +272,14 @@
 			<div class="bucket-toggle">
 				<button
 					class:active={diversityBucket === 'week'}
+					aria-pressed={diversityBucket === 'week'}
 					on:click={() => setDiversityBucket('week')}
 				>
 					주별
 				</button>
 				<button
 					class:active={diversityBucket === 'month'}
+					aria-pressed={diversityBucket === 'month'}
 					on:click={() => setDiversityBucket('month')}
 				>
 					월별
