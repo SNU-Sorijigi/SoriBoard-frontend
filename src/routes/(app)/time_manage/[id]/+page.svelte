@@ -41,8 +41,10 @@
 	let time_comment_music = '';
 	let time_comment_gigi = '';
 	let time_comment_etc = '';
-	// The comments as last loaded, and for which 타임 (see loadTimeInfo)
+	// The comments as last loaded or saved, and for which 타임 (see loadTimeInfo)
 	let loadedComments = {};
+	// 코멘트 저장s that succeeded, per 타임: a load sent before one may answer older comments
+	let commentSaves = {};
 
 	let composer = '';
 	let title = '';
@@ -150,6 +152,7 @@
 	}
 
 	async function loadTimeInfo(timeId) {
+		const saves = commentSaves[timeId];
 		try {
 			const data = await fetchData(timeId);
 			// The page moved to another 타임 meanwhile (◀/▶, back/forward): its own load shows it.
@@ -174,7 +177,9 @@
 			fillEditForm();
 
 			// Load comment fields. This also runs after 곡 추가, 삭제 and ↑/↓: a field edited
-			// since this 타임 was last loaded keeps its text then, as it is not saved yet.
+			// since this 타임 was last loaded or saved keeps its text then, as it is not saved yet.
+			// After a 코멘트 저장 of the shown comments that answered meanwhile, these may predate it.
+			if (commentSaves[timeId] !== saves && loadedComments.id === timeId) return;
 			const saved = {
 				music: data.time_comment_music || '',
 				gigi: data.time_comment_gigi || '',
@@ -454,9 +459,10 @@
 			time_comment_etc: time_comment_etc
 		};
 
+		const timeId = shownId;
 		let saved = false;
 		try {
-			const response = await fetch(`/api/time/${shownId}`, {
+			const response = await fetch(`/api/time/${timeId}`, {
 				method: 'PUT',
 				headers: {
 					'Content-Type': 'application/json'
@@ -468,6 +474,17 @@
 			console.error('Failed to save comments', error);
 		}
 		if (saved) {
+			// What was sent is now the saved text, so a field typed back to the text it had
+			// before this save is an edit, kept by the next reload.
+			commentSaves[timeId] = (commentSaves[timeId] || 0) + 1;
+			if (loadedComments.id === timeId) {
+				loadedComments = {
+					id: timeId,
+					music: formData.time_comment_music,
+					gigi: formData.time_comment_gigi,
+					etc: formData.time_comment_etc
+				};
+			}
 			alert('코멘트가 저장되었습니다.');
 			// Don't reload - keep the form with current values for further editing
 		} else {
