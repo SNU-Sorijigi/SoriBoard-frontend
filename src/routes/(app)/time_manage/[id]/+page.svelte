@@ -781,6 +781,7 @@
 				tabindex="0"
 				class="xbutton"
 				title="close"
+				aria-label="닫기"
 				on:click={toggle}
 				on:keydown={closeOnKey(toggle)}>&times;</span
 			>
@@ -823,6 +824,7 @@
 				tabindex="0"
 				class="xbutton"
 				title="close"
+				aria-label="닫기"
 				on:click={edit_toggle}
 				on:keydown={closeOnKey(edit_toggle)}>&times;</span
 			>
@@ -942,6 +944,7 @@
 				tabindex="0"
 				class="xbutton"
 				title="close"
+				aria-label="닫기"
 				on:click={display_toggle}
 				on:keydown={closeOnKey(display_toggle)}>&times;</span
 			>

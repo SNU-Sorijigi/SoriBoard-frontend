@@ -98,6 +98,7 @@
 				tabindex="0"
 				class="xbutton"
 				title="close"
+				aria-label="닫기"
 				on:click={toggle}
 				on:keydown={closeOnKey(toggle)}>&times;</span
 			>
