@@ -156,7 +156,7 @@
 					<div class="col_stack">
 						{#each jigi_ids as jid, i}
 							<div class="row_stack">
-								<select bind:value={jid}>
+								<select bind:value={jid} aria-label={`지기 ${i + 1}`}>
 									<option value="" disabled>선택</option>
 									{#each $users as user}
 										<option value={String(user.id)}>{user.name} {user.major} {user.year_id}</option>
@@ -164,13 +164,13 @@
 								</select>
 								{#if i > 0}
 									<button class="iconbtn" type="button" on:click={() => removeJigiRow(i)}
-										><img src={minusicon} alt="-" /></button
+										><img src={minusicon} alt={`지기 ${i + 1} 삭제`} /></button
 									>
 								{/if}
 							</div>
 						{/each}
 						<button class="iconbtn" type="button" on:click={addJigiRow}
-							><img src={plusicon} alt="+" /></button
+							><img src={plusicon} alt="지기 추가" /></button
 						>
 					</div>
 				{:else}
@@ -198,7 +198,7 @@
 					<div class="col_stack">
 						{#each mentee_ids as mid, i}
 							<div class="row_stack">
-								<select bind:value={mid}>
+								<select bind:value={mid} aria-label={`견습 ${i + 1}`}>
 									<option value="" disabled>선택</option>
 									{#each $users as user}
 										<option value={String(user.id)}>{user.name} {user.major} {user.year_id}</option>
@@ -206,13 +206,13 @@
 								</select>
 								{#if i > 0}
 									<button class="iconbtn" type="button" on:click={() => removeMenteeRow(i)}
-										><img src={minusicon} alt="-" /></button
+										><img src={minusicon} alt={`견습 ${i + 1} 삭제`} /></button
 									>
 								{/if}
 							</div>
 						{/each}
 						<button class="iconbtn" type="button" on:click={addMenteeRow}
-							><img src={plusicon} alt="+" /></button
+							><img src={plusicon} alt="견습 추가" /></button
 						>
 					</div>
 				{:else}
