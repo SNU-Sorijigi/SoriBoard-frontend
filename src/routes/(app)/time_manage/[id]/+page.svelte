@@ -56,6 +56,9 @@
 	let is_requested = false;
 	let players = writable(['']);
 	let duplicateWarning = null;
+	// The warning is about the 작곡가 and 제목 that were checked: an edit of either closes it,
+	// so 그래도 추가 cannot save a piece that was not checked. 곡 추가하기 checks the new one.
+	$: composer, title, (duplicateWarning = null);
 	// True while a 곡 추가 is checked, sent and reloaded (see whileAdding)
 	let adding = false;
 	// True while a ↑/↓ swap is sent and the playlist reloaded (see moveMusic)
