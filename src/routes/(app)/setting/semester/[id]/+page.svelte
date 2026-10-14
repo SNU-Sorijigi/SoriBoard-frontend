@@ -64,6 +64,14 @@
 
 	async function handleEdit(event) {
 		event.preventDefault();
+		// The backend rebuilds the timetable when the 타임 count changes, emptying every cell.
+		// After 취소 the modal stays open with the typed values.
+		if (
+			editTimePerDay !== timePerDay &&
+			!confirm('타임 수를 바꾸면 시간표에 배정된 지기와 견습이 모두 지워집니다. 수정하시겠습니까?')
+		) {
+			return;
+		}
 		const formData = {
 			total_time: editTimePerDay,
 			start_time: editTimeStart,
