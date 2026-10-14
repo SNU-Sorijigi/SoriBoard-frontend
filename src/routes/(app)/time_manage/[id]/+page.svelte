@@ -318,7 +318,19 @@
 		reloadAll(id);
 	}
 
+	// The backend trims each player, skips empty ones and splits the rest on ': '.
+	function playersAreValid() {
+		const isValid = $players.every((player) => {
+			const trimmed = player.trim();
+			return trimmed === '' || trimmed.split(': ').length === 2;
+		});
+		if (!isValid) alert("'{악기/역할} : {연주자 이름}' 형식으로 적어주세요");
+		return isValid;
+	}
+
 	async function submitMusic() {
+		// Also for 그래도 추가: 연주자 may have been edited since 곡 추가하기 checked them
+		if (!playersAreValid()) return;
 		const formData = {
 			time: shownId,
 			order: timeMusic.length > 0 ? timeMusic[timeMusic.length - 1].order + 1 : 1,
@@ -377,15 +389,7 @@
 	}
 
 	async function checkThenSubmitMusic() {
-		// The backend trims each player, skips empty ones and splits the rest on ': '.
-		const isValid = $players.every((player) => {
-			const trimmed = player.trim();
-			return trimmed === '' || trimmed.split(': ').length === 2;
-		});
-		if (!isValid) {
-			alert("'{악기/역할} : {연주자 이름}' 형식으로 적어주세요");
-			return;
-		}
+		if (!playersAreValid()) return;
 
 		const timeId = shownId;
 		const params = new URLSearchParams({
