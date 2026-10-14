@@ -3,6 +3,7 @@
 	import statIcon from '$lib/images/stat.svg';
 	import settingIcon from '$lib/images/setting.svg';
 	import githubIcon from '$lib/images/github.svg';
+	import lineageIcon from '$lib/images/lineage.svg';
 
 	function navigate(url) {
 		window.location.href = url;
@@ -18,6 +19,12 @@
 					<img src={timetableIcon} alt="지기 관리" class="icon" />
 				</button>
 				<div class="text">지기 관리</div>
+			</div>
+			<div class="stack3">
+				<button class="button" on:click={() => navigate('/setting/lineage')}>
+					<img src={lineageIcon} alt="지기 계보" class="icon" />
+				</button>
+				<div class="text">지기 계보</div>
 			</div>
 			<div class="stack3">
 				<button class="button" on:click={() => navigate('/setting/semester')}>
