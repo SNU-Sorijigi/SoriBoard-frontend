@@ -200,9 +200,23 @@
 				<div class="stack">
 					<label
 						>운영 시간
-						<input name="time" type="time" required bind:value={editTimeStart} style="width:8em" />
+						<input
+							name="time"
+							type="time"
+							required
+							bind:value={editTimeStart}
+							style="width:8em"
+							aria-label="운영 시작"
+						/>
 						~
-						<input name="time" type="time" required bind:value={editTimeEnd} style="width:8em" />
+						<input
+							name="time"
+							type="time"
+							required
+							bind:value={editTimeEnd}
+							style="width:8em"
+							aria-label="운영 종료"
+						/>
 					</label >
 				</div>
 				<br />
