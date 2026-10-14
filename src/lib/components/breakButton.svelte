@@ -39,6 +39,11 @@
 	});
 
 	function showDisplay() {
+		// An empty (or half-typed) box would send '~', which the TV shows as 운영 종료
+		if (!breakTime) {
+			alert('휴식 종료 시각을 입력하세요.');
+			return;
+		}
 		const displayData = {
 			update_type: 'breaktime',
 			breaktime: '~' + breakTime
