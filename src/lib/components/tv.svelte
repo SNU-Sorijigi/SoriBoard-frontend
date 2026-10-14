@@ -23,6 +23,10 @@
 		spacerSize5,
 		fontSizeInit
 	} from '$lib/displayStore.js';
+	// As the TV shows it: a 지휘자 without 오케스트라 (a choir) is shown too
+	$: orchestraLine = [$displayOrchestra, $displayConductor && '지휘: ' + $displayConductor]
+		.filter(Boolean)
+		.join(' / ');
 	let tv;
 	let _composerFontSize,
 		_titleFontSize,
@@ -102,9 +106,9 @@
 				{$displayTitle}{#if $displaySemiTitle}<br />{$displaySemiTitle}{/if}
 			</div>
 			<div class="spacer" style="height: {$spacerSize2}vh"></div>
-			{#if $displayOrchestra}
+			{#if orchestraLine}
 				<div class="text" style="font-size: {$orchestraFontSize}vw">
-					{$displayOrchestra}{#if $displayConductor}{' / 지휘: ' + $displayConductor}{/if}
+					{orchestraLine}
 				</div>
 				<div class="spacer" style="height: {$spacerSize3}vh"></div>
 			{/if}

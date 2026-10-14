@@ -9,6 +9,8 @@
 	let orchestra = '';
 	let conductor = '';
 	let players = [];
+	// 지휘자 and 오케스트라 are saved apart: a 지휘자 without 오케스트라 (a choir) is shown too
+	$: orchestraLine = [orchestra, conductor && '지휘: ' + conductor].filter(Boolean).join(' / ');
 	let composerFontSize = 6;
 	let titleFontSize = 4;
 	let orchestraFontSize = 2.5;
@@ -135,9 +137,9 @@
 				{title}{#if semi_title}<br />{semi_title}{/if}
 			</div>
 			<div class="spacer" style="height: {spacerSize2}vh"></div>
-			{#if orchestra}
+			{#if orchestraLine}
 				<div class="text" style="font-size: {orchestraFontSize}vw">
-					{orchestra}{#if conductor}{' / 지휘: ' + conductor}{/if}
+					{orchestraLine}
 				</div>
 				<div class="spacer" style="height: {spacerSize3}vh"></div>
 			{/if}
