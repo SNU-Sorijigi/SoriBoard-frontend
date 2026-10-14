@@ -39,7 +39,22 @@
 		_spacerSize3,
 		_spacerSize4,
 		_spacerSize5;
+	// The 뉴스 line shows what the TV shows (its first 뉴스), so its size is set on the real
+	// text. A failed load keeps what the preview showed; the TV page does not alert either.
+	async function fetchNews() {
+		try {
+			const response = await fetch('/api/information');
+			if (!response.ok) {
+				throw new Error(`Failed to fetch news: ${response.status}`);
+			}
+			const newsdata = await response.json();
+			displayInfoNews.set(newsdata[0]?.content ?? '');
+		} catch (error) {
+			console.error('Failed to fetch news', error);
+		}
+	}
 	onMount(() => {
+		fetchNews();
 		tv = tvSender();
 		_composerFontSize = $composerFontSize;
 		_titleFontSize = $titleFontSize;
