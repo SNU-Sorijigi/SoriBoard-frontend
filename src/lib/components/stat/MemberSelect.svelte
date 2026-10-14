@@ -29,7 +29,7 @@
 </script>
 
 <div class="member-select">
-	<select on:change={onUserChange} value={userId ?? ''}>
+	<select on:change={onUserChange} value={userId ?? ''} aria-label="지기">
 		<option value="">지기 선택</option>
 		{#each users as user}
 			<option value={String(user.id)}>{user.name} {user.major} {user.year_id}</option>
