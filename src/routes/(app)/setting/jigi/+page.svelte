@@ -33,7 +33,7 @@
 	let new_join_year = '';
 	let new_join_semester = '';
 
-	// True from a 지기 추가 until it failed or the page reloads: a double click or a held Enter
+	// True from a 지기 추가 until it failed or the list reloaded: a double click or a held Enter
 	// would otherwise add the member twice (the backend accepts identical members).
 	let creating = false;
 
@@ -84,7 +84,10 @@
 		new_is_ob = false;
 		new_join_year = '';
 		new_join_semester = '';
-		location.reload();
+		// Not location.reload(): it dropped what was typed in a row in 수정. The list reloads in
+		// place, as after 삭제 or 확인
+		await fetchUsers();
+		creating = false;
 	}
 
 	async function deleteUser(id) {
