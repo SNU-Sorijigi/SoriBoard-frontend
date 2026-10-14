@@ -463,7 +463,10 @@
 			console.error('Failed to edit TimeInfo', error);
 		}
 		if (saved) {
-			location.reload();
+			// Not location.reload(): it dropped the 코멘트 not saved yet and the 곡 추가 form. The
+			// load shows the saved 지기/견습 in the header and the next 타임 정보 수정.
+			editing = false;
+			await loadTimeInfo(id);
 		} else {
 			console.error('Failed to edit TimeInfo');
 			alert('타임 정보 수정에 실패했습니다.');
