@@ -119,6 +119,8 @@
 						<input
 							name="semester"
 							type="number"
+							min="1"
+							max="2"
 							required
 							bind:value={$semesterNum}
 						/>
@@ -153,6 +155,7 @@
 						<input
 							name="time"
 							type="number"
+							min="1"
 							required
 							bind:value={$timePerDay}
 						/>타임

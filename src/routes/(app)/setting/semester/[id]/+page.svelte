@@ -198,6 +198,7 @@
 						><input
 							name="number"
 							type="number"
+							min="1"
 							required
 							bind:value={editTimePerDay}
 							style="width:120px"
