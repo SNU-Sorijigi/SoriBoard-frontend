@@ -179,7 +179,8 @@
 	</div>
 	<div class="content">
 		<div class="userlist hide-scrollbar">
-			{#each $users as user}
+			<!-- keyed: a row in 수정 stays with its 지기 when 삭제 or a save reorders the list -->
+			{#each $users as user (user.id)}
 				<UserInfo
 					id={user.id}
 					name={user.name}
