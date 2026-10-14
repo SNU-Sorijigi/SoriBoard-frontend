@@ -398,10 +398,12 @@
 		if (!playersAreValid()) return;
 
 		const timeId = shownId;
+		const checkedComposer = composer;
+		const checkedTitle = title;
 		const params = new URLSearchParams({
 			time_id: timeId,
-			composer_name: composer,
-			title,
+			composer_name: checkedComposer,
+			title: checkedTitle,
 			days: 7
 		});
 		let duplicates;
@@ -415,6 +417,12 @@
 		// ◀/▶ (or back/forward) during the check: the piece is not added to the 타임 shown
 		// now, nor where it was checked. It stays in the form.
 		if (shownId !== timeId || id !== timeId) return;
+		// 작곡가 or 제목 edited during the check: its answer is for the piece before the edit, so
+		// check the edited one, or it would be added (or warned about with 그래도 추가) unchecked.
+		if (composer !== checkedComposer || title !== checkedTitle) {
+			await checkThenSubmitMusic();
+			return;
+		}
 		// The proxy also answers 200 with a backend error body, e.g. { detail }
 		if (!Array.isArray(duplicates)) {
 			alert('곡 추가에 실패했습니다.');
