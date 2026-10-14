@@ -48,6 +48,9 @@
 	let isEditing = false;
 	function toggleEdit() {
 		fetchUsers();
+		// A 지기 without 사부 comes as null, which no option matches (the select showed blank):
+		// 해당 없음 is ''
+		sabu_id = sabu_id ?? '';
 		isEditing = !isEditing;
 	}
 
@@ -70,7 +73,8 @@
 	async function updateData(id) {
 		const formData = {
 			name: name,
-			sabu_id: sabu_id,
+			// 해당 없음 is sent as null, as 지기 추가 sends 사부 없음
+			sabu_id: sabu_id || null,
 			major: major,
 			year_id: year_id,
 			is_ob: is_ob,
