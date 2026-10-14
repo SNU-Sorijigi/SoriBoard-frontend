@@ -74,6 +74,8 @@
 		if (scope === 'individual' && !userId) return;
 		const id = ++loadId;
 		loading = true;
+		// 불러오는 동안(그리고 실패한 뒤) 이전 필터의 수치가 새 필터의 이름으로 남아 보이지 않도록 비운다.
+		[summary, composers, soloists, conductors, orchestras, timeline, eras, genres, diversity] = [];
 		try {
 			const results = await Promise.all([
 				getJson('summary'),
@@ -92,9 +94,6 @@
 		} catch (e) {
 			if (id !== loadId) return;
 			console.error('통계 로딩 실패', e);
-			// 이전 필터의 수치가 새 필터의 이름으로 남아 보이지 않도록 비운다.
-			[summary, composers, soloists, conductors, orchestras, timeline, eras, genres, diversity] =
-				[];
 			alert('통계를 불러오지 못했습니다.');
 		} finally {
 			if (id === loadId) loading = false;
