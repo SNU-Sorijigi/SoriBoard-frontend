@@ -346,14 +346,20 @@
 			player_names: $players
 		};
 
-		const response = await fetch('/api/music', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify(formData)
-		});
-		if (response.ok) {
+		let added = false;
+		try {
+			const response = await fetch('/api/music', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(formData)
+			});
+			added = response.ok;
+		} catch (error) {
+			console.error('Failed to create', error);
+		}
+		if (added) {
 			composer = '';
 			title = '';
 			detail = '';
