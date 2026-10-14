@@ -103,9 +103,14 @@
 		}
 	}
 
+	// Empties both lists in their editors; 확인 saves the cell. The editors open so that the
+	// cleared lists show: left closed, they were saved unseen by the next 확인 of either list.
 	function resetUnit() {
+		if (!isJigiEditing && !isMenteeEditing) fetchUsers();
 		jigi_ids = [];
 		mentee_ids = [];
+		isJigiEditing = true;
+		isMenteeEditing = true;
 	}
 
 	async function updateData(id) {
