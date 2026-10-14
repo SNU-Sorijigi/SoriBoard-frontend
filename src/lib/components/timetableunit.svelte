@@ -167,11 +167,10 @@
 										<option value={String(user.id)}>{user.name} {user.major} {user.year_id}</option>
 									{/each}
 								</select>
-								{#if i > 0}
-									<button class="iconbtn" type="button" on:click={() => removeJigiRow(i)}
-										><img src={minusicon} alt={`지기 ${i + 1} 삭제`} /></button
-									>
-								{/if}
+								<!-- Also the first row, in both lists: a 시간표 칸 may have no 지기 or 견습 -->
+								<button class="iconbtn" type="button" on:click={() => removeJigiRow(i)}
+									><img src={minusicon} alt={`지기 ${i + 1} 삭제`} /></button
+								>
 							</div>
 						{/each}
 						<button class="iconbtn" type="button" on:click={addJigiRow}
@@ -209,11 +208,9 @@
 										<option value={String(user.id)}>{user.name} {user.major} {user.year_id}</option>
 									{/each}
 								</select>
-								{#if i > 0}
-									<button class="iconbtn" type="button" on:click={() => removeMenteeRow(i)}
-										><img src={minusicon} alt={`견습 ${i + 1} 삭제`} /></button
-									>
-								{/if}
+								<button class="iconbtn" type="button" on:click={() => removeMenteeRow(i)}
+									><img src={minusicon} alt={`견습 ${i + 1} 삭제`} /></button
+								>
 							</div>
 						{/each}
 						<button class="iconbtn" type="button" on:click={addMenteeRow}
