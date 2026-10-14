@@ -7,14 +7,48 @@
 	import checkDarkIcon from '$lib/images/check-dark.svg';
 
 	export let id = '';
-	export let name = '';
-	export let sabu_id = '';
 	export let sabu_info = '';
-	export let major = '';
-	export let year_id = '';
-	export let is_ob = false;
-	export let join_year = '';
-	export let join_semester = '';
+	// The list's values, passed again on every refetch (확인 or 삭제 on another row). They reach
+	// the boxes only outside 수정, so a refetch keeps what is being typed
+	let listName = '';
+	let listSabuId = '';
+	let listMajor = '';
+	let listYearId = '';
+	let listIsOb = false;
+	let listJoinYear = '';
+	let listJoinSemester = '';
+	export {
+		listName as name,
+		listSabuId as sabu_id,
+		listMajor as major,
+		listYearId as year_id,
+		listIsOb as is_ob,
+		listJoinYear as join_year,
+		listJoinSemester as join_semester
+	};
+
+	// What the boxes show and 수정 edits
+	let name, sabu_id, major, year_id, is_ob, join_year, join_semester;
+	function showListValues() {
+		if (isEditing) return;
+		name = listName;
+		sabu_id = listSabuId;
+		major = listMajor;
+		year_id = listYearId;
+		is_ob = listIsOb;
+		join_year = listJoinYear;
+		join_semester = listJoinSemester;
+	}
+	// Only when the list's values change: leaving 수정 after a save keeps the saved values shown
+	// until the refetch brings them
+	$: listName,
+		listSabuId,
+		listMajor,
+		listYearId,
+		listIsOb,
+		listJoinYear,
+		listJoinSemester,
+		showListValues();
 
 	export let deleteUser;
 
@@ -61,7 +95,7 @@
 		} catch (error) {
 			console.error('failed to edit', error);
 		}
-		// After a failure the row stays editable with the typed values (a refetch would overwrite them)
+		// After a failure the row stays editable with the typed values
 		if (saved) {
 			isEditing = false;
 			refetchUsers();
