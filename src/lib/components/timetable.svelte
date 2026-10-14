@@ -21,19 +21,19 @@
 
 		const unitMinutes = (totalMinutes - totalRestTime) / timePerDay;
 
-		const cur = new Date(startTime);
+		// Each 타임 from the start, not from the previous one: setMinutes() dropped the seconds
+		// of a 타임 that is not whole minutes, and the 타임 drifted earlier, the last ending
+		// before 운영 종료. Rounded to the millisecond, so 10:00 does not show as 09:59.
+		const at = (minutes) => new Date(startTime.getTime() + Math.round(minutes * 60000));
 
 		for (let i = 0; i < timePerDay; i++) {
-			const s = new Date(cur);
-			const e = new Date(cur.getTime() + unitMinutes * 60000);
+			const s = at(i * (unitMinutes + restTime));
+			const e = at(i * (unitMinutes + restTime) + unitMinutes);
 
 			const sFormatted = s.toTimeString().slice(0, 5);
 			const eFormatted = e.toTimeString().slice(0, 5);
 
 			timeSchedule.push(`${sFormatted}~${eFormatted}`);
-
-			// update cur
-			cur.setMinutes(cur.getMinutes() + unitMinutes + restTime);
 		}
 
 		console.log(timeSchedule);
