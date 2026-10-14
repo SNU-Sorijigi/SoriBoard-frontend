@@ -23,9 +23,10 @@
 		}
 	}
 
+	// Read the clock again: a page left open past midnight would go to, and mark, the day it was
+	// opened. month and year follow currentDate.
 	function goToday() {
-		month = currentDate.getMonth();
-		year = currentDate.getFullYear();
+		currentDate = new Date();
 	}
 
 	function formatMonthDisplay(month, year) {
@@ -87,7 +88,13 @@
 		</div>
 		<div class="month-block">
 			{#each weekList as index (year.toString() + '-' + month.toString() + '-' + index)}
-				<WeekBlock week={index} {month} {year} on:createTime on:loadError={reportLoadError}
+				<WeekBlock
+					week={index}
+					{month}
+					{year}
+					today={currentDate}
+					on:createTime
+					on:loadError={reportLoadError}
 				></WeekBlock>
 			{/each}
 		</div>

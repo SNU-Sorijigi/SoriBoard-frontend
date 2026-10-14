@@ -11,8 +11,9 @@
 		year++;
 	}
 
+	// The year now, not when the page was opened
 	function goToday() {
-		year = currentDate.getFullYear();
+		year = new Date().getFullYear();
 	}
 
 	function formatYearDisplay(year) {

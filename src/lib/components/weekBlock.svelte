@@ -4,9 +4,11 @@
 	export let week;
 	export let month;
 	export let year;
+	// The day marked as today; the calendar passes a new one on 오늘
+	export let today = new Date();
 	let createdList = [];
 
-	function calculateWeekDays(year, month, weekNumber) {
+	function calculateWeekDays(year, month, weekNumber, today) {
 		const getSunday = (d) => new Date(d.setDate(d.getDate() - d.getDay()));
 		const addDays = (d, days) => new Date(d.setDate(d.getDate() + days));
 		const formatDate = (d) => ('0' + d.getDate()).slice(-2);
@@ -20,7 +22,6 @@
 		let firstSunday = getSunday(new Date(year, month, 1));
 
 		date = addDays(firstSunday, weekNumber * 7);
-		const today = new Date();
 
 		for (let i = 0; i < 7; i++) {
 			let day = addDays(new Date(date), i);
@@ -36,7 +37,7 @@
 		return dates;
 	}
 
-	$: daysOfWeek = calculateWeekDays(year, month, week);
+	$: daysOfWeek = calculateWeekDays(year, month, week, today);
 
 	async function fetchData(start_year, start_month, start_day, end_year, end_month, end_day) {
 		start_month = ('0' + start_month).slice(-2);
