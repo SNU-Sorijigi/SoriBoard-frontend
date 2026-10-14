@@ -127,6 +127,7 @@
                         type="range"
                         min="1"
                         max="12"
+                        aria-label="작곡가 글자 크기"
                         value={$composerFontSize / 0.4}
                         on:input={(e) => ($composerFontSize = +e.target.value * 0.4)}
                         />
@@ -140,6 +141,7 @@
                         type="range"
                         min="1"
                         max="12"
+                        aria-label="작곡가 아래 간격"
                         value={$spacerSize1 / 0.4}
                         on:input={(e) => ($spacerSize1 = +e.target.value * 0.4)}
                         />
@@ -153,6 +155,7 @@
                         type="range"
                         min="1"
                         max="12"
+                        aria-label="곡 제목 글자 크기"
                         value={$titleFontSize / 0.4}
                         on:input={(e) => ($titleFontSize = +e.target.value * 0.4)}
                         />
@@ -166,6 +169,7 @@
                         type="range"
                         min="1"
                         max="12"
+                        aria-label="곡 제목 아래 간격"
                         value={$spacerSize2 / 0.4}
                         on:input={(e) => ($spacerSize2 = +e.target.value * 0.4)}
                         />
@@ -179,6 +183,7 @@
                         type="range"
                         min="1"
                         max="12"
+                        aria-label="오케스트라 글자 크기"
                         value={$orchestraFontSize / 0.4}
                         on:input={(e) => ($orchestraFontSize = +e.target.value * 0.4)}
                         />
@@ -192,6 +197,7 @@
                         type="range"
                         min="1"
                         max="12"
+                        aria-label="오케스트라 아래 간격"
                         value={$spacerSize3 / 0.4}
                         on:input={(e) => ($spacerSize3 = +e.target.value * 0.4)}
                         />
@@ -205,6 +211,7 @@
                         type="range"
                         min="1"
                         max="12"
+                        aria-label="연주자 글자 크기"
                         value={$playerFontSize / 0.4}
                         on:input={(e) => ($playerFontSize = +e.target.value * 0.4)}
                         />
@@ -218,6 +225,7 @@
                         type="range"
                         min="1"
                         max="12"
+                        aria-label="연주자 아래 간격"
                         value={$spacerSize4 / 0.4}
                         on:input={(e) => ($spacerSize4 = +e.target.value * 0.4)}
                         />
@@ -231,6 +239,7 @@
                         type="range"
                         min="1"
                         max="12"
+                        aria-label="뉴스 위 간격"
                         value={$spacerSize5 / 0.4}
                         on:input={(e) => ($spacerSize5 = +e.target.value * 0.4)}
                         />
@@ -244,6 +253,7 @@
                         type="range"
                         min="1"
                         max="12"
+                        aria-label="뉴스 글자 크기"
                         value={$infoNewsFontSize / 0.4}
                         on:input={(e) => ($infoNewsFontSize = +e.target.value * 0.4)}
                         />
@@ -257,6 +267,7 @@
                         type="range"
                         min="1"
                         max="12"
+                        aria-label="인스타그램 글자 크기"
                         value={$instagramFontSize / 0.4}
                         on:input={(e) => ($instagramFontSize = +e.target.value * 0.4)}
                         />
