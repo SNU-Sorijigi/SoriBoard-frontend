@@ -341,11 +341,10 @@
 										<option value={String(u.id)}>{u.name} {u.major} {u.year_id}</option>
 									{/each}
 								</select>
-								{#if i > 0}
-									<button type="button" class="minus" on:click={() => removeMenteeRow(i)}>
-										<img src={minusicon} alt={`제자 ${i + 1} 삭제`} />
-									</button>
-								{/if}
+								<!-- Also the first row: a 타임 may have no 제자, e.g. when the 시간표's 제자 is away -->
+								<button type="button" class="minus" on:click={() => removeMenteeRow(i)}>
+									<img src={minusicon} alt={`제자 ${i + 1} 삭제`} />
+								</button>
 							</div>
 						{/each}
 						<button type="button" class="plus" on:click={addMenteeRow}>

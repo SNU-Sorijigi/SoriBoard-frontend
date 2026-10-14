@@ -920,11 +920,10 @@
 										<option value={String(user.id)}>{user.name} {user.major} {user.year_id}</option>
 									{/each}
 								</select>
-								{#if i > 0}
-									<button type="button" class="minus" on:click={() => removeMenteeRow(i)}>
-										<img src={minusicon} alt={`견습 ${i + 1} 삭제`} />
-									</button>
-								{/if}
+								<!-- Also the first row: a 타임 may have no 견습 -->
+								<button type="button" class="minus" on:click={() => removeMenteeRow(i)}>
+									<img src={minusicon} alt={`견습 ${i + 1} 삭제`} />
+								</button>
 							</div>
 						{/each}
 						<button type="button" class="plus" on:click={addMenteeRow}>
