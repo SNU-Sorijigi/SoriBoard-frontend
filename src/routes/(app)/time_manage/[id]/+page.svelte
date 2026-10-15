@@ -15,6 +15,7 @@
 	import checkicon from '$lib/images/check.svg';
 	import Tv from '$lib/components/tv.svelte';
 	import { closeOnKey } from '$lib/closeKey.js';
+	import { dialogFocus } from '$lib/dialogFocus.js';
 
 	$: id = $page.params.id;
 
@@ -832,6 +833,10 @@
 	<div class="modal">
 		<div
 			class="modal-content"
+			role="dialog"
+			aria-labelledby="insta-title"
+			tabindex="-1"
+			use:dialogFocus
 			use:clickOutside
 			on:outclick={toggle}
 			in:fly={{ y: '-20vh', duration: 400 }}
@@ -845,7 +850,7 @@
 				on:click={toggle}
 				on:keydown={closeOnKey(toggle)}>&times;</span
 			>
-			<div class="title">인스타 업로드 형식</div>
+			<div class="title" id="insta-title">인스타 업로드 형식</div>
 			<div class="insta_content">
 				<h3>[ {formatDateToKorean(date)} / {timeChange(time)} ]</h3>
 				{#each timeMusic as music}
@@ -875,6 +880,10 @@
 	<div class="modal edit_modal">
 		<div
 			class="modal-content"
+			role="dialog"
+			aria-labelledby="edit-time-title"
+			tabindex="-1"
+			use:dialogFocus
 			use:clickOutside
 			on:outclick={edit_toggle}
 			in:fly={{ y: '-20vh', duration: 400 }}
@@ -888,7 +897,7 @@
 				on:click={edit_toggle}
 				on:keydown={closeOnKey(edit_toggle)}>&times;</span
 			>
-			<div class="title">타임 정보 수정</div>
+			<div class="title" id="edit-time-title">타임 정보 수정</div>
 			<br />
 			<form on:submit={handleEdit} method="PUT" class="form">
 				<div class="stack">
@@ -997,6 +1006,10 @@
 	<div class="modal edit_modal">
 		<div
 			class="modal-content2"
+			role="dialog"
+			aria-labelledby="display-edit-title"
+			tabindex="-1"
+			use:dialogFocus
 			use:clickOutside
 			on:outclick={display_toggle}
 			in:fly={{ y: '-20vh', duration: 400 }}
@@ -1010,7 +1023,7 @@
 				on:click={display_toggle}
 				on:keydown={closeOnKey(display_toggle)}>&times;</span
 			>
-			<div class="title">판서 화면 수정</div>
+			<div class="title" id="display-edit-title">판서 화면 수정</div>
 			<br />
 			<Tv></Tv>
 		</div>
