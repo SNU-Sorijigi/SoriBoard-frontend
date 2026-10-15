@@ -240,17 +240,11 @@
 								<img src={downIcon} alt="아래로 이동" class="arrow_icon" />
 							</button>
 						</div>
-						{#if !isEditing}
-							<button class="button tool" on:click={toggleEdit}>
-								<img src={editIcon} alt="" class="icon" />
-								<div class="button_label">수정</div>
-							</button>
-						{:else}
-							<button class="button tool" on:click={confirmEdit}>
-								<img src={checkDarkIcon} alt="" class="icon" />
-								<div class="button_label">확인</div>
-							</button>
-						{/if}
+						<!-- One button for 수정 and 확인: swapping two buttons dropped the keyboard focus -->
+						<button class="button tool" on:click={isEditing ? confirmEdit : toggleEdit}>
+							<img src={isEditing ? checkDarkIcon : editIcon} alt="" class="icon" />
+							<div class="button_label">{isEditing ? '확인' : '수정'}</div>
+						</button>
 						<button class="button tool" on:click={showDisplay}>
 							<img src={showIcon} alt="" class="icon" />
 							<div class="button_label">판서</div>
