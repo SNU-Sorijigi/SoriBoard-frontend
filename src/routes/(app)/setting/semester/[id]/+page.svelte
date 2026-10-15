@@ -4,6 +4,7 @@
 	import { fly } from 'svelte/transition';
 	import TimeTable from '$lib/components/timetable.svelte';
 	import { closeOnKey } from '$lib/closeKey.js';
+	import { dialogFocus } from '$lib/dialogFocus.js';
 
 	$: id = $page.params.id;
 
@@ -177,6 +178,10 @@
 	<div class="modal edit_modal">
 		<div
 			class="modal-content"
+			role="dialog"
+			aria-labelledby="edit-semester-title"
+			tabindex="-1"
+			use:dialogFocus
 			use:clickOutside
 			on:outclick={edit_toggle}
 			in:fly={{ y: '-20vh', duration: 400 }}
@@ -190,7 +195,7 @@
 				on:click={edit_toggle}
 				on:keydown={closeOnKey(edit_toggle)}>&times;</span
 			>
-			<div class="title">학기 정보 수정</div>
+			<div class="title" id="edit-semester-title">학기 정보 수정</div>
 			<br />
 			<form on:submit={handleEdit} method="PUT" class="form">
 				<div class="stack">

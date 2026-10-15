@@ -3,6 +3,7 @@
 	import { fly } from 'svelte/transition';
 	import { writable } from 'svelte/store';
 	import { closeOnKey } from '$lib/closeKey.js';
+	import { dialogFocus } from '$lib/dialogFocus.js';
 
 	function clickOutside(node) {
 		const handleClick = (event) => {
@@ -92,7 +93,16 @@
 <SemesterCalendar on:createSemester={create} />
 {#if createSemesterVisible}
 	<div class="modal">
-		<div class="modal-content" use:clickOutside on:outclick={toggle} in:fly={{ y: '-20vh', duration: 400 }}>
+		<div
+			class="modal-content"
+			role="dialog"
+			aria-labelledby="create-semester-title"
+			tabindex="-1"
+			use:dialogFocus
+			use:clickOutside
+			on:outclick={toggle}
+			in:fly={{ y: '-20vh', duration: 400 }}
+		>
 			<span
 				role="button"
 				tabindex="0"
@@ -102,7 +112,7 @@
 				on:click={toggle}
 				on:keydown={closeOnKey(toggle)}>&times;</span
 			>
-			<div class="title">학기 생성</div>
+			<div class="title" id="create-semester-title">학기 생성</div>
 			<br />
 			<form on:submit={handleSubmit} method="POST" class="form">
 				<div class="stack">
