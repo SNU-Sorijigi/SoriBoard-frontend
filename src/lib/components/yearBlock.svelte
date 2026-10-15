@@ -13,15 +13,18 @@
 	}
 
 	onMount(() => {
+		let destroyed = false;
 		fetchData(year)
 			.then((array) => {
 				createdList = array;
 			})
 			.catch((error) => {
-				// without the list both 학기 would look not created yet
+				// without the list both 학기 would look not created yet;
+				// say so, unless the calendar has left this year
 				console.error('Error fetching semester data', error);
-				alert('학기 정보를 불러오지 못했습니다.');
+				if (!destroyed) alert('학기 정보를 불러오지 못했습니다.');
 			});
+		return () => (destroyed = true);
 	});
 
 </script>
