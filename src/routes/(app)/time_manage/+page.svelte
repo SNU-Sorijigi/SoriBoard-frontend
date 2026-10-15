@@ -5,6 +5,7 @@
 	import plusicon from '$lib/images/plus.svg';
 	import minusicon from '$lib/images/minus.svg';
 	import { closeOnKey } from '$lib/closeKey.js';
+	import { dialogFocus } from '$lib/dialogFocus.js';
 
 	let semester_exists = false;
 
@@ -257,6 +258,10 @@
 	<div class="modal">
 		<div
 			class="modal-content"
+			role="dialog"
+			aria-labelledby="create-time-title"
+			tabindex="-1"
+			use:dialogFocus
 			use:clickOutside
 			on:outclick={toggle}
 			in:fly={{ y: '-20vh', duration: 400 }}
@@ -270,7 +275,7 @@
 				on:click={toggle}
 				on:keydown={closeOnKey(toggle)}>&times;</span
 			>
-			<div class="title">타임 생성</div>
+			<div class="title" id="create-time-title">타임 생성</div>
 			<br />
 			<form on:submit={handleSubmit} method="POST" class="form">
 				<div class="stack">
