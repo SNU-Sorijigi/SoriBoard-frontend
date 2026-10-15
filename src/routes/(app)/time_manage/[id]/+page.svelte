@@ -27,7 +27,9 @@
 	// the first load answers: a save then fails instead of sending the empty fields.
 	let shownId = null;
 	let savedTimeInfo = null;
-	// 타임 정보 수정 fields, filled from savedTimeInfo (see fillEditForm)
+	// 타임 정보 수정 fields, filled from savedTimeInfo (see fillEditForm), and the 타임 they were
+	// last filled for
+	let editFormFor = null;
 	let mento_ids = [];
 	let mentee_ids = [];
 	let arrival_time;
@@ -185,7 +187,9 @@
 			timeDate = `${year}년 ${month}월 ${day}일 ${time}타임`;
 			timeUser = `${mento_name}${mentee_name}`;
 			savedTimeInfo = data;
-			fillEditForm();
+			// An open 타임 정보 수정 keeps what is being chosen in it, e.g. when the reload after
+			// 곡 추가 or ↑/↓ answers once it is open. Unless it shows no data of this 타임 yet.
+			if (!editing || editFormFor !== timeId) fillEditForm();
 
 			// Load comment fields. This also runs after 곡 추가, 삭제 and ↑/↓: a field edited
 			// since this 타임 was last loaded or saved keeps its text then, as it is not saved yet.
@@ -214,6 +218,7 @@
 	// outside is not shown again or sent with the next 타임 수정하기.
 	function fillEditForm() {
 		if (!savedTimeInfo) return;
+		editFormFor = shownId;
 		mento_ids = (savedTimeInfo.users || []).map(String);
 		mentee_ids = (savedTimeInfo.mentees || []).map(String);
 		arrival_time = savedTimeInfo.arrival_time;
