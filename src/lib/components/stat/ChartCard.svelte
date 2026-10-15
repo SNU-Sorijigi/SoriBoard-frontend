@@ -27,10 +27,22 @@
 
 <div class="card">
 	<div class="toolbar">
-		<button class="tool-btn" on:click={exportPng} disabled={!canExport} title="이미지(PNG)로 저장">
+		<button
+			class="tool-btn"
+			on:click={exportPng}
+			disabled={!canExport}
+			title="이미지(PNG)로 저장"
+			aria-label={`${title} PNG 저장`}
+		>
 			PNG 저장
 		</button>
-		<button class="tool-btn" on:click={exportCsv} disabled={!canExport} title="데이터(CSV)로 저장">
+		<button
+			class="tool-btn"
+			on:click={exportCsv}
+			disabled={!canExport}
+			title="데이터(CSV)로 저장"
+			aria-label={`${title} CSV 저장`}
+		>
 			CSV 저장
 		</button>
 	</div>
