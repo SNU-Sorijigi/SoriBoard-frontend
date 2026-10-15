@@ -278,6 +278,7 @@
 						><input
 							name="date"
 							type="date"
+							aria-label="날짜"
 							required
 							bind:value={$date}
 							style="width:120px"
@@ -326,6 +327,7 @@
 							type="time"
 							required
 							bind:value={$mento_time}
+							aria-label="지기 출근 시간"
 							style="width:8em"
 						/></label
 					>
@@ -356,6 +358,7 @@
 							name="time"
 							type="time"
 							bind:value={$mentee_time}
+							aria-label="제자 출근 시간"
 							style="width:8em"
 						/></label
 					>
