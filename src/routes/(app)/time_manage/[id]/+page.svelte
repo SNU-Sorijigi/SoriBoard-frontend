@@ -625,6 +625,7 @@
 		const index = findItemIndexById(musicid);
 		if (index === -1 || !timeMusic[index + step]) return;
 		reordering = true;
+		const focused = document.activeElement;
 		try {
 			const swapped = await swapOrders(timeMusic[index].id, timeMusic[index + step].id);
 			if (!swapped) {
@@ -635,6 +636,10 @@
 		} finally {
 			reordering = false;
 		}
+		// The keyed each moves the row that went up out of the page and back in, which drops the
+		// focus of its ↑ to <body>: give it back, unless focus went elsewhere meanwhile.
+		await tick();
+		if (document.activeElement === document.body) focused?.focus();
 	}
 
 	function goDown(event) {
