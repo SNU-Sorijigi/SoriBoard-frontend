@@ -132,7 +132,9 @@
 			matchIndex = (matchIndex + step + matches.length) % matches.length;
 			select(matches[matchIndex]);
 		} else if (event.key === 'Escape') {
-			query = '';
+			// The first Escape clears the box, the next one closes the panel (windowKey skips inputs)
+			if (query) query = '';
+			else if (selected) closeDetail();
 		}
 	}
 
