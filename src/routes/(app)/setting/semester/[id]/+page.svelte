@@ -142,7 +142,10 @@
 		<div class="buttons">
 			<button class="semester_edit button" on:click={edit_toggle}>학기 정보 수정 </button>
 		</div>
-		<div class="semesterinfo">{semesterYear}년도<br />{semesterNum}학기</div>
+		<!-- Empty until the 학기 loads, not "undefined년도" (also after a failed load) -->
+		<div class="semesterinfo">
+			{#if dataLoaded}{semesterYear}년도<br />{semesterNum}학기{/if}
+		</div>
 	</div>
 	<div class="content">
 		{#if dataLoaded}
