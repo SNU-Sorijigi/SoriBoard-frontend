@@ -100,8 +100,10 @@
 		}
 	}
 
-	// On a card: ↑ 사부, ↓ first 제자, ← → the 사부's other 제자
+	// On a card: ↑ 사부, ↓ first 제자, ← → the 사부's other 제자. An arrow with Alt, ⌘ or Ctrl
+	// (Back, Forward) or one with no member that way keeps its browser action (scrolling).
 	function moveFrom(event, node) {
+		if (event.altKey || event.metaKey || event.ctrlKey) return;
 		let next = null;
 		const siblings = node.parent ? node.parent.children : [];
 		const at = siblings.indexOf(node);
@@ -110,8 +112,9 @@
 		else if (event.key === 'ArrowLeft' && at > 0) next = siblings[at - 1];
 		else if (event.key === 'ArrowRight' && at >= 0) next = siblings[at + 1];
 		else return;
+		if (!next) return;
 		event.preventDefault();
-		if (next) select(next, { focus: true });
+		select(next, { focus: true });
 	}
 
 	async function search() {
