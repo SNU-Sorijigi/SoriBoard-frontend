@@ -67,6 +67,8 @@
 	let adding = false;
 	// True while a ↑/↓ swap is sent and the playlist reloaded (see moveMusic)
 	let reordering = false;
+	// The pieces whose 삭제 is sent and the playlist not reloaded yet (see deleteMusic)
+	const deleting = new Set();
 
 	function addPlayer() {
 		players.update((currentPlayers) => [...currentPlayers, '']);
@@ -97,9 +99,13 @@
 		is_requested = !is_requested;
 	}
 
+	// One 삭제 of a piece at a time, until the playlist has reloaded: its row is still shown
+	// meanwhile, and a second DELETE fails, as the piece is gone already.
 	async function deleteMusic(music_id) {
+		if (deleting.has(music_id)) return;
 		const isConfirmed = confirm('삭제하시겠습니까?');
 		if (isConfirmed) {
+			deleting.add(music_id);
 			let deleted = false;
 			try {
 				const response = await fetch(`/api/music/${music_id}`, {
@@ -113,7 +119,8 @@
 				alert('곡 삭제에 실패했습니다.');
 			}
 			// Also after a failure: a piece already deleted elsewhere then leaves the playlist
-			loadTimeInfo(id);
+			await loadTimeInfo(id);
+			deleting.delete(music_id);
 		}
 	}
 
@@ -624,6 +631,8 @@
 		if (reordering) return;
 		const index = findItemIndexById(musicid);
 		if (index === -1 || !timeMusic[index + step]) return;
+		// Nor with a piece whose 삭제 is on its way: the backend cannot swap a deleted piece.
+		if (deleting.has(timeMusic[index].id) || deleting.has(timeMusic[index + step].id)) return;
 		reordering = true;
 		const focused = document.activeElement;
 		try {
