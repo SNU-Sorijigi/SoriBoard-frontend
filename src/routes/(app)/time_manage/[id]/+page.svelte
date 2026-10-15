@@ -836,7 +836,7 @@
 			role="dialog"
 			aria-labelledby="insta-title"
 			tabindex="-1"
-			use:dialogFocus
+			use:dialogFocus={toggle}
 			use:clickOutside
 			on:outclick={toggle}
 			in:fly={{ y: '-20vh', duration: 400 }}
@@ -883,7 +883,7 @@
 			role="dialog"
 			aria-labelledby="edit-time-title"
 			tabindex="-1"
-			use:dialogFocus
+			use:dialogFocus={edit_toggle}
 			use:clickOutside
 			on:outclick={edit_toggle}
 			in:fly={{ y: '-20vh', duration: 400 }}
@@ -1009,7 +1009,7 @@
 			role="dialog"
 			aria-labelledby="display-edit-title"
 			tabindex="-1"
-			use:dialogFocus
+			use:dialogFocus={display_toggle}
 			use:clickOutside
 			on:outclick={display_toggle}
 			in:fly={{ y: '-20vh', duration: 400 }}

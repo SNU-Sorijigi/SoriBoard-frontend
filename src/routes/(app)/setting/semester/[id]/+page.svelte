@@ -181,7 +181,7 @@
 			role="dialog"
 			aria-labelledby="edit-semester-title"
 			tabindex="-1"
-			use:dialogFocus
+			use:dialogFocus={edit_toggle}
 			use:clickOutside
 			on:outclick={edit_toggle}
 			in:fly={{ y: '-20vh', duration: 400 }}

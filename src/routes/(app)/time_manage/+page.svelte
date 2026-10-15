@@ -261,7 +261,7 @@
 			role="dialog"
 			aria-labelledby="create-time-title"
 			tabindex="-1"
-			use:dialogFocus
+			use:dialogFocus={toggle}
 			use:clickOutside
 			on:outclick={toggle}
 			in:fly={{ y: '-20vh', duration: 400 }}
