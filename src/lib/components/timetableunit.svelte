@@ -182,15 +182,10 @@
 				{/if}
 			</div>
 			<div class="col_stack">
-				{#if !isJigiEditing}
-					<button class="button" on:click={toggleJigiEdit}>
-						<div class="button_label">수정</div>
-					</button>
-				{:else}
-					<button class="button" on:click={confirmJigiEdit}>
-						<div class="button_label">확인</div>
-					</button>
-				{/if}
+				<!-- One button for 수정 and 확인, in both lists: swapping two buttons dropped the keyboard focus -->
+				<button class="button" on:click={isJigiEditing ? confirmJigiEdit : toggleJigiEdit}>
+					<div class="button_label">{isJigiEditing ? '확인' : '수정'}</div>
+				</button>
 			</div>
 		</div>
 		<div class="row_stack">
@@ -222,15 +217,9 @@
 				{/if}
 			</div>
 			<div class="col_stack">
-				{#if !isMenteeEditing}
-					<button class="button" on:click={toggleMenteeEdit}>
-						<div class="button_label">수정</div>
-					</button>
-				{:else}
-					<button class="button" on:click={confirmMenteeEdit}>
-						<div class="button_label">확인</div>
-					</button>
-				{/if}
+				<button class="button" on:click={isMenteeEditing ? confirmMenteeEdit : toggleMenteeEdit}>
+					<div class="button_label">{isMenteeEditing ? '확인' : '수정'}</div>
+				</button>
 			</div>
 		</div>
 	</div>
