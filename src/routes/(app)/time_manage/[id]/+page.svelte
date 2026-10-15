@@ -1,6 +1,6 @@
 <script>
 	import { writable } from 'svelte/store';
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { page } from '$app/stores';
 	import { fly } from 'svelte/transition';
 	import { goto } from '$app/navigation';
@@ -403,6 +403,22 @@
 		}
 	}
 
+	// 취소 and a saved 그래도 추가 remove the duplicate warning with focus on the pressed button,
+	// which drops a keyboard user's focus to the page: give it back to 곡 추가하기.
+	let submitButton;
+	async function focusSubmitIfLost() {
+		await tick();
+		if (document.activeElement === document.body) submitButton?.focus();
+	}
+	function cancelDuplicate() {
+		duplicateWarning = null;
+		focusSubmitIfLost();
+	}
+	async function addDespiteDuplicate() {
+		await submitMusic();
+		await focusSubmitIfLost();
+	}
+
 	function handleSubmit(event) {
 		event.preventDefault();
 		whileAdding(checkThenSubmitMusic);
@@ -746,9 +762,15 @@
 				<button type="button" class="plus" on:click={addPlayer}>
 					<img src={plusicon} alt="연주자 추가" />
 				</button>
-				<input id="submit1" type="submit" value="곡 추가하기" class="submit" />
+				<input
+					id="submit1"
+					type="submit"
+					value="곡 추가하기"
+					class="submit"
+					bind:this={submitButton}
+				/>
 			{#if duplicateWarning}
-				<div class="duplicate-warning">
+				<div class="duplicate-warning" role="alert">
 					<div class="warning-title">⚠ 타임 날짜 기준 최근 7일 내 선곡된 곡입니다</div>
 					{#each duplicateWarning as d}
 						<div class="warning-item">
@@ -756,11 +778,11 @@
 						</div>
 					{/each}
 					<div class="warning-buttons">
-						<button type="button" class="warn-cancel" on:click={() => (duplicateWarning = null)}
-							>취소</button
-						>
-						<button type="button" class="warn-confirm" on:click={() => whileAdding(submitMusic)}
-							>그래도 추가</button
+						<button type="button" class="warn-cancel" on:click={cancelDuplicate}>취소</button>
+						<button
+							type="button"
+							class="warn-confirm"
+							on:click={() => whileAdding(addDespiteDuplicate)}>그래도 추가</button
 						>
 					</div>
 				</div>
