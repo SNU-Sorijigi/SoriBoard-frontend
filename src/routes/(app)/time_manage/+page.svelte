@@ -6,24 +6,9 @@
 	import minusicon from '$lib/images/minus.svg';
 	import { closeOnKey } from '$lib/closeKey.js';
 	import { dialogFocus } from '$lib/dialogFocus.js';
+	import { clickOutside } from '$lib/clickOutside.js';
 
 	let semester_exists = false;
-
-	function clickOutside(node) {
-		const handleClick = (event) => {
-			if (!node.contains(event.target)) {
-				node.dispatchEvent(new CustomEvent('outclick'));
-			}
-		};
-
-		document.addEventListener('click', handleClick, true);
-
-		return {
-			destroy() {
-				document.removeEventListener('click', handleClick, true);
-			}
-		};
-	}
 
 	async function getSemesterId(year, month) {
 		const response = await fetch(`/api/semester/year/${year}`);

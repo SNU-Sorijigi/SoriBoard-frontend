@@ -4,22 +4,7 @@
 	import { writable } from 'svelte/store';
 	import { closeOnKey } from '$lib/closeKey.js';
 	import { dialogFocus } from '$lib/dialogFocus.js';
-
-	function clickOutside(node) {
-		const handleClick = (event) => {
-			if (!node.contains(event.target)) {
-				node.dispatchEvent(new CustomEvent('outclick'));
-			}
-		};
-
-		document.addEventListener('click', handleClick, true);
-
-		return {
-			destroy() {
-				document.removeEventListener('click', handleClick, true);
-			}
-		};
-	}
+	import { clickOutside } from '$lib/clickOutside.js';
 
 	let createSemesterVisible = false;
 	let semYear = writable('');

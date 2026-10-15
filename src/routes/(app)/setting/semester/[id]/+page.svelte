@@ -5,6 +5,7 @@
 	import TimeTable from '$lib/components/timetable.svelte';
 	import { closeOnKey } from '$lib/closeKey.js';
 	import { dialogFocus } from '$lib/dialogFocus.js';
+	import { clickOutside } from '$lib/clickOutside.js';
 
 	$: id = $page.params.id;
 
@@ -124,22 +125,6 @@
 			console.error('Failed to delete semester');
 			alert('학기 삭제에 실패했습니다.');
 		}
-	}
-
-	function clickOutside(node) {
-		const handleClick = (event) => {
-			if (!node.contains(event.target)) {
-				node.dispatchEvent(new CustomEvent('outclick'));
-			}
-		};
-
-		document.addEventListener('click', handleClick, true);
-
-		return {
-			destroy() {
-				document.removeEventListener('click', handleClick, true);
-			}
-		};
 	}
 
 	onMount(() => {

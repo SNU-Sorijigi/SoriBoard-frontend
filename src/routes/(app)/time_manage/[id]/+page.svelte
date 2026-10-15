@@ -16,6 +16,7 @@
 	import Tv from '$lib/components/tv.svelte';
 	import { closeOnKey } from '$lib/closeKey.js';
 	import { dialogFocus } from '$lib/dialogFocus.js';
+	import { clickOutside } from '$lib/clickOutside.js';
 
 	$: id = $page.params.id;
 
@@ -574,21 +575,6 @@
 		visible = false;
 	}
 
-	function clickOutside(node) {
-		const handleClick = (event) => {
-			if (!node.contains(event.target)) {
-				node.dispatchEvent(new CustomEvent('outclick'));
-			}
-		};
-
-		document.addEventListener('click', handleClick, true);
-
-		return {
-			destroy() {
-				document.removeEventListener('click', handleClick, true);
-			}
-		};
-	}
 	function findItemIndexById(id) {
 		return timeMusic.findIndex((item) => item.id === id);
 	}
