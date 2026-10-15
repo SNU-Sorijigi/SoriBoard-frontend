@@ -268,7 +268,7 @@
 		<!-- 다양성 섹션 -->
 		<div class="section-head">
 			<h2>선곡 다양성</h2>
-			<div class="bucket-toggle">
+			<div class="bucket-toggle" role="group" aria-label="다양성 집계 단위">
 				<button
 					class:active={diversityBucket === 'week'}
 					aria-pressed={diversityBucket === 'week'}

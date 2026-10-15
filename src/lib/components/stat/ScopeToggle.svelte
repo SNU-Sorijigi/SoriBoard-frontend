@@ -13,7 +13,7 @@
 	}
 </script>
 
-<div class="toggle">
+<div class="toggle" role="group" aria-label="통계 범위">
 	<button
 		class:active={scope === 'all'}
 		aria-pressed={scope === 'all'}
