@@ -64,8 +64,13 @@
 		editing = !editing;
 	}
 
+	// True from a 학기 수정하기 or 삭제 until it failed or the page navigates: a second click
+	// would ask again and send it twice, and a refused second 삭제 alerts a failure.
+	let sending = false;
+
 	async function handleEdit(event) {
 		event.preventDefault();
+		if (sending) return;
 		// The backend rebuilds the timetable when the 타임 count changes, emptying every cell.
 		// After 취소 the modal stays open with the typed values.
 		if (
@@ -74,6 +79,7 @@
 		) {
 			return;
 		}
+		sending = true;
 		const formData = {
 			total_time: editTimePerDay,
 			start_time: editTimeStart,
@@ -99,16 +105,19 @@
 		if (saved) {
 			location.reload();
 		} else {
+			sending = false;
 			console.error('Failed to update semester info');
 			alert('학기 정보 수정에 실패했습니다.');
 		}
 	}
 
 	async function deleteSemester() {
+		if (sending) return;
 		const isConfirmed = confirm('삭제하시겠습니까?');
 		if (!isConfirmed) {
 			return;
 		}
+		sending = true;
 		let deleted = false;
 		try {
 			const response = await fetch(`/api/semester/${id}`, {
@@ -122,6 +131,7 @@
 		if (deleted) {
 			location.href = '/setting/semester';
 		} else {
+			sending = false;
 			console.error('Failed to delete semester');
 			alert('학기 삭제에 실패했습니다.');
 		}
