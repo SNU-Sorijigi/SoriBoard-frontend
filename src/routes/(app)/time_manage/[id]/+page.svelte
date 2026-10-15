@@ -154,12 +154,20 @@
 		return formattedDate;
 	}
 
+	// The loads sent so far, and the newest of them shown. Answers come back in any order: an
+	// older one (e.g. the reload after 삭제) must not undo a newer one (e.g. after ↑/↓).
+	let loadsSent = 0;
+	let loadShown = 0;
+
 	async function loadTimeInfo(timeId) {
+		const load = ++loadsSent;
+		const outdated = () => shownId === timeId && load < loadShown;
 		const saves = commentSaves[timeId];
 		try {
 			const data = await fetchData(timeId);
 			// The page moved to another 타임 meanwhile (◀/▶, back/forward): its own load shows it.
-			if (timeId !== id) return;
+			if (timeId !== id || outdated()) return;
+			loadShown = load;
 			shownId = timeId;
 			// data.date is YYYY-MM-DD. new Date() reads it as UTC midnight, which is the day
 			// before in a browser west of UTC.
@@ -197,7 +205,8 @@
 			console.error('Failed to load', error);
 			// A 타임 deleted elsewhere, or the backend down: the page keeps what it shows.
 			// Nothing to report for a 타임 the page has left meanwhile.
-			if (timeId === id) alert('타임 정보를 불러오지 못했습니다.');
+			// Nor when a newer load of it is shown already.
+			if (timeId === id && !outdated()) alert('타임 정보를 불러오지 못했습니다.');
 		}
 	}
 
