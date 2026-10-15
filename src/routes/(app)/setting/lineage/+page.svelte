@@ -152,10 +152,12 @@
 		zoom = ZOOMS[Math.min(ZOOMS.length - 1, Math.max(0, at + step))];
 	}
 
+	// Focus goes along to the 계보's heading: Tab then continues in that 계보, and a screen reader
+	// says where it went. It used to stay on the chip.
 	function goToFamily(family) {
-		document
-			.getElementById(`family-${family.root.user.id}`)
-			?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+		const section = document.getElementById(`family-${family.root.user.id}`);
+		section?.querySelector('h2')?.focus({ preventScroll: true });
+		section?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 	}
 
 	function cutReason(c) {
@@ -261,7 +263,7 @@
 					{@const family = layout.family}
 					<section class="family" id="family-{family.root.user.id}">
 						<div class="family-head">
-							<h2>{family.root.user.name} 계보</h2>
+							<h2 tabindex="-1">{family.root.user.name} 계보</h2>
 							<p>
 								{family.size}명 · {family.generations}대{#if family.firstYear}
 									· {family.firstYear === family.lastYear
