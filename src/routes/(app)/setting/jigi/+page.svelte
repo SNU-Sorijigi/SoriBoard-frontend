@@ -14,7 +14,11 @@
 			if (!response.ok) {
 				throw new Error(`Failed to fetch users: ${response.status}`);
 			}
-			users.set(await response.json());
+			const list = await response.json();
+			users.set(list);
+			// A 사부 chosen for 지기 추가 who left the list (삭제) has no option any more: the select
+			// no longer showed them, yet 지기 추가 sent them and failed
+			if (new_sabu_id !== '' && !list.some((user) => user.id === new_sabu_id)) new_sabu_id = '';
 		} catch (error) {
 			console.error('Failed to fetch users', error);
 			alert('지기 목록을 불러오지 못했습니다.');
