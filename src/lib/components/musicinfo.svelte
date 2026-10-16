@@ -83,11 +83,12 @@
 	}
 
 	// The 지휘 field shows '지휘: ' + name. The backend keeps the part after ': ',
-	// so a name typed without that prefix (or as '지휘:name') gets it added
+	// so a name typed without that prefix (or as '지휘:name', '지휘자:name', as 곡 추가 takes it)
+	// gets it added
 	function conductorName(value) {
 		const trimmed = value.trim();
 		const parts = trimmed.split(': ');
-		return parts.length === 2 ? parts[1].trim() : trimmed.replace(/^지휘\s*:\s*/, '');
+		return parts.length === 2 ? parts[1].trim() : trimmed.replace(/^지휘자?\s*:\s*/, '');
 	}
 
 	async function updateData(id) {
