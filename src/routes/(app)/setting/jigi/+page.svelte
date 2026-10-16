@@ -90,9 +90,15 @@
 		creating = false;
 	}
 
+	// Members whose 삭제 is in flight, until the list reloads: a second 삭제 on the row would
+	// send another DELETE, and its 404 alerted a failure for a member that was deleted
+	const deleting = new Set();
+
 	async function deleteUser(id) {
+		if (deleting.has(id)) return;
 		const isConfirmed = confirm('삭제하시겠습니까?');
 		if (isConfirmed) {
+			deleting.add(id);
 			let deleted = false;
 			try {
 				const response = await fetch(`/api/user/${id}`, {
@@ -106,7 +112,8 @@
 				alert('지기 삭제에 실패했습니다.');
 			}
 			// Also after a failure: a member already deleted elsewhere then leaves the list
-			fetchUsers();
+			await fetchUsers();
+			deleting.delete(id);
 		}
 	}
 
