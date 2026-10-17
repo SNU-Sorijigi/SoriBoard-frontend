@@ -1,13 +1,21 @@
 <script>
 	import { onMount, tick } from 'svelte';
-	import { buildLineage, layoutFamily, lineageOf, descendantCount } from '$lib/lineage.js';
+	import {
+		buildLineage,
+		layoutChart,
+		lineageOf,
+		descendantCount,
+		semesterOf
+	} from '$lib/lineage.js';
 
-	const NODE = { nodeWidth: 120, nodeHeight: 68, gapX: 14, gapY: 40 };
+	const NODE = { nodeWidth: 120, nodeHeight: 64, gapX: 14, gapY: 32, padding: 16 };
+	const ROW_HEIGHT = NODE.nodeHeight + NODE.gapY;
+	const LABEL_WIDTH = 76;
 	const ZOOMS = [0.5, 0.67, 0.8, 1, 1.25];
 
 	let status = 'loading'; // loading | ready | failed
 	let lineage = { families: [], loners: [], byId: new Map(), cut: [] };
-	let layouts = [];
+	let chart = { width: 0, height: 0, rows: [], boxes: [], links: [], detached: [] };
 	let memberCount = 0;
 	let order = new Map(); // id -> place on the page, for the search results
 	let selected = null;
@@ -25,16 +33,9 @@
 			}
 			const users = await response.json();
 			lineage = buildLineage(users);
-			layouts = lineage.families.map((family) => ({
-				family,
-				...layoutFamily(family.root, NODE)
-			}));
+			chart = layoutChart(lineage, NODE);
 			memberCount = users.length;
-			order = new Map();
-			for (const layout of layouts) {
-				for (const box of layout.boxes) order.set(box.node.user.id, order.size);
-			}
-			for (const node of lineage.loners) order.set(node.user.id, order.size);
+			order = new Map(chart.boxes.map((box, index) => [box.node.user.id, index]));
 			selected = selected && lineage.byId.get(selected.user.id);
 			status = 'ready';
 		} catch (error) {
@@ -46,8 +47,14 @@
 	onMount(load);
 
 	$: highlighted = selected ? lineageOf(selected) : null;
+	$: below = selected ? descendantCount(selected) : 0;
 	$: longest = lineage.families.reduce((most, family) => Math.max(most, family.generations), 0);
 	$: cutOf = new Map(lineage.cut.map((c) => [c.node, c]));
+	$: detached = new Set(chart.detached);
+	// 제자 drawn without the line to their 사부: their 입부 is not after the 사부's, or they have no
+	// 입부 년도 (those are in the 입부 미상 row)
+	$: early = chart.detached.filter((node) => semesterOf(node.user).year !== null);
+	$: unknownRow = chart.rows.find((row) => row.year === null);
 	$: needle = query.trim();
 	$: matches = needle
 		? [...lineage.byId.values()]
@@ -64,10 +71,16 @@
 		return `${user.join_year}년${semester ? ` ${semester}학기` : ''} 입부`;
 	}
 
-	function shortMeta(user) {
-		return [user.year_id ? `${user.year_id}학번` : '', joinLabel(user, true)]
-			.filter(Boolean)
-			.join(' · ');
+	// 21-1; 21-? without a 학기; 미상 without a 년도
+	function shortJoin(user) {
+		if (!Number.isFinite(user.join_year)) return '미상';
+		const semester = Number.isFinite(user.join_semester) ? user.join_semester : '?';
+		return `${String(user.join_year).slice(-2)}-${semester}`;
+	}
+
+	function rowLabel(row) {
+		if (row.year === null) return ['입부', '미상'];
+		return [String(row.year), row.semester === null ? '학기 미상' : `${row.semester}학기`];
 	}
 
 	function describe(node) {
@@ -100,15 +113,15 @@
 		}
 	}
 
-	// On a card: ↑ 사부, ↓ first 제자, ← → the 사부's other 제자. An arrow with Alt, ⌘ or Ctrl
-	// (Back, Forward) or one with no member that way keeps its browser action (scrolling).
+	// On a card: ↓ 사부, ↑ first 제자 (사부 sit below their 제자), ← → the 사부's other 제자. An arrow
+	// with Alt, ⌘ or Ctrl (Back, Forward) or one with no member that way keeps its browser action.
 	function moveFrom(event, node) {
 		if (event.altKey || event.metaKey || event.ctrlKey) return;
 		let next = null;
 		const siblings = node.parent ? node.parent.children : [];
 		const at = siblings.indexOf(node);
-		if (event.key === 'ArrowUp') next = node.parent;
-		else if (event.key === 'ArrowDown') next = node.children[0];
+		if (event.key === 'ArrowDown') next = node.parent;
+		else if (event.key === 'ArrowUp') next = node.children[0];
 		else if (event.key === 'ArrowLeft' && at > 0) next = siblings[at - 1];
 		else if (event.key === 'ArrowRight' && at >= 0) next = siblings[at + 1];
 		else return;
@@ -157,14 +170,6 @@
 		zoom = ZOOMS[Math.min(ZOOMS.length - 1, Math.max(0, at + step))];
 	}
 
-	// Focus goes along to the 계보's heading: Tab then continues in that 계보, and a screen reader
-	// says where it went. It used to stay on the chip.
-	function goToFamily(family) {
-		const section = document.getElementById(`family-${family.root.user.id}`);
-		section?.querySelector('h2')?.focus({ preventScroll: true });
-		section?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-	}
-
 	function cutReason(c) {
 		if (c.reason === 'self') return '자기 자신이 사부';
 		if (c.reason === 'missing') return '목록에 없는 지기가 사부';
@@ -199,8 +204,9 @@
 	{:else}
 		<div class="toolbar">
 			<p class="summary">
-				지기 {memberCount}명 · 계보 {lineage.families.length}개{#if longest}
-					· 가장 긴 계보 {longest}대{/if}
+				지기 {memberCount}명 · 계보 {lineage.families.length}개{longest
+					? ` · 가장 긴 계보 ${longest}대`
+					: ''}
 			</p>
 			<div class="search">
 				<input
@@ -237,8 +243,9 @@
 			<div class="legend" aria-hidden="true">
 				<span class="swatch active"></span>현역
 				<span class="swatch ob"></span>OB
+				<span class="legend-note">한 줄이 한 입부 학기 · 위로 갈수록 최근, 사부 위에 제자</span>
 			</div>
-			<a class="edit-link" href="/setting/jigi">사부 수정은 지기 관리에서</a>
+			<a class="edit-link" href="/setting/jigi">사부·입부 수정은 지기 관리에서</a>
 		</div>
 
 		{#if lineage.cut.length}
@@ -247,121 +254,110 @@
 				{lineage.cut.map((c) => `${c.node.user.name}(${cutReason(c)})`).join(', ')}
 			</p>
 		{/if}
-
-		{#if lineage.families.length === 0}
-			<p class="message">
-				아직 사부가 설정된 지기가 없습니다. 지기 관리에서 사부를 설정하면 계보가 그려집니다.
+		{#if early.length}
+			<p class="notice">
+				입부 학기가 사부와 같거나 더 일러 사부와 선으로 잇지 못한 지기:
+				{early
+					.map(
+						(node) =>
+							`${node.user.name}(${shortJoin(node.user)}, 사부 ${node.parent.user.name} ${shortJoin(node.parent.user)})`
+					)
+					.join(', ')}
 			</p>
-		{:else}
-			{#if lineage.families.length > 1}
-				<nav class="families-nav" aria-label="계보 바로가기">
-					{#each lineage.families as family (family.root.user.id)}
-						<button type="button" class="chip" on:click={() => goToFamily(family)}>
-							{family.root.user.name} 계보 <span class="chip-count">{family.size}명</span>
-						</button>
-					{/each}
-				</nav>
-			{/if}
-
-			<div class="forest">
-				{#each layouts as layout (layout.family.root.user.id)}
-					{@const family = layout.family}
-					<section class="family" id="family-{family.root.user.id}">
-						<div class="family-head">
-							<h2 tabindex="-1">{family.root.user.name} 계보</h2>
-							<p>
-								{family.size}명 · {family.generations}대{#if family.firstYear}
-									· {family.firstYear === family.lastYear
-										? family.firstYear
-										: `${family.firstYear}–${family.lastYear}`}{/if}
-							</p>
-						</div>
-						<div class="scroll">
-							<div
-								class="canvas"
-								style="width: {layout.width * zoom}px; height: {layout.height * zoom}px"
-							>
-								<div
-									class="tree"
-									style="width: {layout.width}px; height: {layout.height}px; transform: scale({zoom})"
-								>
-									<svg
-										width={layout.width}
-										height={layout.height}
-										viewBox="0 0 {layout.width} {layout.height}"
-										aria-hidden="true"
-									>
-										{#each layout.links as link}
-											<path
-												d={link.d}
-												class:on={highlighted?.has(link.to.user.id) &&
-													highlighted.has(link.from.user.id)}
-												class:dim={highlighted &&
-													selected.root === family.root &&
-													!highlighted.has(link.to.user.id)}
-											/>
-										{/each}
-									</svg>
-									{#each layout.boxes as box (box.node.user.id)}
-										{@const user = box.node.user}
-										<button
-											type="button"
-											id="jigi-{user.id}"
-											class="card"
-											class:ob={user.is_ob}
-											class:selected={selected === box.node}
-											class:dim={highlighted &&
-												selected.root === family.root &&
-												!highlighted.has(user.id)}
-											class:match={needle && matches.includes(box.node)}
-											style="left: {box.x}px; top: {box.y}px; width: {NODE.nodeWidth}px; height: {NODE.nodeHeight}px"
-											aria-pressed={selected === box.node}
-											aria-label={describe(box.node)}
-											title={describe(box.node)}
-											on:click={() => toggle(box.node)}
-											on:keydown={(event) => moveFrom(event, box.node)}
-										>
-											<span class="name"
-												><span class="name-text">{user.name}</span>{#if user.is_ob}<span class="tag"
-														>OB</span
-													>{/if}</span
-											>
-											<span class="line">{user.major ?? ''}</span>
-											<span class="line">{shortMeta(user)}</span>
-										</button>
-									{/each}
-								</div>
-							</div>
-						</div>
-					</section>
-				{/each}
-			</div>
+		{/if}
+		{#if lineage.families.length === 0}
+			<p class="note">
+				아직 사부가 설정된 지기가 없습니다. 지기 관리에서 사부를 설정하면 사부와 제자가 선으로
+				이어집니다.
+			</p>
+		{/if}
+		{#if unknownRow}
+			<p class="note">
+				입부 년도가 없는 지기 {unknownRow.count}명은 맨 아래 ‘입부 미상’ 줄에 있습니다. 지기
+				관리에서 입부 년도와 학기를 넣으면 제 학기 줄로 옮겨집니다.
+			</p>
 		{/if}
 
-		{#if lineage.loners.length}
-			<section class="loners">
-				<h2>사부·제자 기록이 없는 지기 · {lineage.loners.length}명</h2>
-				<p>지기 관리에서 사부를 설정하면 계보에 들어갑니다.</p>
-				<div class="loner-list">
-					{#each lineage.loners as node (node.user.id)}
-						<button
-							type="button"
-							id="jigi-{node.user.id}"
-							class="chip member"
-							class:ob={node.user.is_ob}
-							class:selected={selected === node}
-							class:match={needle && matches.includes(node)}
-							aria-pressed={selected === node}
-							aria-label={describe(node)}
-							on:click={() => toggle(node)}
+		<div class="chart">
+			<div
+				class="canvas"
+				style="width: {LABEL_WIDTH + chart.width * zoom}px; height: {chart.height * zoom}px"
+			>
+				<div class="labels" style="width: {LABEL_WIDTH}px" aria-hidden="true">
+					{#each chart.rows as row (row.key)}
+						{@const [main, sub] = rowLabel(row)}
+						<div
+							class="label"
+							class:alt={row.year !== null && row.year % 2 === 0}
+							class:unknown={row.year === null}
+							style="top: {row.top * zoom}px; height: {ROW_HEIGHT * zoom}px"
 						>
-							{node.user.name}{#if node.user.is_ob}<span class="tag">OB</span>{/if}
-							<span class="chip-count">{shortMeta(node.user)}</span>
-						</button>
+							<span class="label-main">{main}</span>
+							<span class="label-sub">{sub} · {row.count}명</span>
+						</div>
 					{/each}
 				</div>
-			</section>
-		{/if}
+				<div class="plot" style="width: {chart.width * zoom}px; height: {chart.height * zoom}px">
+					<div
+						class="tree"
+						style="width: {chart.width}px; height: {chart.height}px; transform: scale({zoom})"
+					>
+						{#each chart.rows as row (row.key)}
+							<div
+								class="band"
+								class:alt={row.year !== null && row.year % 2 === 0}
+								class:unknown={row.year === null}
+								style="top: {row.top}px; height: {ROW_HEIGHT}px"
+							></div>
+						{/each}
+						<svg
+							width={chart.width}
+							height={chart.height}
+							viewBox="0 0 {chart.width} {chart.height}"
+							aria-hidden="true"
+						>
+							{#each chart.links as link}
+								<path
+									d={link.d}
+									class:on={highlighted?.has(link.to.user.id) && highlighted.has(link.from.user.id)}
+									class:dim={highlighted && !highlighted.has(link.to.user.id)}
+								/>
+							{/each}
+						</svg>
+						{#each chart.boxes as box (box.node.user.id)}
+							{@const user = box.node.user}
+							<button
+								type="button"
+								id="jigi-{user.id}"
+								class="card"
+								class:ob={user.is_ob}
+								class:selected={selected === box.node}
+								class:dim={highlighted && !highlighted.has(user.id)}
+								class:match={needle && matches.includes(box.node)}
+								style="left: {box.x}px; top: {box.y}px; width: {NODE.nodeWidth}px; height: {NODE.nodeHeight}px"
+								aria-pressed={selected === box.node}
+								aria-label={describe(box.node)}
+								title={describe(box.node)}
+								on:click={() => toggle(box.node)}
+								on:keydown={(event) => moveFrom(event, box.node)}
+							>
+								<span class="name"
+									><span class="name-text">{user.name}</span>{#if user.is_ob}<span class="tag"
+											>OB</span
+										>{/if}</span
+								>
+								<span class="line">{user.major ?? ''}</span>
+								{#if detached.has(box.node)}
+									<span class="line detached">사부 {box.node.parent.user.name}</span>
+								{:else}
+									<span class="line">{user.year_id ? `${user.year_id}학번` : ''}</span>
+								{/if}
+							</button>
+						{/each}
+					</div>
+				</div>
+			</div>
+		</div>
 	{/if}
 </div>
 
@@ -412,8 +408,9 @@
 			{#if selected.root !== selected || selected.children.length}
 				<dt>계보</dt>
 				<dd>
-					{selected.root.user.name} 계보 {selected.depth + 1}대째{#if descendantCount(selected)}
-						· 아래로 {descendantCount(selected)}명{/if}
+					{selected.root.user.name} 계보 {selected.depth + 1}대째{below
+						? ` · 아래로 ${below}명`
+						: ''}
 				</dd>
 			{/if}
 		</dl>
@@ -434,7 +431,7 @@
 		flex-direction: column;
 		align-items: center;
 		justify-content: flex-start;
-		padding-bottom: 240px; /* room above the fixed detail panel */
+		padding-bottom: 24px;
 	}
 	.header {
 		padding: 16px;
@@ -561,7 +558,8 @@
 		font-size: 16px;
 		line-height: 28px;
 	}
-	.notice {
+	.notice,
+	.note {
 		width: calc(100% - 80px);
 		margin: 8px 40px 0;
 		padding: 10px 14px;
@@ -571,12 +569,74 @@
 		font-family: var(--medium-font-family);
 		font-size: 13px;
 	}
-	.families-nav {
+	.note {
+		background-color: var(--secondary-secondary-100);
+		color: var(--gray-gray-950);
+	}
+	.legend-note {
+		margin-left: 10px;
+		color: var(--gray-gray-700);
+	}
+	/* The chart scrolls both ways inside the window; the 학기 column stays at its left edge */
+	.chart {
+		width: calc(100% - 80px);
+		max-height: calc(100vh - 150px);
+		margin: 16px 40px 0;
+		overflow: auto;
+		border: 1px solid var(--gray-gray-400);
+		border-radius: 6px;
+		background-color: var(--secondary-secondary-50);
+	}
+	.canvas {
+		position: relative;
+		display: flex;
+	}
+	.labels {
+		position: sticky;
+		left: 0;
+		z-index: 2;
+		flex: none;
+		height: 100%;
+		border-right: 1px solid var(--gray-gray-400);
+		background-color: var(--secondary-secondary-50);
+	}
+	.label {
+		position: absolute;
+		left: 0;
 		width: 100%;
 		display: flex;
-		flex-wrap: wrap;
-		gap: 8px;
-		padding: 8px 40px 0;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		font-family: var(--medium-font-family);
+		color: var(--gray-gray-950);
+		line-height: 1.25;
+	}
+	.label-main {
+		font-size: 14px;
+		font-weight: 700;
+		font-variant-numeric: tabular-nums;
+	}
+	.label-sub {
+		font-size: 11px;
+		color: var(--gray-gray-700);
+	}
+	.plot {
+		position: relative;
+		flex: none;
+	}
+	.band {
+		position: absolute;
+		left: 0;
+		width: 100%;
+	}
+	.label.alt,
+	.band.alt {
+		background-color: var(--secondary-secondary-100);
+	}
+	.label.unknown,
+	.band.unknown {
+		border-top: 1px dashed var(--gray-gray-500);
 	}
 	.chip {
 		display: inline-flex;
@@ -597,48 +657,6 @@
 	.chip-count {
 		color: var(--gray-gray-700);
 		font-size: 12px;
-	}
-	.chip.member {
-		background-color: var(--secondary-secondary-200);
-	}
-	.forest {
-		width: 100%;
-		display: flex;
-		flex-wrap: wrap;
-		align-items: flex-start;
-		justify-content: center;
-		gap: 24px;
-		padding: 24px 40px;
-	}
-	.family {
-		max-width: 100%;
-		display: flex;
-		flex-direction: column;
-		gap: 16px;
-		padding: 16px 20px 20px;
-		border-radius: 6px;
-		background-color: var(--secondary-secondary-100);
-		scroll-margin-top: 16px;
-	}
-	.family-head {
-		display: flex;
-		align-items: baseline;
-		gap: 10px;
-		font-family: var(--medium-font-family);
-		color: var(--gray-gray-950);
-	}
-	.family-head h2 {
-		font-size: 16px;
-		font-weight: 700;
-	}
-	.family-head p {
-		font-size: 13px;
-		color: var(--gray-gray-700);
-	}
-	.scroll {
-		max-width: 100%;
-		overflow-x: auto;
-		padding: 4px;
 	}
 	.canvas {
 		position: relative;
@@ -675,7 +693,7 @@
 		align-items: flex-start;
 		justify-content: center;
 		gap: 2px;
-		padding: 6px 10px;
+		padding: 4px 10px;
 		border: 1px solid var(--gray-gray-400);
 		border-radius: 6px;
 		background-color: var(--secondary-secondary-200);
@@ -685,22 +703,19 @@
 		cursor: pointer;
 		transition: opacity 0.15s;
 	}
-	.card.ob,
-	.chip.ob {
+	.card.ob {
 		background-color: var(--secondary-secondary-50);
 	}
 	.card:hover {
 		border-color: var(--control-border);
 	}
-	.card.selected,
-	.chip.selected {
+	.card.selected {
 		border-color: var(--gray-gray-950);
 		box-shadow:
 			0 0 0 1px var(--gray-gray-950),
 			3px 3px 0 1px var(--button-shadow);
 	}
-	.card.match,
-	.chip.match {
+	.card.match {
 		outline: 2px solid var(--danger-fg);
 		outline-offset: 2px;
 	}
@@ -736,6 +751,9 @@
 		line-height: 1.3;
 		color: var(--gray-gray-700);
 	}
+	.line.detached {
+		color: var(--gray-gray-950);
+	}
 	.tag {
 		flex-shrink: 0;
 		padding: 0 4px;
@@ -745,32 +763,6 @@
 		font-size: 10px;
 		font-weight: 500;
 		line-height: 1.5;
-	}
-	.loners {
-		width: calc(100% - 80px);
-		margin: 0 40px;
-		display: flex;
-		flex-direction: column;
-		gap: 8px;
-		padding: 16px 20px 20px;
-		border-radius: 6px;
-		border: 1px dashed var(--gray-gray-400);
-		font-family: var(--medium-font-family);
-		color: var(--gray-gray-950);
-	}
-	.loners h2 {
-		font-size: 16px;
-		font-weight: 700;
-	}
-	.loners p {
-		font-size: 13px;
-		color: var(--gray-gray-700);
-	}
-	.loner-list {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 8px;
-		margin-top: 4px;
 	}
 	.detail {
 		position: fixed;

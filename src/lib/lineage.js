@@ -1,4 +1,5 @@
-// 사부-제자 계보: builds the family trees from /api/user and lays each one out top-down.
+// 사부-제자 계보: builds the family trees from /api/user and lays them out in one chart,
+// one row per 입부 학기.
 
 // 학번 "19" → 2019, "98" → 1998 (a 학번 past this year's is from the 1900s)
 function admissionYear(user) {
@@ -24,6 +25,8 @@ export function compareMembers(a, b) {
 	}
 	return String(a.name ?? '').localeCompare(String(b.name ?? ''), 'ko') || a.id - b.id;
 }
+
+const byMember = (a, b) => compareMembers(a.user, b.user);
 
 // users: the /api/user list ({id, name, sabu_id, ...}).
 // Returns
@@ -69,7 +72,6 @@ export function buildLineage(users) {
 	for (const node of byId.values()) {
 		if (node.parent) node.parent.children.push(node);
 	}
-	const byMember = (a, b) => compareMembers(a.user, b.user);
 	const roots = [];
 	for (const node of byId.values()) {
 		node.children.sort(byMember);
@@ -116,106 +118,202 @@ export function buildLineage(users) {
 	return { families, loners, byId, cut };
 }
 
-// Top-down tidy layout: each subtree is packed against the ones to its left as
-// closely as their outlines allow, and every 사부 is centred over their 제자.
-// Returns { width, height, boxes: [{node, x, y}], links: [{from, to, d}] } in px;
-// the boxes come in pre-order, so Tab walks each lineage from the 사부 down.
-export function layoutFamily(root, { nodeWidth, nodeHeight, gapX, gapY }) {
-	const unit = nodeWidth + gapX; // horizontal distance between neighbours
-	const rowHeight = nodeHeight + gapY;
+// One row per 입부 학기, the newest at the top; members without a 입부 년도 share the bottom row.
+// A year without a 학기 sits just below that year's other rows.
+export function semesterOf(user) {
+	if (!Number.isFinite(user.join_year)) return { key: '?', year: null, semester: null };
+	const semester = Number.isFinite(user.join_semester) ? user.join_semester : null;
+	return { key: `${user.join_year}-${semester ?? ''}`, year: user.join_year, semester };
+}
 
-	const order = []; // pre-order: every node before its 제자, 제자 left to right
-	const depth = new Map([[root, 0]]);
-	const stack = [root];
+function newerFirst(a, b) {
+	if (a.year === null || b.year === null) return (a.year === null) - (b.year === null);
+	if (a.year !== b.year) return b.year - a.year;
+	if (a.semester === b.semester) return 0;
+	return (b.semester ?? -Infinity) - (a.semester ?? -Infinity);
+}
+
+// Widen the outline at one row-or-gap level to take in [left, right]
+function extend(outline, level, left, right) {
+	const at = outline.get(level);
+	if (!at) outline.set(level, [left, right]);
+	else {
+		at[0] = Math.min(at[0], left);
+		at[1] = Math.max(at[1], right);
+	}
+}
+
+// The whole 지기 list in one chart, bottom-up: every member in their 입부 학기's row and every
+// 사부 below their 제자, so the newest members are on top. Each 사부 is centred under their
+// 제자, packed against each other as closely as their outlines allow; the outlines include the
+// lines, so no line crosses a card or another line. The subtrees then go wherever they fit,
+// a row of space apart.
+// A 제자 whose row is not above their 사부's (입부 the same 학기 or earlier, or not recorded) cannot
+// hang from them; they start a subtree of their own and are listed in `detached`.
+// Returns { width, height, rows: [{key, year, semester, top, count}], boxes: [{node, x, y, row}],
+// links: [{from, to, d}], detached } in px; the boxes come row by row, left to right.
+export function layoutChart(lineage, { nodeWidth, nodeHeight, gapX, gapY, padding = 0 }) {
+	const nodes = [...lineage.byId.values()];
+	const rowHeight = nodeHeight + gapY;
+	const half = nodeWidth / 2;
+
+	const rows = [];
+	const rowOfKey = new Map();
+	for (const node of nodes) {
+		const semester = semesterOf(node.user);
+		if (!rowOfKey.has(semester.key)) {
+			const row = { ...semester, top: 0, count: 0 };
+			rowOfKey.set(semester.key, row);
+			rows.push(row);
+		}
+		rowOfKey.get(semester.key).count += 1;
+	}
+	rows.sort(newerFirst);
+	rows.forEach((row, index) => {
+		row.index = index;
+		row.top = index * rowHeight;
+	});
+	const rowOf = new Map(nodes.map((node) => [node, rowOfKey.get(semesterOf(node.user).key)]));
+	// Levels: 2 × row index for a row of cards, one less for the gap above it (where the lines meet)
+	const level = (node) => 2 * rowOf.get(node).index;
+
+	const hangs = (node) => node.parent && level(node.parent) > level(node);
+	const kids = new Map(nodes.map((node) => [node, node.children.filter(hangs)]));
+	const detached = nodes.filter((node) => node.parent && !hangs(node)).sort(byMember);
+
+	// Subtree tops: each lineage's root, then any detached 제자 in it
+	const tops = [];
+	const stack = nodes
+		.filter((node) => !node.parent)
+		.sort(byMember)
+		.reverse();
 	while (stack.length) {
 		const node = stack.pop();
-		order.push(node);
-		for (let k = node.children.length - 1; k >= 0; k--) {
-			depth.set(node.children[k], depth.get(node) + 1);
-			stack.push(node.children[k]);
-		}
+		if (!hangs(node)) tops.push(node);
+		for (let k = node.children.length - 1; k >= 0; k--) stack.push(node.children[k]);
 	}
 
-	// Pass 1 (children first): each node's offset from its 사부, in units, and its
-	// subtree's outline: [leftmost, rightmost] per level, relative to the subtree's top.
-	const offset = new Map();
+	// Pass 1 (제자 first): each subtree's outline, [leftmost, rightmost] per level relative to its
+	// top's centre, and each 제자's offset from their 사부
 	const outline = new Map();
-	for (let i = order.length - 1; i >= 0; i--) {
-		const node = order[i];
-		if (node.children.length === 0) {
-			outline.set(node, [[0, 0]]);
-			continue;
+	const offset = new Map();
+	const post = [];
+	for (const top of tops) {
+		const walk = [top];
+		while (walk.length) {
+			const node = walk.pop();
+			post.push(node);
+			walk.push(...kids.get(node));
 		}
-		const merged = [];
-		const at = [];
-		node.children.forEach((child, k) => {
-			const shape = outline.get(child);
-			let x = 0;
-			if (k > 0) {
-				x = at[k - 1] + 1;
-				for (let level = 0; level < Math.min(shape.length, merged.length); level++) {
-					x = Math.max(x, merged[level][1] - shape[level][0] + 1);
+	}
+	for (let i = post.length - 1; i >= 0; i--) {
+		const node = post[i];
+		const own = level(node);
+		const shape = new Map([[own, [-half, half]]]);
+		const children = kids.get(node);
+		if (children.length) {
+			const merged = new Map();
+			const at = [];
+			children.forEach((child, k) => {
+				const sub = outline.get(child);
+				outline.delete(child);
+				// The 제자's line runs down to the 사부's gap, where it meets the others
+				for (let l = level(child) + 1; l < own; l++) extend(sub, l, 0, 0);
+				let x = 0;
+				if (k > 0) {
+					x = -Infinity; // every line reaches the gap, so some level is always shared
+					for (const [l, [left]] of sub) {
+						const there = merged.get(l);
+						if (there) x = Math.max(x, there[1] + gapX - left);
+					}
 				}
-			}
-			at.push(x);
-			shape.forEach(([left, right], level) => {
-				if (level < merged.length) {
-					merged[level] = [
-						Math.min(merged[level][0], left + x),
-						Math.max(merged[level][1], right + x)
-					];
-				} else {
-					merged.push([left + x, right + x]);
-				}
+				at.push(x);
+				for (const [l, [left, right]] of sub) extend(merged, l, left + x, right + x);
 			});
-			outline.delete(child);
-		});
-		const centre = (at[0] + at[at.length - 1]) / 2;
-		node.children.forEach((child, k) => offset.set(child, at[k] - centre));
-		outline.set(node, [[0, 0], ...merged.map(([left, right]) => [left - centre, right - centre])]);
+			const centre = (at[0] + at[at.length - 1]) / 2;
+			children.forEach((child, k) => offset.set(child, at[k] - centre));
+			for (const [l, [left, right]] of merged) extend(shape, l, left - centre, right - centre);
+		}
+		outline.set(node, shape);
 	}
 
-	// Pass 2 (top down): absolute positions
-	const slot = new Map([[root, 0]]);
-	let min = 0;
-	let max = 0;
-	let deepest = 0;
-	for (const node of order) {
-		for (const child of node.children) slot.set(child, slot.get(node) + offset.get(child));
-		min = Math.min(min, slot.get(node));
-		max = Math.max(max, slot.get(node));
-		deepest = Math.max(deepest, depth.get(node));
+	// Pass 2: subtrees from the largest down, each at the leftmost place where it fits among
+	// the ones placed before; a different subtree also stays clear of the rows just above and
+	// below it. The largest go first so the small ones (most often single members) fill the gaps.
+	const size = new Map();
+	for (let i = post.length - 1; i >= 0; i--) {
+		const node = post[i];
+		size.set(
+			node,
+			kids.get(node).reduce((sum, child) => sum + size.get(child), 1)
+		);
 	}
+	const newest = (top) => Math.min(...outline.get(top).keys());
+	tops.sort((a, b) => size.get(b) - size.get(a) || newest(a) - newest(b));
+	const separation = 2 * gapX;
+	const taken = new Map(); // level -> [[left, right], ...]
+	const around = (l) => [l - 2, l - 1, l, l + 1, l + 2].flatMap((near) => taken.get(near) ?? []);
+	const centre = new Map();
+	for (const top of tops) {
+		const shape = [...outline.get(top)];
+		const least = Math.max(...shape.map(([, [left]]) => -left)); // no card left of the chart
+		const candidates = [least];
+		for (const [l, [left]] of shape) {
+			for (const [, right] of around(l)) candidates.push(right + separation - left);
+		}
+		const fits = (x) =>
+			shape.every(([l, [left, right]]) =>
+				around(l).every(
+					([from, to]) => x + left >= to + separation || x + right <= from - separation
+				)
+			);
+		const x = candidates
+			.filter((candidate) => candidate >= least)
+			.sort((a, b) => a - b)
+			.find(fits);
+		for (const [l, [left, right]] of shape) {
+			if (!taken.has(l)) taken.set(l, []);
+			taken.get(l).push([left + x, right + x]);
+		}
+		centre.set(top, x);
+		const walk = [top];
+		while (walk.length) {
+			const node = walk.pop();
+			for (const child of kids.get(node)) {
+				centre.set(child, centre.get(node) + offset.get(child));
+				walk.push(child);
+			}
+		}
+	}
+
+	let width = 0;
 	const position = new Map();
-	const boxes = order.map((node) => {
+	const boxes = nodes.map((node) => {
+		const row = rowOf.get(node);
 		const box = {
 			node,
-			x: Math.round((slot.get(node) - min) * unit),
-			y: depth.get(node) * rowHeight
+			row,
+			x: padding + Math.round(centre.get(node) - half),
+			y: row.top + gapY / 2
 		};
+		width = Math.max(width, box.x + nodeWidth + padding);
 		position.set(node, box);
 		return box;
 	});
+	boxes.sort((a, b) => a.row.index - b.row.index || a.x - b.x);
 	const links = [];
 	for (const box of boxes) {
-		const fromX = box.x + nodeWidth / 2;
-		const fromY = box.y + nodeHeight;
-		const middleY = fromY + gapY / 2;
-		for (const child of box.node.children) {
+		for (const child of kids.get(box.node)) {
 			const to = position.get(child);
+			const fromX = box.x + half;
 			links.push({
 				from: box.node,
 				to: child,
-				d: `M${fromX},${fromY}V${middleY}H${to.x + nodeWidth / 2}V${to.y}`
+				d: `M${fromX},${box.y}V${box.y - gapY / 2}H${to.x + half}V${to.y + nodeHeight}`
 			});
 		}
 	}
-	return {
-		width: Math.round((max - min) * unit) + nodeWidth,
-		height: deepest * rowHeight + nodeHeight,
-		boxes,
-		links
-	};
+	return { width, height: rows.length * rowHeight, rows, boxes, links, detached };
 }
 
 // The selected member, their 사부 line up to the root, and everyone below them
