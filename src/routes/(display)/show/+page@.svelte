@@ -2,7 +2,6 @@
 	import './display.css';
 	import { onMount } from 'svelte';
 	import { webSocketServer } from '$lib/globals';
-	import { backendServer } from '$lib/globals';
 	import { writable } from 'svelte/store';
 	let composer = '';
 	let title = '';
@@ -10,6 +9,8 @@
 	let orchestra = '';
 	let conductor = '';
 	let players = [];
+	// 지휘자 and 오케스트라 are saved apart: a 지휘자 without 오케스트라 (a choir) is shown too
+	$: orchestraLine = [orchestra, conductor && '지휘: ' + conductor].filter(Boolean).join(' / ');
 	let composerFontSize = 6;
 	let titleFontSize = 4;
 	let orchestraFontSize = 2.5;
@@ -24,24 +25,54 @@
 	let infoNews = '';
 	let instagram = '@snu_sorijigi';
 	const news = writable([]);
+	// A failed load leaves the news line empty; no alert, nobody is at the TV to close it
 	async function fetchNews() {
-		const response = await fetch('/api/information/');
-		const newsdata = await response.json();
-		news.set(newsdata);
-		infoNews = newsdata[0].content;
+		try {
+			const response = await fetch('/api/information/');
+			if (!response.ok) {
+				throw new Error(`Failed to fetch news: ${response.status}`);
+			}
+			const newsdata = await response.json();
+			news.set(newsdata);
+			infoNews = newsdata[0]?.content ?? '';
+		} catch (error) {
+			console.error('Failed to fetch news', error);
+		}
 	}
+	// Nobody is at the TV to reload it: after its socket closes (backend restart, network
+	// drop, the PC waking up) it connects again, after 1 s, 2 s, 4 s, … and at most 30 s.
+	const RETRY_MIN_MS = 1000;
+	const RETRY_MAX_MS = 30000;
 	onMount(() => {
 		'use strict';
 		// Fetch data from backend for news and instagram
 		fetchNews();
 
-		const ws = new WebSocket(`${webSocketServer}/ws/tv_display/`);
+		let ws;
+		let retryDelay = RETRY_MIN_MS;
+		let retryTimer;
+		let left = false;
+		connect();
 
-		ws.onopen = () => {
-			console.log('Connection established');
-		};
+		function connect() {
+			ws = new WebSocket(`${webSocketServer}/ws/tv_display/`);
+			ws.onopen = () => {
+				retryDelay = RETRY_MIN_MS;
+				console.log('Connection established');
+			};
+			ws.onmessage = handleMessage;
+			ws.onerror = (error) => {
+				console.error('WebSocket error:', error);
+			};
+			ws.onclose = (event) => {
+				console.log('WebSocket closed:', event.reason);
+				if (left) return;
+				retryTimer = setTimeout(connect, retryDelay);
+				retryDelay = Math.min(retryDelay * 2, RETRY_MAX_MS);
+			};
+		}
 
-		ws.onmessage = (event) => {
+		function handleMessage(event) {
 			try {
 				const data = JSON.parse(event.data);
 				const regexPattern = /^~(0[0-9]|1[0-9]|2[0-3]):([0-5][0-9])$/;
@@ -87,14 +118,12 @@
 			} catch (error) {
 				console.error('Error parsing JSON:', error);
 			}
-		};
+		}
 
-		ws.onerror = (error) => {
-			console.error('WebSocket error:', error);
-		};
-
-		ws.onclose = (event) => {
-			console.log('WebSocket closed:', event.reason);
+		return () => {
+			left = true;
+			clearTimeout(retryTimer);
+			ws.close();
 		};
 	});
 </script>
@@ -108,9 +137,9 @@
 				{title}{#if semi_title}<br />{semi_title}{/if}
 			</div>
 			<div class="spacer" style="height: {spacerSize2}vh"></div>
-			{#if orchestra}
+			{#if orchestraLine}
 				<div class="text" style="font-size: {orchestraFontSize}vw">
-					{orchestra}{#if conductor}{' / 지휘: ' + conductor}{/if}
+					{orchestraLine}
 				</div>
 				<div class="spacer" style="height: {spacerSize3}vh"></div>
 			{/if}

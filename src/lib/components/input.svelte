@@ -1,12 +1,20 @@
+<script context="module">
+	let count = 0;
+</script>
+
 <script>
 	export let label = '';
 	export let value = '';
 	export let width = '300px';
+
+	// One id per box, so its label names it for screen readers and a click on the label
+	// focuses it. The label is absolutely positioned, so it looks as the <div> did.
+	const id = `input-${++count}`;
 </script>
 
 <div class="container" style="--width: {width};">
-	<div class="label">{label}</div>
-	<input type="text" bind:value />
+	<label class="label" for={id}>{label}</label>
+	<input {id} type="text" bind:value />
 </div>
 
 <style>

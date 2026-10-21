@@ -1,5 +1,4 @@
 <script>
-	import { writable } from 'svelte/store';
 	import { onMount } from 'svelte';
 	import TimetableUnit from '$lib/components/timetableunit.svelte';
 	export let timePerDay;
@@ -8,22 +7,11 @@
 	export let restTime;
 	export let timetableId;
 
-	function debug() {
-		console.log("debugging whether the values are passed correctly");
-		console.log(timePerDay);
-		console.log(timeStart);
-		console.log(timeEnd);
-		console.log(restTime);
-		console.log(timetableId);
-		console.log("debugging end");
-	}
-
 	// Calculate start and end time of each time unit
 	// with given timePerDay, timeStart, timeEnd, and restTime(=break time in minutes)
 	// and store it in timeSchedule in form of "HH:MM~HH:MM"
 	let timeSchedule = [];
 	let timeScheduleLoaded = false;
-	let dayName = ['월', '화', '수', '목', '금'];
 	function calculateTime() {
 		const startTime = new Date(`1970-01-01T${timeStart}`);
 		const endTime = new Date(`1970-01-01T${timeEnd}`);
@@ -33,19 +21,19 @@
 
 		const unitMinutes = (totalMinutes - totalRestTime) / timePerDay;
 
-		const cur = new Date(startTime);
+		// Each 타임 from the start, not from the previous one: setMinutes() dropped the seconds
+		// of a 타임 that is not whole minutes, and the 타임 drifted earlier, the last ending
+		// before 운영 종료. Rounded to the millisecond, so 10:00 does not show as 09:59.
+		const at = (minutes) => new Date(startTime.getTime() + Math.round(minutes * 60000));
 
 		for (let i = 0; i < timePerDay; i++) {
-			const s = new Date(cur);
-			const e = new Date(cur.getTime() + unitMinutes * 60000);
+			const s = at(i * (unitMinutes + restTime));
+			const e = at(i * (unitMinutes + restTime) + unitMinutes);
 
 			const sFormatted = s.toTimeString().slice(0, 5);
 			const eFormatted = e.toTimeString().slice(0, 5);
 
 			timeSchedule.push(`${sFormatted}~${eFormatted}`);
-
-			// update cur
-			cur.setMinutes(cur.getMinutes() + unitMinutes + restTime);
 		}
 
 		console.log(timeSchedule);
@@ -60,6 +48,9 @@
 	async function fetchTimetable(id) {
 		try {
 			const response = await fetch(`/api/timetable/${id}`);
+			if (!response.ok) {
+				throw new Error(`Failed to fetch timetable: ${response.status}`);
+			}
 			const data = await response.json();
 			timetableUnitIdData = data.table;
 			console.log(timetableUnitIdData);
@@ -67,6 +58,7 @@
 		} catch (error) {
 			console.error(error);
 			console.error(`Failed to fetch timetable id ${id}`);
+			alert('시간표 정보를 불러오지 못했습니다.');
 		}
 	}
 
@@ -82,7 +74,6 @@
 	}
 
 	onMount(() => {
-		// debug();
 		calculateTime();
 		fetchTimetable(timetableId);
 	});
@@ -91,10 +82,10 @@
 
 <div class="stack">
 	{#if dataLoaded && timeScheduleLoaded}
-		{#each Array(timePerDay) as _, index}
+		{#each timeSchedule as slot, index}
 		<div class="stack2">
-			<div class="stack">{index+1}타임: {timeSchedule[index]}</div>
-			{#each timetable as day, dayIndex}
+			<div class="stack">{index + 1}타임: {slot}</div>
+			{#each timetable as day}
 				<TimetableUnit id={day[index]}> </TimetableUnit>
 			{/each}
 		</div>

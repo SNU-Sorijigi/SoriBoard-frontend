@@ -1,9 +1,10 @@
 <script>
 	import { writable } from 'svelte/store';
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { page } from '$app/stores';
 	import { fly } from 'svelte/transition';
 	import { goto } from '$app/navigation';
+	import { browser } from '$app/environment';
 	import MusicInfo from '$lib/components/musicinfo.svelte';
 	import Input from '$lib/components/input.svelte';
 	import MusicHistoryInputs from '$lib/components/MusicHistoryInputs.svelte';
@@ -13,6 +14,9 @@
 	import minusicon from '$lib/images/minus.svg';
 	import checkicon from '$lib/images/check.svg';
 	import Tv from '$lib/components/tv.svelte';
+	import { closeOnKey } from '$lib/closeKey.js';
+	import { dialogFocus } from '$lib/dialogFocus.js';
+	import { clickOutside } from '$lib/clickOutside.js';
 
 	$: id = $page.params.id;
 
@@ -20,10 +24,16 @@
 	let timeUser = '';
 	let timeMusic = [];
 	let time;
+	// The 타임 whose data the page shows. Right after ◀/▶ (or back/forward) `id` is already
+	// the next 타임 while its data loads, so saves go to the 타임 the user sees. Null until
+	// the first load answers: a save then fails instead of sending the empty fields.
+	let shownId = null;
+	let savedTimeInfo = null;
+	// 타임 정보 수정 fields, filled from savedTimeInfo (see fillEditForm), and the 타임 they were
+	// last filled for
+	let editFormFor = null;
 	let mento_ids = [];
 	let mentee_ids = [];
-	let mento;
-	let mentee;
 	let arrival_time;
 	let mentee_arrival_time;
 	let date;
@@ -35,6 +45,10 @@
 	let time_comment_music = '';
 	let time_comment_gigi = '';
 	let time_comment_etc = '';
+	// The comments as last loaded or saved, and for which 타임 (see loadTimeInfo)
+	let loadedComments = {};
+	// 코멘트 저장s that succeeded, per 타임: a load sent before one may answer older comments
+	let commentSaves = {};
 
 	let composer = '';
 	let title = '';
@@ -46,6 +60,15 @@
 	let is_requested = false;
 	let players = writable(['']);
 	let duplicateWarning = null;
+	// The warning is about the 작곡가 and 제목 that were checked: an edit of either closes it,
+	// so 그래도 추가 cannot save a piece that was not checked. 곡 추가하기 checks the new one.
+	$: composer, title, (duplicateWarning = null);
+	// True while a 곡 추가 is checked, sent and reloaded (see whileAdding)
+	let adding = false;
+	// True while a ↑/↓ swap is sent and the playlist reloaded (see moveMusic)
+	let reordering = false;
+	// The pieces whose 삭제 is sent and the playlist not reloaded yet (see deleteMusic)
+	const deleting = new Set();
 
 	function addPlayer() {
 		players.update((currentPlayers) => [...currentPlayers, '']);
@@ -76,32 +99,54 @@
 		is_requested = !is_requested;
 	}
 
+	// One 삭제 of a piece at a time, until the playlist has reloaded: its row is still shown
+	// meanwhile, and a second DELETE fails, as the piece is gone already.
 	async function deleteMusic(music_id) {
+		if (deleting.has(music_id)) return;
 		const isConfirmed = confirm('삭제하시겠습니까?');
 		if (isConfirmed) {
-			const response = await fetch(`/api/music/${music_id}`, {
-				method: 'DELETE'
-			});
-			loadTimeInfo(id);
+			deleting.add(music_id);
+			let deleted = false;
+			try {
+				const response = await fetch(`/api/music/${music_id}`, {
+					method: 'DELETE'
+				});
+				deleted = response.ok;
+			} catch (error) {
+				console.error('Failed to delete', error);
+			}
+			if (!deleted) {
+				alert('곡 삭제에 실패했습니다.');
+			}
+			// Also after a failure: a piece already deleted elsewhere then leaves the playlist
+			await loadTimeInfo(id);
+			deleting.delete(music_id);
 		}
 	}
 
 	async function fetchData(id) {
 		const response = await fetch(`/api/time/${id}`);
 		if (!response.ok) {
-			console.log('Error');
+			throw new Error(`Failed to load the 타임: ${response.status}`);
 		}
 		return await response.json();
 	}
 
 	const users = writable([]);
-	async function fetchUsers() {
+	let usersLoaded = false;
+	// Quiet on page load; 타임 정보 수정 loads the list again if it has not loaded, and says so.
+	async function fetchUsers(report = false) {
 		try {
 			const response = await fetch('/api/user');
+			if (!response.ok) {
+				throw new Error(`Failed to fetch users: ${response.status}`);
+			}
 			const data = await response.json();
 			users.set(data);
+			usersLoaded = true;
 		} catch (error) {
-			console.error('failed to fetch users');
+			console.error('failed to fetch users', error);
+			if (report) alert('지기 목록을 불러오지 못했습니다.');
 		}
 	}
 
@@ -120,13 +165,25 @@
 		return formattedDate;
 	}
 
-	async function loadTimeInfo(id) {
+	// The loads sent so far, and the newest of them shown. Answers come back in any order: an
+	// older one (e.g. the reload after 삭제) must not undo a newer one (e.g. after ↑/↓).
+	let loadsSent = 0;
+	let loadShown = 0;
+
+	async function loadTimeInfo(timeId) {
+		const load = ++loadsSent;
+		const outdated = () => shownId === timeId && load < loadShown;
+		const saves = commentSaves[timeId];
 		try {
-			const data = await fetchData(id);
-			date = new Date(data.date);
-			const year = date.getFullYear();
-			const month = date.getMonth() + 1;
-			const day = date.getDate();
+			const data = await fetchData(timeId);
+			// The page moved to another 타임 meanwhile (◀/▶, back/forward): its own load shows it.
+			if (timeId !== id || outdated()) return;
+			loadShown = load;
+			shownId = timeId;
+			// data.date is YYYY-MM-DD. new Date() reads it as UTC midnight, which is the day
+			// before in a browser west of UTC.
+			const [year, month, day] = data.date.split('-').map(Number);
+			date = data.date;
 			time = data.time;
 			const mento_name = Array.isArray(data.jigi_info)
 				? data.jigi_info.join(', ')
@@ -138,20 +195,43 @@
 			timeMusic = data.time_music;
 			timeDate = `${year}년 ${month}월 ${day}일 ${time}타임`;
 			timeUser = `${mento_name}${mentee_name}`;
-			mento_ids = (data.users || []).map(String);
-			mentee_ids = (data.mentees || []).map(String);
-			arrival_time = data.arrival_time;
-			mentee_arrival_time = data.mentee_arrival_time ? data.mentee_arrival_time : '';
+			savedTimeInfo = data;
+			// An open 타임 정보 수정 keeps what is being chosen in it, e.g. when the reload after
+			// 곡 추가 or ↑/↓ answers once it is open. Unless it shows no data of this 타임 yet.
+			if (!editing || editFormFor !== timeId) fillEditForm();
 
-			// Load comment fields
-			time_comment_music = data.time_comment_music || '';
-			time_comment_gigi = data.time_comment_gigi || '';
-			time_comment_etc = data.time_comment_etc || '';
-
-			date = date.toISOString().split('T')[0];
+			// Load comment fields. This also runs after 곡 추가, 삭제 and ↑/↓: a field edited
+			// since this 타임 was last loaded or saved keeps its text then, as it is not saved yet.
+			// After a 코멘트 저장 of the shown comments that answered meanwhile, these may predate it.
+			if (commentSaves[timeId] !== saves && loadedComments.id === timeId) return;
+			const saved = {
+				music: data.time_comment_music || '',
+				gigi: data.time_comment_gigi || '',
+				etc: data.time_comment_etc || ''
+			};
+			const edited = (shown, key) => loadedComments.id === timeId && shown !== loadedComments[key];
+			if (!edited(time_comment_music, 'music')) time_comment_music = saved.music;
+			if (!edited(time_comment_gigi, 'gigi')) time_comment_gigi = saved.gigi;
+			if (!edited(time_comment_etc, 'etc')) time_comment_etc = saved.etc;
+			loadedComments = { id: timeId, ...saved };
 		} catch (error) {
-			console.log('Error');
+			console.error('Failed to load', error);
+			// A 타임 deleted elsewhere, or the backend down: the page keeps what it shows.
+			// Nothing to report for a 타임 the page has left meanwhile.
+			// Nor when a newer load of it is shown already.
+			if (timeId === id && !outdated()) alert('타임 정보를 불러오지 못했습니다.');
 		}
+	}
+
+	// Also run on every open of 타임 정보 수정, so an edit closed with × or a click
+	// outside is not shown again or sent with the next 타임 수정하기.
+	function fillEditForm() {
+		if (!savedTimeInfo) return;
+		editFormFor = shownId;
+		mento_ids = (savedTimeInfo.users || []).map(String);
+		mentee_ids = (savedTimeInfo.mentees || []).map(String);
+		arrival_time = savedTimeInfo.arrival_time;
+		mentee_arrival_time = savedTimeInfo.mentee_arrival_time || '';
 	}
 
 	function timeChange(time) {
@@ -205,6 +285,8 @@
 	}
 
 	async function loadAdjacentTimeIds(currentId) {
+		// ◀/▶ lead from the 타임 in the URL, not from one the page has left meanwhile
+		if (currentId !== id) return;
 		prevId = null;
 		nextId = null;
 
@@ -222,6 +304,7 @@
 				endDate.setDate(endDate.getDate() + days);
 
 				const allTimeIds = await fetchRangeIds(startDate, endDate);
+				if (currentId !== id) return;
 				const currentIndex = allTimeIds.indexOf(numId);
 				if (currentIndex === -1) continue;
 
@@ -243,22 +326,36 @@
 		visible = false;
 		editing = false;
 		display = false;
+		// The duplicate warning is for the 타임 the page leaves
+		duplicateWarning = null;
 		await loadTimeInfo(currentId);
 		await loadAdjacentTimeIds(currentId);
 	}
 
 	onMount(() => {
 		fetchUsers();
-		loadTimeInfo(id);
 	});
 
-	$: if (id) {
+	// Also the first load. Browser only: the server's fetch cannot reach '/api/…'.
+	$: if (browser && id) {
 		reloadAll(id);
 	}
 
+	// The backend trims each player, skips empty ones and splits the rest on ': '.
+	function playersAreValid() {
+		const isValid = $players.every((player) => {
+			const trimmed = player.trim();
+			return trimmed === '' || trimmed.split(': ').length === 2;
+		});
+		if (!isValid) alert("'{악기/역할} : {연주자 이름}' 형식으로 적어주세요");
+		return isValid;
+	}
+
 	async function submitMusic() {
+		// Also for 그래도 추가: 연주자 may have been edited since 곡 추가하기 checked them
+		if (!playersAreValid()) return;
 		const formData = {
-			time: id,
+			time: shownId,
 			order: timeMusic.length > 0 ? timeMusic[timeMusic.length - 1].order + 1 : 1,
 			is_requested: is_requested,
 			source: source,
@@ -266,19 +363,26 @@
 			title: title,
 			semi_title: detail,
 			composer_name: composer,
-			conductor_name: conductor,
+			// The backend keeps the name as typed, and the playlist adds '지휘: ' itself
+			conductor_name: conductor.trim().replace(/^지휘자?\s*:\s*/, ''),
 			orchestra_name: orchestra,
 			player_names: $players
 		};
 
-		const response = await fetch('/api/music', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify(formData)
-		});
-		if (response.ok) {
+		let added = false;
+		try {
+			const response = await fetch('/api/music', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(formData)
+			});
+			added = response.ok;
+		} catch (error) {
+			console.error('Failed to create', error);
+		}
+		if (added) {
 			composer = '';
 			title = '';
 			detail = '';
@@ -289,26 +393,83 @@
 			is_requested = false;
 			players.set(['']);
 			duplicateWarning = null;
-			loadTimeInfo(id);
+			await loadTimeInfo(id);
 		} else {
 			console.error('Failed to create');
+			alert('곡 추가에 실패했습니다.');
 		}
 	}
 
-	async function handleSubmit(event) {
+	// One 곡 추가 at a time, until the playlist has reloaded: a double click, a held Enter
+	// or a second 그래도 추가 would otherwise add the piece again, with the same order.
+	async function whileAdding(task) {
+		if (adding) return;
+		adding = true;
+		try {
+			await task();
+		} finally {
+			adding = false;
+		}
+	}
+
+	// 취소 and a saved 그래도 추가 remove the duplicate warning with focus on the pressed button,
+	// which drops a keyboard user's focus to the page: give it back to 곡 추가하기.
+	let submitButton;
+	async function focusSubmitIfLost() {
+		await tick();
+		if (document.activeElement === document.body) submitButton?.focus();
+	}
+	function cancelDuplicate() {
+		duplicateWarning = null;
+		focusSubmitIfLost();
+	}
+	async function addDespiteDuplicate() {
+		await submitMusic();
+		await focusSubmitIfLost();
+	}
+
+	function handleSubmit(event) {
 		event.preventDefault();
-		const isValid = $players.every((player) => player !== '' && !player.includes(':'));
-		if (isValid) {
-			alert("'{악기/역할} : {연주자 이름}' 형식으로 적어주세요");
+		whileAdding(checkThenSubmitMusic);
+	}
+
+	async function checkThenSubmitMusic() {
+		if (!playersAreValid()) return;
+
+		const timeId = shownId;
+		const checkedComposer = composer;
+		const checkedTitle = title;
+		const params = new URLSearchParams({
+			time_id: timeId,
+			composer_name: checkedComposer,
+			title: checkedTitle,
+			days: 7
+		});
+		let duplicates;
+		try {
+			const checkRes = await fetch(`/api/check-duplicate?${params}`);
+			const checkData = await checkRes.json();
+			if (checkRes.ok) duplicates = checkData.duplicates;
+		} catch (error) {
+			console.error('Failed to check duplicates', error);
+		}
+		// ◀/▶ (or back/forward) during the check: the piece is not added to the 타임 shown
+		// now, nor where it was checked. It stays in the form.
+		if (shownId !== timeId || id !== timeId) return;
+		// 작곡가 or 제목 edited during the check: its answer is for the piece before the edit, so
+		// check the edited one, or it would be added (or warned about with 그래도 추가) unchecked.
+		if (composer !== checkedComposer || title !== checkedTitle) {
+			await checkThenSubmitMusic();
+			return;
+		}
+		// The proxy also answers 200 with a backend error body, e.g. { detail }
+		if (!Array.isArray(duplicates)) {
+			alert('곡 추가에 실패했습니다.');
 			return;
 		}
 
-		const params = new URLSearchParams({ time_id: id, composer_name: composer, title, days: 7 });
-		const checkRes = await fetch(`/api/check-duplicate?${params}`);
-		const checkData = await checkRes.json();
-
-		if (checkData.duplicates.length > 0) {
-			duplicateWarning = checkData.duplicates;
+		if (duplicates.length > 0) {
+			duplicateWarning = duplicates;
 			return;
 		}
 
@@ -323,47 +484,70 @@
 			users: mento_ids.filter((v) => v && v !== '').map((v) => Number(v)),
 			mentees: mentee_ids.filter((v) => v && v !== '').map((v) => Number(v)),
 			arrival_time: arrival_time,
-			mentee_arrival_time: mentee_arrival_time
+			// An empty time input is '', which is not a time: null means no 견습 time.
+			mentee_arrival_time: mentee_arrival_time || null
 		};
 
-		const response = await fetch(`/api/time/${id}`, {
-			method: 'PUT',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify(formData)
-		});
-		if (response.ok) {
-			const data = await response.json();
-			location.reload();
+		let saved = false;
+		try {
+			const response = await fetch(`/api/time/${shownId}`, {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(formData)
+			});
+			saved = response.ok;
+		} catch (error) {
+			console.error('Failed to edit TimeInfo', error);
+		}
+		if (saved) {
+			// Not location.reload(): it dropped the 코멘트 not saved yet and the 곡 추가 form. The
+			// load shows the saved 지기/견습 in the header and the next 타임 정보 수정.
+			editing = false;
+			await loadTimeInfo(id);
 		} else {
 			console.error('Failed to edit TimeInfo');
+			alert('타임 정보 수정에 실패했습니다.');
 		}
 	}
 
 	async function handleCommentSubmit(event) {
 		event.preventDefault();
+		// Only the comments: the backend updates TimeInfo partially, and the 지기/견습/출근
+		// variables may hold an edit that was closed in 타임 정보 수정 without saving.
 		const formData = {
-			date: date,
-			time: time,
-			users: mento_ids.filter((v) => v && v !== '').map((v) => Number(v)),
-			mentees: mentee_ids.filter((v) => v && v !== '').map((v) => Number(v)),
-			arrival_time: arrival_time,
-			mentee_arrival_time: mentee_arrival_time,
 			time_comment_music: time_comment_music,
 			time_comment_gigi: time_comment_gigi,
 			time_comment_etc: time_comment_etc
 		};
 
-		const response = await fetch(`/api/time/${id}`, {
-			method: 'PUT',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify(formData)
-		});
-		if (response.ok) {
-			const data = await response.json();
+		const timeId = shownId;
+		let saved = false;
+		try {
+			const response = await fetch(`/api/time/${timeId}`, {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(formData)
+			});
+			saved = response.ok;
+		} catch (error) {
+			console.error('Failed to save comments', error);
+		}
+		if (saved) {
+			// What was sent is now the saved text, so a field typed back to the text it had
+			// before this save is an edit, kept by the next reload.
+			commentSaves[timeId] = (commentSaves[timeId] || 0) + 1;
+			if (loadedComments.id === timeId) {
+				loadedComments = {
+					id: timeId,
+					music: formData.time_comment_music,
+					gigi: formData.time_comment_gigi,
+					etc: formData.time_comment_etc
+				};
+			}
 			alert('코멘트가 저장되었습니다.');
 			// Don't reload - keep the form with current values for further editing
 		} else {
@@ -383,6 +567,10 @@
 	}
 
 	function edit_toggle() {
+		if (!editing) {
+			fillEditForm();
+			if (!usersLoaded) fetchUsers(true);
+		}
 		editing = !editing;
 		visible = false;
 		display = false;
@@ -394,21 +582,6 @@
 		visible = false;
 	}
 
-	function clickOutside(node) {
-		const handleClick = (event) => {
-			if (!node.contains(event.target)) {
-				node.dispatchEvent(new CustomEvent('outclick'));
-			}
-		};
-
-		document.addEventListener('click', handleClick, true);
-
-		return {
-			destroy() {
-				document.removeEventListener('click', handleClick, true);
-			}
-		};
-	}
 	function findItemIndexById(id) {
 		return timeMusic.findIndex((item) => item.id === id);
 	}
@@ -416,13 +589,24 @@
 	async function deleteTime() {
 		const isConfirmed = confirm('삭제하시겠습니까?');
 		if (isConfirmed) {
-			const response = await fetch(`/api/time/${id}`, {
-				method: 'DELETE'
-			});
+			let deleted = false;
+			try {
+				const response = await fetch(`/api/time/${shownId}`, {
+					method: 'DELETE'
+				});
+				deleted = response.ok;
+			} catch (error) {
+				console.error('Failed to delete', error);
+			}
+			if (!deleted) {
+				alert('타임 삭제에 실패했습니다.');
+				return;
+			}
 			goto('/time_manage');
 		}
 	}
 
+	// Resolves to whether the backend swapped the two pieces' orders
 	async function swapOrders(id1, id2) {
 		try {
 			const response = await fetch(`/api/music/${id1}/${id2}/`, {
@@ -434,29 +618,44 @@
 			if (!response.ok) {
 				throw new Error('Network response was not ok');
 			}
-			const data = await response.json();
+			return true;
 		} catch (error) {
 			console.error('Error swapping orders:', error);
+			return false;
 		}
 	}
 
-	async function goDown(event) {
-		const { musicid } = event.detail;
+	// One ↑/↓ at a time, until the playlist has reloaded: a second click before that reads
+	// the old order and would swap the same two pieces back (the backend swaps their orders).
+	async function moveMusic(musicid, step) {
+		if (reordering) return;
 		const index = findItemIndexById(musicid);
-		if (index === -1 || index === timeMusic.length - 1) return;
-		const currentItem = timeMusic[index];
-		const nextItem = timeMusic[index + 1];
-		await swapOrders(currentItem.id, nextItem.id);
-		loadTimeInfo(id);
+		if (index === -1 || !timeMusic[index + step]) return;
+		// Nor with a piece whose 삭제 is on its way: the backend cannot swap a deleted piece.
+		if (deleting.has(timeMusic[index].id) || deleting.has(timeMusic[index + step].id)) return;
+		reordering = true;
+		const focused = document.activeElement;
+		try {
+			const swapped = await swapOrders(timeMusic[index].id, timeMusic[index + step].id);
+			if (!swapped) {
+				alert('곡 순서 변경에 실패했습니다.');
+			}
+			// Also after a failure: a piece deleted elsewhere then leaves the playlist
+			await loadTimeInfo(id);
+		} finally {
+			reordering = false;
+		}
+		// The keyed each moves the row that went up out of the page and back in, which drops the
+		// focus of its ↑ to <body>: give it back, unless focus went elsewhere meanwhile.
+		await tick();
+		if (document.activeElement === document.body) focused?.focus();
 	}
-	async function goUp(event) {
-		const { musicid } = event.detail;
-		const index = findItemIndexById(musicid);
-		if (index <= 0) return;
-		const currentItem = timeMusic[index];
-		const prevItem = timeMusic[index - 1];
-		await swapOrders(currentItem.id, prevItem.id);
-		loadTimeInfo(id);
+
+	function goDown(event) {
+		moveMusic(event.detail.musicid, 1);
+	}
+	function goUp(event) {
+		moveMusic(event.detail.musicid, -1);
 	}
 </script>
 
@@ -502,10 +701,12 @@
 	</div>
 	<div class="content">
 		<div class="playlist hide-scrollbar">
-			{#each timeMusic as music}
+			<!-- Keyed: a piece in 수정 stays in 수정 when ↑/↓ or 삭제 moves it to another row -->
+			{#each timeMusic as music (music.id)}
 				<MusicInfo
 					on:goDown={goDown}
 					on:goUp={goUp}
+					on:saved={() => loadTimeInfo(id)}
 					id={music.id}
 					is_requested={music.is_requested}
 					source={music.source}
@@ -524,10 +725,12 @@
 			<form on:submit={handleSubmit} method="POST" class="inputfield">
 				<div class="stack">
 					<div class="box">
-						<div class="label">신청곡</div>
+						<label class="label" for="new-music-requested">신청곡</label>
 						<button
 							type="button"
+							id="new-music-requested"
 							class="checkbox"
+							aria-pressed={is_requested}
 							on:click={toggleCheck}
 							class:checked={is_requested}
 						>
@@ -547,22 +750,28 @@
 					<div class="player_stack">
 						<Input
 							label={'연주자 ' + (i + 1)}
-							bind:value={$players[i]}
+							bind:value={player}
 							width={i != 0 ? '265px' : '300px'}
 						></Input>
 						{#if i > 0}
 							<button type="button" class="minus" on:click={() => deletePlayer(i)}>
-								<img src={minusicon} alt="minus" />
+								<img src={minusicon} alt={`연주자 ${i + 1} 삭제`} />
 							</button>
 						{/if}
 					</div>
 				{/each}
 				<button type="button" class="plus" on:click={addPlayer}>
-					<img src={plusicon} alt="plus" />
+					<img src={plusicon} alt="연주자 추가" />
 				</button>
-				<input id="submit1" type="submit" value="곡 추가하기" class="submit" />
+				<input
+					id="submit1"
+					type="submit"
+					value="곡 추가하기"
+					class="submit"
+					bind:this={submitButton}
+				/>
 			{#if duplicateWarning}
-				<div class="duplicate-warning">
+				<div class="duplicate-warning" role="alert">
 					<div class="warning-title">⚠ 타임 날짜 기준 최근 7일 내 선곡된 곡입니다</div>
 					{#each duplicateWarning as d}
 						<div class="warning-item">
@@ -570,10 +779,12 @@
 						</div>
 					{/each}
 					<div class="warning-buttons">
-						<button type="button" class="warn-cancel" on:click={() => (duplicateWarning = null)}
-							>취소</button
+						<button type="button" class="warn-cancel" on:click={cancelDuplicate}>취소</button>
+						<button
+							type="button"
+							class="warn-confirm"
+							on:click={() => whileAdding(addDespiteDuplicate)}>그래도 추가</button
 						>
-						<button type="button" class="warn-confirm" on:click={submitMusic}>그래도 추가</button>
 					</div>
 				</div>
 			{/if}
@@ -622,6 +833,10 @@
 	<div class="modal">
 		<div
 			class="modal-content"
+			role="dialog"
+			aria-labelledby="insta-title"
+			tabindex="-1"
+			use:dialogFocus={toggle}
 			use:clickOutside
 			on:outclick={toggle}
 			in:fly={{ y: '-20vh', duration: 400 }}
@@ -631,10 +846,11 @@
 				tabindex="0"
 				class="xbutton"
 				title="close"
+				aria-label="닫기"
 				on:click={toggle}
-				on:keydown={toggle}>&times;</span
+				on:keydown={closeOnKey(toggle)}>&times;</span
 			>
-			<div class="title">인스타 업로드 형식</div>
+			<div class="title" id="insta-title">인스타 업로드 형식</div>
 			<div class="insta_content">
 				<h3>[ {formatDateToKorean(date)} / {timeChange(time)} ]</h3>
 				{#each timeMusic as music}
@@ -664,6 +880,10 @@
 	<div class="modal edit_modal">
 		<div
 			class="modal-content"
+			role="dialog"
+			aria-labelledby="edit-time-title"
+			tabindex="-1"
+			use:dialogFocus={edit_toggle}
 			use:clickOutside
 			on:outclick={edit_toggle}
 			in:fly={{ y: '-20vh', duration: 400 }}
@@ -673,10 +893,11 @@
 				tabindex="0"
 				class="xbutton"
 				title="close"
+				aria-label="닫기"
 				on:click={edit_toggle}
-				on:keydown={edit_toggle}>&times;</span
+				on:keydown={closeOnKey(edit_toggle)}>&times;</span
 			>
-			<div class="title">타임 정보 수정</div>
+			<div class="title" id="edit-time-title">타임 정보 수정</div>
 			<br />
 			<form on:submit={handleEdit} method="PUT" class="form">
 				<div class="stack">
@@ -684,6 +905,7 @@
 						><input
 							name="date"
 							type="date"
+							aria-label="날짜"
 							required
 							bind:value={date}
 							style="width:120px"
@@ -709,11 +931,7 @@
 						<label for="mento-row-0">지기 이름</label>
 						{#each mento_ids as val, i}
 							<div class="player_stack">
-								<select
-									id={`mento-row-${i}`}
-									bind:value={mento_ids[i]}
-									aria-label={`지기 ${i + 1}`}
-								>
+								<select id={`mento-row-${i}`} bind:value={val} aria-label={`지기 ${i + 1}`}>
 									<option value="" disabled>선택</option>
 									{#each $users as user}
 										<option value={String(user.id)}>{user.name} {user.major} {user.year_id}</option>
@@ -721,13 +939,13 @@
 								</select>
 								{#if i > 0}
 									<button type="button" class="minus" on:click={() => removeMentoRow(i)}>
-										<img src={minusicon} alt="minus" />
+										<img src={minusicon} alt={`지기 ${i + 1} 삭제`} />
 									</button>
 								{/if}
 							</div>
 						{/each}
 						<button type="button" class="plus" on:click={addMentoRow}>
-							<img src={plusicon} alt="plus" />
+							<img src={plusicon} alt="지기 추가" />
 						</button>
 					</div>
 					<label
@@ -736,6 +954,7 @@
 							type="time"
 							required
 							bind:value={arrival_time}
+							aria-label="지기 출근 시간"
 							style="width:8em"
 						/></label
 					>
@@ -745,25 +964,20 @@
 						<label for="mentee-row-0">견습 이름</label>
 						{#each mentee_ids as val, i}
 							<div class="player_stack">
-								<select
-									id={`mentee-row-${i}`}
-									bind:value={mentee_ids[i]}
-									aria-label={`견습 ${i + 1}`}
-								>
+								<select id={`mentee-row-${i}`} bind:value={val} aria-label={`견습 ${i + 1}`}>
 									<option value="" disabled>선택</option>
 									{#each $users as user}
 										<option value={String(user.id)}>{user.name} {user.major} {user.year_id}</option>
 									{/each}
 								</select>
-								{#if i > 0}
-									<button type="button" class="minus" on:click={() => removeMenteeRow(i)}>
-										<img src={minusicon} alt="minus" />
-									</button>
-								{/if}
+								<!-- Also the first row: a 타임 may have no 견습 -->
+								<button type="button" class="minus" on:click={() => removeMenteeRow(i)}>
+									<img src={minusicon} alt={`견습 ${i + 1} 삭제`} />
+								</button>
 							</div>
 						{/each}
 						<button type="button" class="plus" on:click={addMenteeRow}>
-							<img src={plusicon} alt="plus" />
+							<img src={plusicon} alt="견습 추가" />
 						</button>
 					</div>
 					<label
@@ -774,6 +988,7 @@
 							name="time"
 							type="time"
 							bind:value={mentee_arrival_time}
+							aria-label="견습 출근 시간"
 							style="width:8em"
 						/></label
 					>
@@ -791,6 +1006,10 @@
 	<div class="modal edit_modal">
 		<div
 			class="modal-content2"
+			role="dialog"
+			aria-labelledby="display-edit-title"
+			tabindex="-1"
+			use:dialogFocus={display_toggle}
 			use:clickOutside
 			on:outclick={display_toggle}
 			in:fly={{ y: '-20vh', duration: 400 }}
@@ -800,10 +1019,11 @@
 				tabindex="0"
 				class="xbutton"
 				title="close"
+				aria-label="닫기"
 				on:click={display_toggle}
-				on:keydown={display_toggle}>&times;</span
+				on:keydown={closeOnKey(display_toggle)}>&times;</span
 			>
-			<div class="title">판서 화면 수정</div>
+			<div class="title" id="display-edit-title">판서 화면 수정</div>
 			<br />
 			<Tv></Tv>
 		</div>

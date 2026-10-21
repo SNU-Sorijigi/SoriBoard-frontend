@@ -1,12 +1,14 @@
 <script>
 	import DayBlock from './dayBlock.svelte';
-	import { onMount } from 'svelte';
+	import { onMount, createEventDispatcher } from 'svelte';
 	export let week;
 	export let month;
 	export let year;
+	// The day marked as today; the calendar passes a new one on 오늘
+	export let today = new Date();
 	let createdList = [];
 
-	function calculateWeekDays(year, month, weekNumber) {
+	function calculateWeekDays(year, month, weekNumber, today) {
 		const getSunday = (d) => new Date(d.setDate(d.getDate() - d.getDay()));
 		const addDays = (d, days) => new Date(d.setDate(d.getDate() + days));
 		const formatDate = (d) => ('0' + d.getDate()).slice(-2);
@@ -20,7 +22,6 @@
 		let firstSunday = getSunday(new Date(year, month, 1));
 
 		date = addDays(firstSunday, weekNumber * 7);
-		const today = new Date();
 
 		for (let i = 0; i < 7; i++) {
 			let day = addDays(new Date(date), i);
@@ -36,7 +37,7 @@
 		return dates;
 	}
 
-	$: daysOfWeek = calculateWeekDays(year, month, week);
+	$: daysOfWeek = calculateWeekDays(year, month, week, today);
 
 	async function fetchData(start_year, start_month, start_day, end_year, end_month, end_day) {
 		start_month = ('0' + start_month).slice(-2);
@@ -45,12 +46,15 @@
 			`/api/time/${start_year}/${start_month}/${start_day}/${end_year}/${end_month}/${end_day}`
 		);
 		if (!response.ok) {
-			console.log('Error');
+			throw new Error(`Failed to fetch the week's 타임: ${response.status}`);
 		}
 		return await response.json();
 	}
 
+	const dispatch = createEventDispatcher();
+
 	onMount(() => {
+		let destroyed = false;
 		fetchData(
 			daysOfWeek[0].year,
 			daysOfWeek[0].month + 1,
@@ -58,9 +62,16 @@
 			daysOfWeek[daysOfWeek.length - 1].year,
 			daysOfWeek[daysOfWeek.length - 1].month + 1,
 			daysOfWeek[daysOfWeek.length - 1].date
-		).then((array) => {
-			createdList = array;
-		});
+		)
+			.then((array) => {
+				createdList = array;
+			})
+			.catch((error) => {
+				// The week shows no 타임; the calendar says so, unless it has left this month
+				console.error('Failed to load the week', error);
+				if (!destroyed) dispatch('loadError');
+			});
+		return () => (destroyed = true);
 	});
 </script>
 
@@ -73,7 +84,7 @@
 			time={i !== 0 && i !== 6}
 			{isToday}
 			{isThisMonth}
-			create={createdList[i]}
+			create={createdList[i] || []}
 			on:createTime
 		></DayBlock>
 	{/each}

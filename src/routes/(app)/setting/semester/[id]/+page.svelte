@@ -1,10 +1,11 @@
 <script>
-	import { writable } from 'svelte/store';
 	import { onMount } from 'svelte';
 	import { page} from '$app/stores';
 	import { fly } from 'svelte/transition';
-	import Input from '$lib/components/input.svelte';
 	import TimeTable from '$lib/components/timetable.svelte';
+	import { closeOnKey } from '$lib/closeKey.js';
+	import { dialogFocus } from '$lib/dialogFocus.js';
+	import { clickOutside } from '$lib/clickOutside.js';
 
 	$: id = $page.params.id;
 
@@ -18,13 +19,11 @@
 	let dataLoaded = false;
 
 	async function fetchSemester(id) {
-		try {
-			const response = await fetch(`/api/semester/${id}`);
-			const data = await response.json();
-			return data;
-		} catch (error) {
-			console.error('Failed to fetch semester');
+		const response = await fetch(`/api/semester/${id}`);
+		if (!response.ok) {
+			throw new Error(`Failed to fetch semester: ${response.status}`);
 		}
+		return await response.json();
 	}
 
 	async function loadSemesterInfo(id) {
@@ -40,77 +39,102 @@
 
 			dataLoaded = true;
 		} catch (error) {
-			console.error('Error loading semester data');
+			// No timetable is shown for a semester that did not load
+			console.error('Error loading semester data', error);
+			alert('학기 정보를 불러오지 못했습니다.');
 		}
 	}
 
 	let editing = false;
 
+	// 학기 정보 수정 edits copies, filled from the saved values on every open, so an
+	// edit closed with × or a click outside is dropped (a changed 타임 clears the timetable).
+	let editTimePerDay;
+	let editTimeStart;
+	let editTimeEnd;
+	let editRestTime;
+
 	function edit_toggle() {
+		if (!editing) {
+			editTimePerDay = timePerDay;
+			editTimeStart = timeStart;
+			editTimeEnd = timeEnd;
+			editRestTime = restTime;
+		}
 		editing = !editing;
 	}
 
+	// True from a 학기 수정하기 or 삭제 until it failed or the page navigates: a second click
+	// would ask again and send it twice, and a refused second 삭제 alerts a failure.
+	let sending = false;
+
 	async function handleEdit(event) {
 		event.preventDefault();
+		if (sending) return;
+		// The backend rebuilds the timetable when the 타임 count changes, emptying every cell.
+		// After 취소 the modal stays open with the typed values.
+		if (
+			editTimePerDay !== timePerDay &&
+			!confirm('타임 수를 바꾸면 시간표에 배정된 지기와 견습이 모두 지워집니다. 수정하시겠습니까?')
+		) {
+			return;
+		}
+		sending = true;
 		const formData = {
-			total_time: timePerDay,
-			start_time: timeStart,
-			end_time: timeEnd,
-			rest_time: restTime
+			total_time: editTimePerDay,
+			start_time: editTimeStart,
+			end_time: editTimeEnd,
+			rest_time: editRestTime
 		};
 
-		const response = await fetch(`/api/semester/${id}`, {
-			method: 'PUT',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify(formData)
-		});
+		let saved = false;
+		try {
+			const response = await fetch(`/api/semester/${id}`, {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(formData)
+			});
+			saved = response.ok;
+		} catch (error) {
+			console.error('Failed to update semester info', error);
+		}
 
-		if (response.ok) {
-			const data = await response.json();
+		// After a failure the modal stays open with the typed values
+		if (saved) {
 			location.reload();
 		} else {
+			sending = false;
 			console.error('Failed to update semester info');
+			alert('학기 정보 수정에 실패했습니다.');
 		}
 	}
 
 	async function deleteSemester() {
-		const response = await fetch(`/api/semester/${id}`, {
-			method: 'DELETE'
-		});
+		if (sending) return;
+		const isConfirmed = confirm('삭제하시겠습니까?');
+		if (!isConfirmed) {
+			return;
+		}
+		sending = true;
+		let deleted = false;
+		try {
+			const response = await fetch(`/api/semester/${id}`, {
+				method: 'DELETE'
+			});
+			deleted = response.ok;
+		} catch (error) {
+			console.error('Failed to delete semester', error);
+		}
 
-		if (response.ok) {
+		if (deleted) {
 			location.href = '/setting/semester';
 		} else {
+			sending = false;
 			console.error('Failed to delete semester');
+			alert('학기 삭제에 실패했습니다.');
 		}
-	}
-
-	function clickOutside(node) {
-		const handleClick = (event) => {
-			if (!node.contains(event.target)) {
-				node.dispatchEvent(new CustomEvent('outclick'));
-			}
-		};
-
-		document.addEventListener('click', handleClick, true);
-
-		return {
-			destroy() {
-				document.removeEventListener('click', handleClick, true);
-			}
-		};
-	}
-
-	function debug() {
-		console.log(semesterYear);
-		console.log(semesterNum);
-		console.log(timePerDay);
-		console.log(timeStart);
-		console.log(timeEnd);
-		console.log(restTime);
-		console.log(timetableid);
 	}
 
 	onMount(() => {
@@ -128,7 +152,10 @@
 		<div class="buttons">
 			<button class="semester_edit button" on:click={edit_toggle}>학기 정보 수정 </button>
 		</div>
-		<div class="semesterinfo">{semesterYear}년도<br />{semesterNum}학기</div>
+		<!-- Empty until the 학기 loads, not "undefined년도" (also after a failed load) -->
+		<div class="semesterinfo">
+			{#if dataLoaded}{semesterYear}년도<br />{semesterNum}학기{/if}
+		</div>
 	</div>
 	<div class="content">
 		{#if dataLoaded}
@@ -149,6 +176,10 @@
 	<div class="modal edit_modal">
 		<div
 			class="modal-content"
+			role="dialog"
+			aria-labelledby="edit-semester-title"
+			tabindex="-1"
+			use:dialogFocus={edit_toggle}
 			use:clickOutside
 			on:outclick={edit_toggle}
 			in:fly={{ y: '-20vh', duration: 400 }}
@@ -158,10 +189,11 @@
 				tabindex="0"
 				class="xbutton"
 				title="close"
+				aria-label="닫기"
 				on:click={edit_toggle}
-				on:keydown={edit_toggle}>&times;</span
+				on:keydown={closeOnKey(edit_toggle)}>&times;</span
 			>
-			<div class="title">학기 정보 수정</div>
+			<div class="title" id="edit-semester-title">학기 정보 수정</div>
 			<br />
 			<form on:submit={handleEdit} method="PUT" class="form">
 				<div class="stack">
@@ -169,8 +201,9 @@
 						><input
 							name="number"
 							type="number"
+							min="1"
 							required
-							bind:value={timePerDay}
+							bind:value={editTimePerDay}
 							style="width:120px"
 						/>타임</label
 					>
@@ -183,16 +216,18 @@
 							name="time"
 							type="time"
 							required
-							bind:value={timeStart}
+							bind:value={editTimeStart}
 							style="width:8em"
+							aria-label="운영 시작"
 						/>
 						~
 						<input
 							name="time"
 							type="time"
 							required
-							bind:value={timeEnd}
+							bind:value={editTimeEnd}
 							style="width:8em"
+							aria-label="운영 종료"
 						/>
 					</label >
 				</div>
@@ -203,7 +238,7 @@
 							name="number"
 							type="number"
 							required
-							bind:value={restTime}
+							bind:value={editRestTime}
 							style="width:8em"
 						/></label
 					>
@@ -232,13 +267,6 @@
 		font-size: var(--large-font-size, 16px);
 		font-weight: var(--large-font-weight, 500);
 	}
-	.playlist {
-		display: flex;
-		flex-direction: column;
-		gap: 10px;
-		align-items: center;
-		justify-content: center;
-	}
 	.stack {
 		display: flex;
 		flex-direction: row;
@@ -254,14 +282,6 @@
 		align-items: center;
 		justify-content: center;
 		gap: 12px;
-	}
-	.label {
-		color: var(--primary-primary-700, #b7946c);
-		text-align: center;
-		font-family: var(--small-medium-font-family, 'NotoSansKr-Regular', sans-serif);
-		font-size: var(--small-medium-font-size, 10px);
-		font-weight: var(--small-medium-font-weight, 400);
-		position: relative;
 	}
 	.header {
 		padding: 16px;

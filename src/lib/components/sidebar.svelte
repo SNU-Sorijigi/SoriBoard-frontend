@@ -1,8 +1,6 @@
 <script>
 	import homeIcon from '$lib/images/home.svg';
 	import timetableIcon from '$lib/images/timetable.svg';
-	import playlistIcon from '$lib/images/playlist.svg';
-	import displayIcon from '$lib/images/display.svg';
 	import statIcon from '$lib/images/stat.svg';
 	import settingIcon from '$lib/images/setting.svg';
 
@@ -15,10 +13,10 @@
 	<div class="spacer-top"></div>
 	<div class="main-buttons">
 		<button class="button" on:click={() => navigate('/')}>
-			<img src={homeIcon} alt="home" class="icon" />
+			<img src={homeIcon} alt="홈" class="icon" />
 		</button>
 		<button class="button" on:click={() => navigate('/time_manage')}>
-			<img src={timetableIcon} alt="timetable" class="icon" />
+			<img src={timetableIcon} alt="타임 관리" class="icon" />
 		</button>
 		<!--
         <button class="button" on:click={() => navigate('/time_manage/1')}>
@@ -26,13 +24,13 @@
         </button>
     -->
 		<button class="button" on:click={() => navigate('/stat')}>
-			<img src={statIcon} alt="stats" class="icon" />
+			<img src={statIcon} alt="통계" class="icon" />
 		</button>
 	</div>
 	<div class="spacer-bottom"></div>
 	<div class="divider"></div>
 	<button class="button" on:click={() => navigate('/setting')}>
-		<img src={settingIcon} alt="settings" class="icon" />
+		<img src={settingIcon} alt="설정" class="icon" />
 	</button>
 </div>
 

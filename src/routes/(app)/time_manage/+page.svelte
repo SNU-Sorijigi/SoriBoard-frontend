@@ -1,31 +1,20 @@
 <script>
 	import TimeCalendar from '$lib/components/timecalendar.svelte';
-	import { fade, fly } from 'svelte/transition';
-	import { onMount } from 'svelte';
+	import { fly } from 'svelte/transition';
 	import { writable } from 'svelte/store';
 	import plusicon from '$lib/images/plus.svg';
 	import minusicon from '$lib/images/minus.svg';
+	import { closeOnKey } from '$lib/closeKey.js';
+	import { dialogFocus } from '$lib/dialogFocus.js';
+	import { clickOutside } from '$lib/clickOutside.js';
 
 	let semester_exists = false;
 
-	function clickOutside(node) {
-		const handleClick = (event) => {
-			if (!node.contains(event.target)) {
-				node.dispatchEvent(new CustomEvent('outclick'));
-			}
-		};
-
-		document.addEventListener('click', handleClick, true);
-
-		return {
-			destroy() {
-				document.removeEventListener('click', handleClick, true);
-			}
-		};
-	}
-
 	async function getSemesterId(year, month) {
 		const response = await fetch(`/api/semester/year/${year}`);
+		if (!response.ok) {
+			throw new Error(`Failed to fetch semester list: ${response.status}`);
+		}
 		const data = await response.json();
 		let semester_id;
 		if (month <= 7) {
@@ -37,25 +26,28 @@
 	}
 
 	async function fetchSemester(id) {
-		if (id) {
-			semester_exists = true;
-			const response = await fetch(`/api/semester/${id}`);
-			const data = await response.json();
-			console.log(data);
-			return data;
-		} else {
-			semester_exists = false;
+		const response = await fetch(`/api/semester/${id}`);
+		if (!response.ok) {
+			throw new Error(`Failed to fetch semester: ${response.status}`);
 		}
+		const data = await response.json();
+		return data;
 	}
 
 	async function fetchTimetable(semester_id) {
 		const response = await fetch(`/api/timetable/${semester_id}`);
+		if (!response.ok) {
+			throw new Error(`Failed to fetch timetable: ${response.status}`);
+		}
 		const data = await response.json();
 		return data;
 	}
 
 	async function fetchTimetableUnit(timetableunit_id) {
 		const response = await fetch(`/api/timetableunit/${timetableunit_id}`);
+		if (!response.ok) {
+			throw new Error(`Failed to fetch timetableunit: ${response.status}`);
+		}
 		const data = await response.json();
 		return data;
 	}
@@ -68,12 +60,13 @@
 		const semester_id = await getSemesterId(y, m);
 		// console.log(`semester_id: ${semester_id}`);
 
+		// null: no semester for this date
+		if (!semester_id) {
+			return null;
+		}
+
 		const semester_data = await fetchSemester(semester_id);
 		// console.log(`semester_data: ${JSON.stringify(semester_data)}`);
-
-		if (semester_exists === false) {
-			return;
-		}
 
 		const timetable_data = await fetchTimetable(semester_data.timetable_id);
 		// console.log(`timetable_data: ${JSON.stringify(timetable_data)}`);
@@ -83,6 +76,11 @@
 
 		const timetableunit_id = timetable[day.getDay()][t];
 		// console.log(`timetableunit_id: ${timetableunit_id}`);
+
+		// the calendar shows 타임 1 to 5; a semester with fewer has no cell for the rest
+		if (timetableunit_id == null) {
+			return {};
+		}
 
 		const timetableunit_data = await fetchTimetableUnit(timetableunit_id);
 		// console.log(`timetableunit_data: ${JSON.stringify(timetableunit_data)}`);
@@ -94,10 +92,11 @@
 		visible = !visible;
 	}
 
+	// The clicked day as YYYY-MM-DD. Not through toISOString(): that is UTC, and gave the
+	// day after in a browser at UTC or west of it.
 	function formatDate(year, month, day) {
-		const date = new Date(year, month - 1, day + 1);
-		const formattedDate = date.toISOString().split('T')[0];
-		return formattedDate;
+		const pad = (n) => String(n).padStart(2, '0');
+		return `${year}-${pad(month)}-${pad(day)}`;
 	}
 
 	let visible = false;
@@ -105,8 +104,6 @@
 	let date = writable('');
 	let mento_time = writable('');
 	let mentee_time = writable('');
-	let mento = '';
-	let mentee = '';
 	let mento_id = [];
 	let mentee_id = [];
 
@@ -126,23 +123,41 @@
 
 	// Load all users for selection
 	const allUsers = writable([]);
+	// False when the list did not load: the modal then keeps the list of an earlier load
 	async function fetchUsers() {
 		try {
 			const res = await fetch('/api/user/');
-			if (res.ok) {
-				const data = await res.json();
-				allUsers.set(data);
+			if (!res.ok) {
+				throw new Error(`Failed to fetch users: ${res.status}`);
 			}
+			const data = await res.json();
+			allUsers.set(data);
+			return true;
 		} catch (e) {
-			console.error('Failed to fetch users');
+			console.error('Failed to fetch users', e);
+			return false;
 		}
 	}
 
-	let jigis = [];
+	// Counts the clicks on a 타임 not created yet. Only the last click's load opens 타임 생성 or
+	// alerts: a double click used to load twice and toggle the modal open and shut again.
+	let createRequest = 0;
 
 	async function create(event) {
+		const request = ++createRequest;
 		const { year, month, day, time } = event.detail;
-		const timeUnitData = await fetchJigis(year, month, day, time);
+		let timeUnitData;
+		try {
+			timeUnitData = await fetchJigis(year, month, day, time);
+		} catch (error) {
+			if (request !== createRequest) return;
+			// The 타임 생성 modal is not opened for a 타임 whose semester or timetable did not load
+			console.error('Failed to load the timetable', error);
+			alert('시간표 정보를 불러오지 못했습니다.');
+			return;
+		}
+		if (request !== createRequest) return;
+		semester_exists = timeUnitData !== null;
 		if (semester_exists === false) {
 			alert('해당 학기가 존재하지 않습니다.');
 			return;
@@ -157,31 +172,35 @@
 		date.set(formatDate(year, month, day));
 		num.set(time);
 		// Prefill from timetable unit
-		mento = Array.isArray(timeUnitData.jigi_info)
-			? timeUnitData.jigi_info.join(', ')
-			: timeUnitData.jigi_info;
 		mento_id = (timeUnitData.users || []).map(String);
-		mentee = Array.isArray(timeUnitData.mentee_info)
-			? timeUnitData.mentee_info.join(', ')
-			: timeUnitData.mentee_info || '';
 		mentee_id = (timeUnitData.mentees || []).map(String);
 
 		// Ensure user list is loaded before showing modal
-		await fetchUsers();
-		toggle();
+		const usersLoaded = await fetchUsers();
+		if (request !== createRequest) return;
+		if (!usersLoaded) {
+			alert('지기 목록을 불러오지 못했습니다.');
+		}
+		visible = true;
 	}
 
 	function navigate(url) {
 		window.location.href = url;
 	}
 
+	// True from a 타임 생성 until it failed or the page navigates: a double click or a held Enter
+	// would otherwise send it twice, and the refused second one alerts a failure.
+	let creating = false;
+
 	async function handleSubmit(event) {
 		event.preventDefault();
+		if (creating) return;
+		// a row added with + and left at 선택 is '': skip it, or the backend refuses the whole session
 		const formData = {
 			date: $date,
 			time: $num,
-			users: mento_id.map(Number),
-			mentees: mentee_id.map(Number),
+			users: mento_id.filter(Boolean).map(Number),
+			mentees: mentee_id.filter(Boolean).map(Number),
 			arrival_time: $mento_time,
 			mentee_arrival_time: $mentee_time
 		};
@@ -191,19 +210,26 @@
 			return;
 		}
 
-		const response = await fetch('/api/time', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify(formData)
-		});
-		if (response.ok) {
-			const data = await response.json();
-			navigate('/time_manage/' + data.id);
-		} else {
-			console.error('Failed to create TimeInfo');
+		creating = true;
+		try {
+			const response = await fetch('/api/time', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(formData)
+			});
+			if (response.ok) {
+				const data = await response.json();
+				navigate('/time_manage/' + data.id);
+				return;
+			}
+		} catch (error) {
+			console.error('Failed to send the new TimeInfo', error);
 		}
+		creating = false;
+		console.error('Failed to create TimeInfo');
+		alert('타임 생성에 실패했습니다.');
 	}
 </script>
 
@@ -217,6 +243,10 @@
 	<div class="modal">
 		<div
 			class="modal-content"
+			role="dialog"
+			aria-labelledby="create-time-title"
+			tabindex="-1"
+			use:dialogFocus={toggle}
 			use:clickOutside
 			on:outclick={toggle}
 			in:fly={{ y: '-20vh', duration: 400 }}
@@ -226,10 +256,11 @@
 				tabindex="0"
 				class="xbutton"
 				title="close"
+				aria-label="닫기"
 				on:click={toggle}
-				on:keydown={toggle}>&times;</span
+				on:keydown={closeOnKey(toggle)}>&times;</span
 			>
-			<div class="title">타임 생성</div>
+			<div class="title" id="create-time-title">타임 생성</div>
 			<br />
 			<form on:submit={handleSubmit} method="POST" class="form">
 				<div class="stack">
@@ -237,6 +268,7 @@
 						><input
 							name="date"
 							type="date"
+							aria-label="날짜"
 							required
 							bind:value={$date}
 							style="width:120px"
@@ -260,9 +292,9 @@
 				<div class="stack">
 					<div class="col">
 						<label for="mento-row-0">지기</label>
-						{#each mento_id as id, i}
+						{#each mento_id as jid, i}
 							<div class="row">
-								<select id={`mento-row-${i}`} bind:value={mento_id[i]} aria-label={`지기 ${i + 1}`}>
+								<select id={`mento-row-${i}`} bind:value={jid} aria-label={`지기 ${i + 1}`}>
 									<option value="" disabled>선택</option>
 									{#each $allUsers as u}
 										<option value={String(u.id)}>{u.name} {u.major} {u.year_id}</option>
@@ -270,13 +302,13 @@
 								</select>
 								{#if i > 0}
 									<button type="button" class="minus" on:click={() => removeMentoRow(i)}>
-										<img src={minusicon} alt="minus" />
+										<img src={minusicon} alt={`지기 ${i + 1} 삭제`} />
 									</button>
 								{/if}
 							</div>
 						{/each}
 						<button type="button" class="plus" on:click={addMentoRow}>
-							<img src={plusicon} alt="plus" />
+							<img src={plusicon} alt="지기 추가" />
 						</button>
 					</div>
 					<label
@@ -285,6 +317,7 @@
 							type="time"
 							required
 							bind:value={$mento_time}
+							aria-label="지기 출근 시간"
 							style="width:8em"
 						/></label
 					>
@@ -292,27 +325,22 @@
 				<div class="stack">
 					<div class="col">
 						<label for="mentee-row-0">제자</label>
-						{#each mentee_id as id, i}
+						{#each mentee_id as mid, i}
 							<div class="row">
-								<select
-									id={`mentee-row-${i}`}
-									bind:value={mentee_id[i]}
-									aria-label={`제자 ${i + 1}`}
-								>
+								<select id={`mentee-row-${i}`} bind:value={mid} aria-label={`제자 ${i + 1}`}>
 									<option value="" disabled>선택</option>
 									{#each $allUsers as u}
 										<option value={String(u.id)}>{u.name} {u.major} {u.year_id}</option>
 									{/each}
 								</select>
-								{#if i > 0}
-									<button type="button" class="minus" on:click={() => removeMenteeRow(i)}>
-										<img src={minusicon} alt="minus" />
-									</button>
-								{/if}
+								<!-- Also the first row: a 타임 may have no 제자, e.g. when the 시간표's 제자 is away -->
+								<button type="button" class="minus" on:click={() => removeMenteeRow(i)}>
+									<img src={minusicon} alt={`제자 ${i + 1} 삭제`} />
+								</button>
 							</div>
 						{/each}
 						<button type="button" class="plus" on:click={addMenteeRow}>
-							<img src={plusicon} alt="plus" />
+							<img src={plusicon} alt="제자 추가" />
 						</button>
 					</div>
 					<label style="visibility: {mentee_id.length ? 'visible' : 'hidden'};"
@@ -320,6 +348,7 @@
 							name="time"
 							type="time"
 							bind:value={$mentee_time}
+							aria-label="제자 출근 시간"
 							style="width:8em"
 						/></label
 					>

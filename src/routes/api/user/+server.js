@@ -1,14 +1,13 @@
 import { json } from '@sveltejs/kit';
 import { backendServer } from '$lib/globals';
 
-export async function GET({ params }) {
-	const { id } = params;
+export async function GET() {
 	const response = await fetch(`${backendServer}/time_manage/user/`);
 	if (response.ok) {
 		const data = await response.json();
 		return json(data);
 	}
-	return json({ message: 'Error' }, 400);
+	return json({ message: 'Error' }, { status: 400 });
 }
 
 export async function POST({ request }) {

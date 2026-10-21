@@ -1,6 +1,6 @@
 <script>
 	import { onDestroy, onMount } from 'svelte';
-	import { webSocketServer } from '$lib/globals';
+	import { tvSender } from '$lib/tvSocket';
 	import {
 		displayComposer,
 		displayTitle,
@@ -23,7 +23,11 @@
 		spacerSize5,
 		fontSizeInit
 	} from '$lib/displayStore.js';
-	let ws;
+	// As the TV shows it: a 지휘자 without 오케스트라 (a choir) is shown too
+	$: orchestraLine = [$displayOrchestra, $displayConductor && '지휘: ' + $displayConductor]
+		.filter(Boolean)
+		.join(' / ');
+	let tv;
 	let _composerFontSize,
 		_titleFontSize,
 		_orchestraFontSize,
@@ -35,8 +39,23 @@
 		_spacerSize3,
 		_spacerSize4,
 		_spacerSize5;
+	// The 뉴스 line shows what the TV shows (its first 뉴스), so its size is set on the real
+	// text. A failed load keeps what the preview showed; the TV page does not alert either.
+	async function fetchNews() {
+		try {
+			const response = await fetch('/api/information');
+			if (!response.ok) {
+				throw new Error(`Failed to fetch news: ${response.status}`);
+			}
+			const newsdata = await response.json();
+			displayInfoNews.set(newsdata[0]?.content ?? '');
+		} catch (error) {
+			console.error('Failed to fetch news', error);
+		}
+	}
 	onMount(() => {
-		ws = new WebSocket(`${webSocketServer}/ws/tv_display/`);
+		fetchNews();
+		tv = tvSender();
 		_composerFontSize = $composerFontSize;
 		_titleFontSize = $titleFontSize;
 		_orchestraFontSize = $orchestraFontSize;
@@ -48,6 +67,7 @@
 		_spacerSize3 = $spacerSize3;
 		_spacerSize4 = $spacerSize4;
 		_spacerSize5 = $spacerSize5;
+		return () => tv.close();
 	});
 	onDestroy(() => {
 		composerFontSize.set(_composerFontSize);
@@ -88,11 +108,7 @@
 		_spacerSize3 = $spacerSize3;
 		_spacerSize4 = $spacerSize4;
 		_spacerSize5 = $spacerSize5;
-		if (ws.readyState === WebSocket.OPEN) {
-			ws.send(JSON.stringify(data));
-		} else {
-			console.log('WebSocket is not open. ReadyState: ', ws.readyState);
-		}
+		tv.send(data);
 	}
 </script>
 
@@ -105,9 +121,9 @@
 				{$displayTitle}{#if $displaySemiTitle}<br />{$displaySemiTitle}{/if}
 			</div>
 			<div class="spacer" style="height: {$spacerSize2}vh"></div>
-			{#if $displayOrchestra}
+			{#if orchestraLine}
 				<div class="text" style="font-size: {$orchestraFontSize}vw">
-					{$displayOrchestra}{#if $displayConductor}{' / 지휘: ' + $displayConductor}{/if}
+					{orchestraLine}
 				</div>
 				<div class="spacer" style="height: {$spacerSize3}vh"></div>
 			{/if}
@@ -130,6 +146,7 @@
                         type="range"
                         min="1"
                         max="12"
+                        aria-label="작곡가 글자 크기"
                         value={$composerFontSize / 0.4}
                         on:input={(e) => ($composerFontSize = +e.target.value * 0.4)}
                         />
@@ -143,6 +160,7 @@
                         type="range"
                         min="1"
                         max="12"
+                        aria-label="작곡가 아래 간격"
                         value={$spacerSize1 / 0.4}
                         on:input={(e) => ($spacerSize1 = +e.target.value * 0.4)}
                         />
@@ -156,6 +174,7 @@
                         type="range"
                         min="1"
                         max="12"
+                        aria-label="곡 제목 글자 크기"
                         value={$titleFontSize / 0.4}
                         on:input={(e) => ($titleFontSize = +e.target.value * 0.4)}
                         />
@@ -169,6 +188,7 @@
                         type="range"
                         min="1"
                         max="12"
+                        aria-label="곡 제목 아래 간격"
                         value={$spacerSize2 / 0.4}
                         on:input={(e) => ($spacerSize2 = +e.target.value * 0.4)}
                         />
@@ -182,6 +202,7 @@
                         type="range"
                         min="1"
                         max="12"
+                        aria-label="오케스트라 글자 크기"
                         value={$orchestraFontSize / 0.4}
                         on:input={(e) => ($orchestraFontSize = +e.target.value * 0.4)}
                         />
@@ -195,6 +216,7 @@
                         type="range"
                         min="1"
                         max="12"
+                        aria-label="오케스트라 아래 간격"
                         value={$spacerSize3 / 0.4}
                         on:input={(e) => ($spacerSize3 = +e.target.value * 0.4)}
                         />
@@ -208,6 +230,7 @@
                         type="range"
                         min="1"
                         max="12"
+                        aria-label="연주자 글자 크기"
                         value={$playerFontSize / 0.4}
                         on:input={(e) => ($playerFontSize = +e.target.value * 0.4)}
                         />
@@ -221,6 +244,7 @@
                         type="range"
                         min="1"
                         max="12"
+                        aria-label="연주자 아래 간격"
                         value={$spacerSize4 / 0.4}
                         on:input={(e) => ($spacerSize4 = +e.target.value * 0.4)}
                         />
@@ -234,6 +258,7 @@
                         type="range"
                         min="1"
                         max="12"
+                        aria-label="뉴스 위 간격"
                         value={$spacerSize5 / 0.4}
                         on:input={(e) => ($spacerSize5 = +e.target.value * 0.4)}
                         />
@@ -247,6 +272,7 @@
                         type="range"
                         min="1"
                         max="12"
+                        aria-label="뉴스 글자 크기"
                         value={$infoNewsFontSize / 0.4}
                         on:input={(e) => ($infoNewsFontSize = +e.target.value * 0.4)}
                         />
@@ -260,6 +286,7 @@
                         type="range"
                         min="1"
                         max="12"
+                        aria-label="인스타그램 글자 크기"
                         value={$instagramFontSize / 0.4}
                         on:input={(e) => ($instagramFontSize = +e.target.value * 0.4)}
                         />

@@ -7,14 +7,21 @@
 
 	const users = writable([]);
 
+	// After a failure the list keeps the members it shows
 	async function fetchUsers() {
 		try {
 			const response = await fetch('/api/user/');
-			const data = await response.json();
-			users.set(data);
-			console.log(data);
+			if (!response.ok) {
+				throw new Error(`Failed to fetch users: ${response.status}`);
+			}
+			const list = await response.json();
+			users.set(list);
+			// A 사부 chosen for 지기 추가 who left the list (삭제) has no option any more: the select
+			// no longer showed them, yet 지기 추가 sent them and failed
+			if (new_sabu_id !== '' && !list.some((user) => user.id === new_sabu_id)) new_sabu_id = '';
 		} catch (error) {
-			console.error('Failed to fetch users');
+			console.error('Failed to fetch users', error);
+			alert('지기 목록을 불러오지 못했습니다.');
 		}
 	}
 
@@ -30,12 +37,17 @@
 	let new_join_year = '';
 	let new_join_semester = '';
 
+	// True from a 지기 추가 until it failed or the list reloaded: a double click or a held Enter
+	// would otherwise add the member twice (the backend accepts identical members).
+	let creating = false;
+
 	function toggleCheck() {
 		new_is_ob = !new_is_ob;
 	}
 
 	async function createNewUser(event) {
 		event.preventDefault();
+		if (creating) return;
 		if (new_join_semester != 1 && new_join_semester != 2) {
 			alert('Semester must be 1 or 2');
 			return;
@@ -49,13 +61,26 @@
 			join_year: new_join_year,
 			join_semester: new_join_semester,
 		};
-		const response = await fetch('/api/user', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-			},
-			body: JSON.stringify(newUser),
-		});
+		creating = true;
+		let created = false;
+		try {
+			const response = await fetch('/api/user', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(newUser)
+			});
+			created = response.ok;
+		} catch (error) {
+			console.error('Failed to send the new Jigi', error);
+		}
+		if (!created) {
+			creating = false;
+			console.error('Failed to create Jigi');
+			alert('지기 추가에 실패했습니다.');
+			return;
+		}
 		new_name = '';
 		new_major = '';
 		new_year_id = '';
@@ -63,16 +88,36 @@
 		new_is_ob = false;
 		new_join_year = '';
 		new_join_semester = '';
-		location.reload();
+		// Not location.reload(): it dropped what was typed in a row in 수정. The list reloads in
+		// place, as after 삭제 or 확인
+		await fetchUsers();
+		creating = false;
 	}
 
+	// Members whose 삭제 is in flight, until the list reloads: a second 삭제 on the row would
+	// send another DELETE, and its 404 alerted a failure for a member that was deleted
+	const deleting = new Set();
+
 	async function deleteUser(id) {
+		if (deleting.has(id)) return;
 		const isConfirmed = confirm('삭제하시겠습니까?');
 		if (isConfirmed) {
-			const response = await fetch(`/api/user/${id}`, {
-				method: 'DELETE'
-			});
-			fetchUsers();
+			deleting.add(id);
+			let deleted = false;
+			try {
+				const response = await fetch(`/api/user/${id}`, {
+					method: 'DELETE'
+				});
+				deleted = response.ok;
+			} catch (error) {
+				console.error('Failed to delete', error);
+			}
+			if (!deleted) {
+				alert('지기 삭제에 실패했습니다.');
+			}
+			// Also after a failure: a member already deleted elsewhere then leaves the list
+			await fetchUsers();
+			deleting.delete(id);
 		}
 	}
 
@@ -148,7 +193,8 @@
 	</div>
 	<div class="content">
 		<div class="userlist hide-scrollbar">
-			{#each $users as user}
+			<!-- keyed: a row in 수정 stays with its 지기 when 삭제 or a save reorders the list -->
+			{#each $users as user (user.id)}
 				<UserInfo
 					id={user.id}
 					name={user.name}
@@ -167,8 +213,15 @@
 		<form on:submit={createNewUser} method="POST" class="inputfield">
 			<div class="stack">
 				<div class="box">
-					<div class="label">OB 여부</div>
-					<button type="button" class="checkbox" on:click={toggleCheck} class:checked={new_is_ob}>
+					<label class="label" for="new-user-ob">OB 여부</label>
+					<button
+						type="button"
+						id="new-user-ob"
+						class="checkbox"
+						aria-pressed={new_is_ob}
+						on:click={toggleCheck}
+						class:checked={new_is_ob}
+					>
 						{#if new_is_ob}
 							<img src={checkIcon} alt="check" class="check" />
 						{/if}
@@ -243,13 +296,6 @@
 		flex-shrink: 0;
 		position: relative;
 	}
-	.form {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		gap: 12px;
-	}
 	.box {
 		margin-top: 14px;
 		display: flex;
@@ -277,30 +323,6 @@
 	.checked {
 		background-color: var(--checked-bg);
 	}
-	.delete {
-		text-align: center;
-		color: var(--danger-fg);
-		font-family: var(--small-medium-font-family,);
-		font-size: var(--small-medium-font-size, 13px);
-		font-weight: var(--small-medium-font-weight, 500);
-		position: relative;
-		border-radius: 3px;
-		padding: 4px 7px 4px 7px;
-		display: flex;
-		flex-direction: row;
-		gap: 4px;
-		align-items: center;
-		justify-content: center;
-		flex-shrink: 0;
-		width: 60px;
-		height: 40px;
-		position: absolute;
-		box-shadow: 4px 4px 0 0 var(--button-shadow);
-		cursor: pointer;
-		border: none;
-		background: var(--danger-bg);
-		margin-left: 10px;
-	}
 	.check {
 		width: 22px;
 		height: 22px;
@@ -327,43 +349,6 @@
 		border-color: var(--gray-gray-400, #bcbcbc);
 		border-width: 1px;
 		box-shadow: 4px 4px 5px 0px rgba(0, 0, 0, 0.25);
-	}
-	.userinfo {
-		margin-left: 120px;
-		color: var(--gray-gray-950, #1a1a1a);
-		text-align: center;
-		font-family: var(--medium-font-family, 'NotoSansKr-Medium', sans-serif);
-		font-size: var(--medium-font-size, 16px);
-		font-weight: var(--medium-font-weight, 500);
-		position: relative;
-	}
-	.buttons {
-		gap: 40px;
-		display: flex;
-		justify-content: center;
-		align-items: center;
-	}
-	.button {
-		color: var(--action-fg);
-		text-align: center;
-		font-family: var(--small-medium-font-family,);
-		font-size: var(--small-medium-font-size, 13px);
-		font-weight: var(--small-medium-font-weight, 500);
-		position: relative;
-		border-radius: 3px;
-		padding: 4px 7px 4px 7px;
-		display: flex;
-		flex-direction: row;
-		gap: 4px;
-		align-items: center;
-		justify-content: center;
-		flex-shrink: 0;
-		width: 100px;
-		height: 45px;
-		position: relative;
-		box-shadow: 4px 4px 0 0 var(--button-shadow);
-		cursor: pointer;
-		border: none;
 	}
 	.content {
 		display: flex;
@@ -417,61 +402,6 @@
 		border-width: 2px;
 		padding: 6px 20px 6px 20px;
 		cursor: pointer;
-	}
-	.xbutton {
-		position: absolute;
-		right: 0;
-		top: 0;
-		display: inline-block;
-		text-decoration: none;
-		text-align: center;
-		cursor: pointer;
-		padding: 8px 16px;
-		font-weight: bold;
-		font-size: 1.4em;
-		border-radius: 10%;
-	}
-	.xbutton:hover {
-		color: var(--gray-gray-50) !important;
-		background-color: var(--red-red-700) !important;
-	}
-	.modal {
-		z-index: 3;
-		display: block;
-		padding-top: 10vh;
-		position: absolute;
-		left: 0;
-		top: 0;
-		width: 100%;
-		height: 100%;
-		margin-left: 58px;
-	}
-	.edit_modal {
-		backdrop-filter: blur(15px);
-	}
-	.modal-content {
-		margin: auto;
-		background-color: var(--primary-primary-100);
-		position: relative;
-		padding-top: 30px;
-		padding-bottom: 50px;
-		outline: 0;
-		width: 44vw;
-		border-radius: 2%;
-		border-color: var(--gray-gray-400);
-		border-style: solid;
-	}
-	.modal-content2 {
-		margin: auto;
-		background-color: var(--primary-primary-100);
-		position: relative;
-		padding-top: 30px;
-		padding-bottom: 50px;
-		outline: 0;
-		width: 60vw;
-		border-radius: 2%;
-		border-color: var(--gray-gray-400);
-		border-style: solid;
 	}
 	.hide-scrollbar {
 		-ms-overflow-style: none; /* Internet Explorer 10+ */

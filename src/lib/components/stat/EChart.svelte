@@ -42,7 +42,8 @@
 			height: EXPORT_H
 		});
 		try {
-			exportChart.setOption(option);
+			// 애니메이션 없이 그린다: 바로 저장하므로 켜 두면 막대·조각·선이 첫 프레임(빈 상태)으로 찍힌다.
+			exportChart.setOption({ ...option, animation: false });
 			return exportChart.getDataURL({ type: 'png', pixelRatio: 2, backgroundColor: '#ffffff' });
 		} finally {
 			exportChart.dispose();

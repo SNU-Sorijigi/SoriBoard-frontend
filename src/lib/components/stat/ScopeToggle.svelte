@@ -13,9 +13,17 @@
 	}
 </script>
 
-<div class="toggle">
-	<button class:active={scope === 'all'} on:click={() => select('all')}>전체</button>
-	<button class:active={scope === 'individual'} on:click={() => select('individual')}>개인</button>
+<div class="toggle" role="group" aria-label="통계 범위">
+	<button
+		class:active={scope === 'all'}
+		aria-pressed={scope === 'all'}
+		on:click={() => select('all')}>전체</button
+	>
+	<button
+		class:active={scope === 'individual'}
+		aria-pressed={scope === 'individual'}
+		on:click={() => select('individual')}>개인</button
+	>
 </div>
 
 <style>

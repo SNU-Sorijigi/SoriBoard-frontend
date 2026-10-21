@@ -1,5 +1,4 @@
 <script>
-	import { createEventDispatcher } from 'svelte';
 	import { onMount } from 'svelte';
 	import { writable } from 'svelte/store';
 	import editIcon from '$lib/images/edit.svg';
@@ -8,14 +7,48 @@
 	import checkDarkIcon from '$lib/images/check-dark.svg';
 
 	export let id = '';
-	export let name = '';
-	export let sabu_id = '';
 	export let sabu_info = '';
-	export let major = '';
-	export let year_id = '';
-	export let is_ob = false;
-	export let join_year = '';
-	export let join_semester = '';
+	// The list's values, passed again on every refetch (확인 or 삭제 on another row). They reach
+	// the boxes only outside 수정, so a refetch keeps what is being typed
+	let listName = '';
+	let listSabuId = '';
+	let listMajor = '';
+	let listYearId = '';
+	let listIsOb = false;
+	let listJoinYear = '';
+	let listJoinSemester = '';
+	export {
+		listName as name,
+		listSabuId as sabu_id,
+		listMajor as major,
+		listYearId as year_id,
+		listIsOb as is_ob,
+		listJoinYear as join_year,
+		listJoinSemester as join_semester
+	};
+
+	// What the boxes show and 수정 edits
+	let name, sabu_id, major, year_id, is_ob, join_year, join_semester;
+	function showListValues() {
+		if (isEditing) return;
+		name = listName;
+		sabu_id = listSabuId;
+		major = listMajor;
+		year_id = listYearId;
+		is_ob = listIsOb;
+		join_year = listJoinYear;
+		join_semester = listJoinSemester;
+	}
+	// Only when the list's values change: leaving 수정 after a save keeps the saved values shown
+	// until the refetch brings them
+	$: listName,
+		listSabuId,
+		listMajor,
+		listYearId,
+		listIsOb,
+		listJoinYear,
+		listJoinSemester,
+		showListValues();
 
 	export let deleteUser;
 
@@ -26,10 +59,15 @@
 	async function fetchUsers() {
 		try {
 			const response = await fetch('/api/user');
+			if (!response.ok) {
+				throw new Error(`Failed to fetch users: ${response.status}`);
+			}
 			const data = await response.json();
 			users.set(data);
 		} catch (error) {
-			console.error('failed to fetch users');
+			// edit mode still opens, with the list of an earlier load if there was one
+			console.error('failed to fetch users', error);
+			alert('지기 목록을 불러오지 못했습니다.');
 		}
 	}
 
@@ -44,18 +82,33 @@
 	let isEditing = false;
 	function toggleEdit() {
 		fetchUsers();
+		// A 지기 without 사부 comes as null, which no option matches (the select showed blank):
+		// 해당 없음 is ''
+		sabu_id = sabu_id ?? '';
 		isEditing = !isEditing;
 	}
 
-	function confirmEdit() {
-		isEditing = false;
-		updateData(id);
+	async function confirmEdit() {
+		let saved = false;
+		try {
+			saved = await updateData(id);
+		} catch (error) {
+			console.error('failed to edit', error);
+		}
+		// After a failure the row stays editable with the typed values
+		if (saved) {
+			isEditing = false;
+			refetchUsers();
+		} else {
+			alert('지기 정보 수정에 실패했습니다.');
+		}
 	}
 
 	async function updateData(id) {
 		const formData = {
 			name: name,
-			sabu_id: sabu_id,
+			// 해당 없음 is sent as null, as 지기 추가 sends 사부 없음
+			sabu_id: sabu_id || null,
 			major: major,
 			year_id: year_id,
 			is_ob: is_ob,
@@ -72,21 +125,27 @@
 		if (!response.ok) {
 			console.error('failed to edit');
 		}
-		refetchUsers();
+		return response.ok;
 	}
-	const dispatch = createEventDispatcher();
 </script>
 
 <div class="userinfo">
 	<div class="textstack">
 		<button class="button" on:click={() => deleteUser(id)}>
-			<img src={xIcon} alt="x" class="icon" />
+			<img src={xIcon} alt="" class="icon" />
 			<div class="button_label">삭제</div>
 		</button>
-		<input bind:value={name} readonly={!isEditing} class="name" />
-		<label>OB</label>
+		<input bind:value={name} readonly={!isEditing} class="name" aria-label="이름" />
+		<label for={`user-ob-${id}`}>OB</label>
 		{#if isEditing}
-			<button tdype="button" class="checkbox" on:click={toggleCheck} class:checked={is_ob}>
+			<button
+				type="button"
+				id={`user-ob-${id}`}
+				class="checkbox"
+				aria-pressed={is_ob}
+				on:click={toggleCheck}
+				class:checked={is_ob}
+			>
 				{#if is_ob}
 					<img src={checkIcon} alt="check" class="check" />
 				{:else}
@@ -105,8 +164,13 @@
 			<div class="row_stack">
 				<div class="col_stack">
 					<div class="row_stack">
-						전공:<input bind:value={major} readonly={!isEditing} class="major" />
-						학번:<input bind:value={year_id} readonly={!isEditing} class="yearid" />
+						전공:<input bind:value={major} readonly={!isEditing} class="major" aria-label="전공" />
+						학번:<input
+							bind:value={year_id}
+							readonly={!isEditing}
+							class="yearid"
+							aria-label="학번"
+						/>
 					</div>
 					<label>사부
 					{#if isEditing}
@@ -124,30 +188,34 @@
 				<div class="col_stack">
 					<div class="row_stack">
 						{#if isEditing}
-							<label>입부 년도</label>
+							<label for={`user-join-year-${id}`}>입부 년도</label>
 						{/if}
-						<input bind:value={join_year} readonly={!isEditing} class="join" />
+						<input
+							id={`user-join-year-${id}`}
+							bind:value={join_year}
+							readonly={!isEditing}
+							class="join"
+						/>
 					</div>
 					<div class="row_stack">
 						{#if isEditing}
-							<label>입부 학기</label>
+							<label for={`user-join-semester-${id}`}>입부 학기</label>
 						{/if}
-						<input bind:value={join_semester} readonly={!isEditing} class="join" />
+						<input
+							id={`user-join-semester-${id}`}
+							bind:value={join_semester}
+							readonly={!isEditing}
+							class="join"
+						/>
 					</div>
 				</div>
 				<div class="col_stack">
 					<div class="row_stack">
-						{#if !isEditing}
-							<button class="button" on:click={toggleEdit}>
-								<img src={editIcon} alt="edit" class="icon" />
-								<div class="button_label">수정</div>
-							</button>
-						{:else}
-							<button class="button" on:click={confirmEdit}>
-								<img src={checkDarkIcon} alt="edit" class="icon" />
-								<div class="button_label">확인</div>
-							</button>
-						{/if}
+						<!-- One button for 수정 and 확인: swapping two buttons dropped the keyboard focus -->
+						<button class="button" on:click={isEditing ? confirmEdit : toggleEdit}>
+							<img src={isEditing ? checkDarkIcon : editIcon} alt="" class="icon" />
+							<div class="button_label">{isEditing ? '확인' : '수정'}</div>
+						</button>
 					</div>
 				</div>
 			</div>
@@ -272,13 +340,6 @@
 		flex-shrink: 0;
 		width: 24px;
 		height: 24px;
-		position: relative;
-		overflow: visible;
-	}
-	.arrow_icon {
-		flex-shrink: 0;
-		width: 14px;
-		height: 14px;
 		position: relative;
 		overflow: visible;
 	}

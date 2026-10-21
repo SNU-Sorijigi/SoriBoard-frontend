@@ -8,7 +8,7 @@
 	import downIcon from '$lib/images/down.svg';
 	import plusIcon from '$lib/images/plus.svg';
 	import minusIcon from '$lib/images/minus.svg';
-	import { webSocketServer } from '$lib/globals';
+	import { tvSender } from '$lib/tvSocket';
 	import { onMount } from 'svelte';
 	import { displayComposer } from '$lib/displayStore';
 	import { displayTitle } from '$lib/displayStore';
@@ -37,22 +37,73 @@
 		isEditing = !isEditing;
 	}
 
-	function confirmEdit() {
-		isEditing = false;
-		updateData(id);
+	// What the inputs show and edit. A playlist reload (곡 추가, 삭제, ↑/↓) passes the saved
+	// values again: they replace these only while the row is not in 수정, so the typed text
+	// is kept until 확인 saves it.
+	let fields = {};
+	$: showSaved(composer, title, semiTitle, orchestra, conductor, players, cd_id, source);
+	function showSaved() {
+		if (isEditing) return;
+		fields = {
+			composer,
+			title,
+			semiTitle,
+			orchestra,
+			conductor,
+			players: [...players],
+			cd_id,
+			source
+		};
+	}
+
+	async function confirmEdit() {
+		// Same rule as 곡 추가: a player, trimmed, is empty or splits in two on ': ' (as the backend does).
+		const isValid = fields.players.every((player) => {
+			const trimmed = player.trim();
+			return trimmed === '' || trimmed.split(': ').length === 2;
+		});
+		if (!isValid) {
+			alert("'{악기/역할} : {연주자 이름}' 형식으로 적어주세요");
+			return;
+		}
+
+		let saved = false;
+		try {
+			saved = await updateData(id);
+		} catch (error) {
+			console.error('failed to edit', error);
+		}
+		if (saved) {
+			isEditing = false;
+			// The page reloads the playlist, so 업로드 shows the saved text too
+			dispatch('saved', { musicid: id });
+		} else {
+			alert('곡 수정에 실패했습니다.');
+		}
+	}
+
+	// The 지휘 field shows '지휘: ' + name. The backend keeps the part after ': ',
+	// so a name typed without that prefix (or as '지휘:name', '지휘자:name', as 곡 추가 takes it)
+	// gets it added
+	function conductorName(value) {
+		const trimmed = value.trim();
+		const parts = trimmed.split(': ');
+		return parts.length === 2 ? parts[1].trim() : trimmed.replace(/^지휘자?\s*:\s*/, '');
 	}
 
 	async function updateData(id) {
+		const name = conductorName(fields.conductor);
 		const formData = {
 			is_requested: is_requested,
-			source: source,
-			cd_id: cd_id,
-			title: title,
-			semi_title: semiTitle,
-			composer_name: composer,
-			conductor_name: conductor,
-			orchestra_name: orchestra,
-			player_names: players
+			source: fields.source,
+			cd_id: fields.cd_id,
+			title: fields.title,
+			semi_title: fields.semiTitle,
+			composer_name: fields.composer,
+			conductor_name: name ? '지휘: ' + name : '',
+			orchestra_name: fields.orchestra,
+			// Upstream's backend fails on an empty player, after saving the rest of the edit
+			player_names: fields.players.filter((player) => player.trim() !== '')
 		};
 		const response = await fetch(`/api/music/${id}`, {
 			method: 'PUT',
@@ -63,19 +114,24 @@
 		});
 		if (!response.ok) {
 			console.error('failed to edit');
+		} else {
+			fields.conductor = formData.conductor_name;
 		}
+		return response.ok;
 	}
-	let ws;
+	let tv;
 	onMount(() => {
-		ws = new WebSocket(`${webSocketServer}/ws/tv_display/`);
+		tv = tvSender();
+		return () => tv.close();
 	});
 	function showDisplay() {
-		displayComposer.set(composer);
-		displayTitle.set(title);
-		displaySemiTitle.set(semiTitle);
-		displayOrchestra.set(orchestra);
-		displayConductor.set(conductor);
-		displayPlayers.set(players);
+		displayComposer.set(fields.composer);
+		displayTitle.set(fields.title);
+		displaySemiTitle.set(fields.semiTitle);
+		displayOrchestra.set(fields.orchestra);
+		// The preview adds ' / 지휘: ' itself, as the TV does
+		displayConductor.set(conductorName(fields.conductor));
+		displayPlayers.set(fields.players);
 		const displayData = {
 			time_music_id: id,
 			update_type: 'music'
@@ -92,12 +148,7 @@
 			spacerSize4: 0.28125
 		};
     fontSizeInit();
-		if (ws.readyState === WebSocket.OPEN) {
-			ws.send(JSON.stringify(displayData));
-			ws.send(JSON.stringify(data));
-		} else {
-			console.log('WebSocket is not open. ReadyState: ', ws.readyState);
-		}
+		tv.send(displayData, data);
 	}
 
 	const dispatch = createEventDispatcher();
@@ -109,47 +160,72 @@
 	}
 
 	function addPlayer() {
-		players = [...players, ''];
+		fields.players = [...fields.players, ''];
 	}
 
 	function removePlayer(index) {
-		players = players.filter((_, i) => i !== index);
+		fields.players = fields.players.filter((_, i) => i !== index);
 	}
 </script>
 
 <div class="musicinfo">
 	<div class="textstack">
 		<button class="button delete" on:click={() => deleteMusic(id)}>
-			<img src={xIcon} alt="x" class="icon" />
+			<img src={xIcon} alt="" class="icon" />
 			<div class="button_label">삭제</div>
 		</button>
-		<input bind:value={composer} readonly={!isEditing} class="composer" />
+		<input
+			bind:value={fields.composer}
+			readonly={!isEditing}
+			class="composer"
+			aria-label="작곡가"
+		/>
 		<div class="divider"></div>
 		<div class="col_stack">
 			<div class="row_stack">
 				<div class="col_stack">
-					<input bind:value={title} readonly={!isEditing} class="title" />
+					<input bind:value={fields.title} readonly={!isEditing} class="title" aria-label="제목" />
 					<div class="row_stack">
-						<input bind:value={semiTitle} readonly={!isEditing} class="semititle" />
+						<input
+							bind:value={fields.semiTitle}
+							readonly={!isEditing}
+							class="semititle"
+							aria-label="곡 세부 정보(악장 등)"
+						/>
 					</div>
 					<div class="orchestra-conductor-row">
-						<input bind:value={orchestra} readonly={!isEditing} class="orchestra" />
-						<input bind:value={conductor} readonly={!isEditing} class="conductor" />
+						<input
+							bind:value={fields.orchestra}
+							readonly={!isEditing}
+							class="orchestra"
+							aria-label="오케스트라/실내악단"
+						/>
+						<input
+							bind:value={fields.conductor}
+							readonly={!isEditing}
+							class="conductor"
+							aria-label="지휘자"
+						/>
 					</div>
 					<div class="players-grid">
-						{#each players as player, index}
+						{#each fields.players as player, index}
 							<div class="player-row">
-								<input bind:value={player} readonly={!isEditing} class="player" />
+								<input
+									bind:value={player}
+									readonly={!isEditing}
+									class="player"
+									aria-label={`연주자 ${index + 1}`}
+								/>
 								{#if isEditing}
 									<button class="player-delete-btn" on:click={() => removePlayer(index)}>
-										<img src={minusIcon} alt="remove player" class="small-icon" />
+										<img src={minusIcon} alt={`연주자 ${index + 1} 삭제`} class="small-icon" />
 									</button>
 								{/if}
 							</div>
 						{/each}
 						{#if isEditing}
 							<button class="player-add-btn" on:click={addPlayer}>
-								<img src={plusIcon} alt="add player" class="small-icon" />
+								<img src={plusIcon} alt="" class="small-icon" />
 								<div class="add-label">연주자 추가</div>
 							</button>
 						{/if}
@@ -159,31 +235,35 @@
 					<div class="row_stack">
 						<div class="col_stack">
 							<button class="button tool" on:click={goUp}>
-								<img src={upIcon} alt="up" class="arrow_icon" />
+								<img src={upIcon} alt="위로 이동" class="arrow_icon" />
 							</button>
 							<button class="button tool" on:click={goDown}>
-								<img src={downIcon} alt="down" class="arrow_icon" />
+								<img src={downIcon} alt="아래로 이동" class="arrow_icon" />
 							</button>
 						</div>
-						{#if !isEditing}
-							<button class="button tool" on:click={toggleEdit}>
-								<img src={editIcon} alt="edit" class="icon" />
-								<div class="button_label">수정</div>
-							</button>
-						{:else}
-							<button class="button tool" on:click={confirmEdit}>
-								<img src={checkDarkIcon} alt="edit" class="icon" />
-								<div class="button_label">확인</div>
-							</button>
-						{/if}
+						<!-- One button for 수정 and 확인: swapping two buttons dropped the keyboard focus -->
+						<button class="button tool" on:click={isEditing ? confirmEdit : toggleEdit}>
+							<img src={isEditing ? checkDarkIcon : editIcon} alt="" class="icon" />
+							<div class="button_label">{isEditing ? '확인' : '수정'}</div>
+						</button>
 						<button class="button tool" on:click={showDisplay}>
-							<img src={showIcon} alt="show" class="icon" />
+							<img src={showIcon} alt="" class="icon" />
 							<div class="button_label">판서</div>
 						</button>
 					</div>
 					<div class="row_stack">
-						<input bind:value={cd_id} readonly={!isEditing} class="cd_id" />
-						<input bind:value={source} readonly={!isEditing} class="source" />
+						<input
+							bind:value={fields.cd_id}
+							readonly={!isEditing}
+							class="cd_id"
+							aria-label="음반 번호"
+						/>
+						<input
+							bind:value={fields.source}
+							readonly={!isEditing}
+							class="source"
+							aria-label="음원 종류"
+						/>
 					</div>
 				</div>
 			</div>

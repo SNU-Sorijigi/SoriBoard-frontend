@@ -19,6 +19,8 @@
 		'5': time5Icon
 	};
 	$: timeIcon = timeIcons[time] || time1Icon;
+	// Screen readers hear the date, and whether the 타임 exists, not just "1타임"
+	$: label = `${month}월 ${day}일 ${time}타임${id ? '' : ' 생성'}`;
 
 	function navigate(url) {
 		window.location.href = url;
@@ -38,11 +40,11 @@
 	}
 </script>
 
-<button class={'time-button ' + variantsClassName} on:click={handleClick}>
+<button class={'time-button ' + variantsClassName} aria-label={label} on:click={handleClick}>
 	<div class="stack">
 		<div class="text">{time}타임</div>
 	</div>
-	<img src={timeIcon} alt="timeButton" class="icon" />
+	<img src={timeIcon} alt="" class="icon" />
 </button>
 
 <style>

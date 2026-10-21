@@ -1,10 +1,10 @@
 <script>
 	import sleeplogo from '$lib/images/sleep.svg';
-	import { webSocketServer } from '$lib/globals';
+	import { tvSender } from '$lib/tvSocket';
 	import { onMount } from 'svelte';
 	export let time;
 	let breakTime;
-	let ws;
+	let tv;
 	let goodBye = "안녕히가세요";
 
 	function updateBreakTime(time) {
@@ -30,49 +30,61 @@
 		}
 	}
 
+	// Also after ◀/▶: the session page keeps this button and only changes `time`
+	$: updateBreakTime(time);
+
 	onMount(() => {
-		updateBreakTime(time);
-		ws = new WebSocket(`${webSocketServer}/ws/tv_display/`);
+		tv = tvSender();
+		return () => tv.close();
 	});
 
 	function showDisplay() {
+		// An empty (or half-typed) box would send '~', which the TV shows as 운영 종료
+		if (!breakTime) {
+			alert('휴식 종료 시각을 입력하세요.');
+			return;
+		}
 		const displayData = {
 			update_type: 'breaktime',
 			breaktime: '~' + breakTime
 		};
-		if (ws.readyState === WebSocket.OPEN) {
-			ws.send(JSON.stringify(displayData));
-		} else {
-			console.log('WebSocket is not open. ReadyState: ', ws.readyState);
-		}
+		tv.send(displayData);
 	}
 	function quit() {
 		const displayData = {
 			update_type: 'breaktime',
 			breaktime: goodBye,
 		};
-		if (ws.readyState === WebSocket.OPEN) {
-			ws.send(JSON.stringify(displayData));
-		} else {
-			console.log('WebSocket is not open. ReadyState: ', ws.readyState);
-		}
+		tv.send(displayData);
 	}
 </script>
 {#if time!=5}
 <div class="set">
 	<button class="sleep button" on:click={showDisplay}>
-		<img src={sleeplogo} alt="sleep" />
+		<img src={sleeplogo} alt="" />
 		기기 휴식
 	</button>
-	<input name="time" type="time" bind:value={breakTime} style="width:110px" />
+	<input
+		name="time"
+		type="time"
+		bind:value={breakTime}
+		style="width:110px"
+		aria-label="휴식 종료 시각"
+	/>
 </div>
 {:else}
 <div class="set">
 	<button class="sleep button" on:click={quit}>
-		<img src={sleeplogo} alt="sleep" />
+		<img src={sleeplogo} alt="" />
 		운영 종료
 	</button>
-	<input name="time" type="text" bind:value={goodBye} style="width:110px" />
+	<input
+		name="time"
+		type="text"
+		bind:value={goodBye}
+		style="width:110px"
+		aria-label="운영 종료 문구"
+	/>
 </div>
 {/if}
 <style>

@@ -50,19 +50,19 @@
 		<div class="stack2">
 			<div class="stack3">
 				<button class="button" on:click={() => navigate('/time_manage')}>
-					<img src={timetableIcon} alt="timetable" class="icon" />
+					<img src={timetableIcon} alt="타임 관리" class="icon" />
 				</button>
 				<div class="text">타임 관리</div>
 			</div>
 			<div class="stack3">
 				<button class="button" on:click={() => navigate('/stat')}>
-					<img src={statIcon} alt="stat" class="icon" />
+					<img src={statIcon} alt="통계" class="icon" />
 				</button>
 				<div class="text">통계</div>
 			</div>
 			<div class="stack3">
 				<button class="button" on:click={() => navigate('/setting')}>
-					<img src={settingIcon} alt="setting" class="icon" />
+					<img src={settingIcon} alt="설정" class="icon" />
 				</button>
 				<div class="text">설정</div>
 			</div>
@@ -76,12 +76,9 @@
 				</div>
 				<div class="stack6">
 					<div class="soriboard-2-0">Soriboard 2.0.0</div>
-					<div
-						class="githubbutton"
-						on:click={() => navigate('https://github.com/SNU-Sorijigi/SoriBoard-frontend')}
-					>
+					<a class="githubbutton" href="https://github.com/SNU-Sorijigi/SoriBoard-frontend">
 						<img src={githubIcon} alt="github" class="githubicon" />
-					</div>
+					</a>
 				</div>
 			</div>
 		</div>

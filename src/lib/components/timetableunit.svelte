@@ -1,9 +1,6 @@
 <script>
-	import { createEventDispatcher } from 'svelte';
 	import { onMount } from 'svelte';
 	import { writable } from 'svelte/store';
-	import editIcon from '$lib/images/edit.svg';
-	import checkIcon from '$lib/images/check.svg';
 	import plusicon from '$lib/images/plus.svg';
 	import minusicon from '$lib/images/minus.svg';
 
@@ -23,11 +20,26 @@
 	async function fetchUsers() {
 		try {
 			const response = await fetch('/api/user/');
+			if (!response.ok) {
+				throw new Error(`Failed to fetch users: ${response.status}`);
+			}
 			const data = await response.json();
 			users.set(data);
 		} catch (error) {
-			console.error('Failed to fetch users');
+			// edit mode still opens, with the list of an earlier load if there was one
+			console.error('Failed to fetch users', error);
+			alert('지기 목록을 불러오지 못했습니다.');
 		}
+	}
+
+	function showUnit(data) {
+		day = data.day;
+		time = data.time;
+		timetable_id = data.timetable;
+		jigi_ids = (data.users || []).map(String);
+		mentee_ids = (data.mentees || []).map(String);
+		jigi_info = data.jigi_info || [];
+		mentee_info = data.mentee_info || [];
 	}
 
 	async function fetchUnitData(id) {
@@ -42,16 +54,13 @@
 		} else {
 			try {
 				const response = await fetch(`/api/timetableunit/${id}`);
-				const data = await response.json();
-				day = data.day;
-				time = data.time;
-				timetable_id = data.timetable;
-				jigi_ids = (data.users || []).map(String);
-				mentee_ids = (data.mentees || []).map(String);
-				jigi_info = data.jigi_info || [];
-				mentee_info = data.mentee_info || [];
+				if (!response.ok) {
+					// keep what the cell shows: a failed load does not mean its 지기 are gone
+					throw new Error(`Failed to fetch timetableunit: ${response.status}`);
+				}
+				showUnit(await response.json());
 			} catch (error) {
-				console.error('Failed to fetch timetableunit data');
+				console.error('Failed to fetch timetableunit data', error);
 			}
 		}
 	}
@@ -70,9 +79,10 @@
 		jigi_ids = jigi_ids.filter((_, i) => i !== index);
 	}
 
-	function confirmJigiEdit() {
-		updateData(id);
-		toggleJigiEdit();
+	async function confirmJigiEdit() {
+		if (await updateData(id)) {
+			isJigiEditing = false;
+		}
 	}
 
 	function toggleMenteeEdit() {
@@ -87,35 +97,51 @@
 		mentee_ids = mentee_ids.filter((_, i) => i !== index);
 	}
 
-	function confirmMenteeEdit() {
-		updateData(id);
-		toggleMenteeEdit();
+	async function confirmMenteeEdit() {
+		if (await updateData(id)) {
+			isMenteeEditing = false;
+		}
 	}
 
+	// Empties both lists in their editors; 확인 saves the cell. The editors open so that the
+	// cleared lists show: left closed, they were saved unseen by the next 확인 of either list.
 	function resetUnit() {
+		if (!isJigiEditing && !isMenteeEditing) fetchUsers();
 		jigi_ids = [];
 		mentee_ids = [];
+		isJigiEditing = true;
+		isMenteeEditing = true;
 	}
 
 	async function updateData(id) {
+		// a row added with + and left at 선택 is '': skip it, or the backend refuses the whole edit
 		const formData = {
 			day: day,
 			time: time,
 			timetable: timetable_id,
-			users: jigi_ids.map(Number),
-			mentees: mentee_ids.map(Number)
+			users: jigi_ids.filter(Boolean).map(Number),
+			mentees: mentee_ids.filter(Boolean).map(Number)
 		};
-		const response = await fetch(`/api/timetableunit/${id}`, {
-			method: 'PUT',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify(formData)
-		});
-		if (!response.ok) {
-			console.error('Failed to update timetableunit');
+		try {
+			const response = await fetch(`/api/timetableunit/${id}`, {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(formData)
+			});
+			if (!response.ok) {
+				throw new Error(`Failed to update timetableunit: ${response.status}`);
+			}
+			// the answer is the saved cell, with its 지기/견습 names
+			showUnit(await response.json());
+			return true;
+		} catch (error) {
+			// stay in edit mode with the chosen rows, so the edit can be retried
+			console.error('Failed to update timetableunit', error);
+			alert('시간표 정보 수정에 실패했습니다.');
+			return false;
 		}
-		fetchUnitData(id);
 	}
 
 	onMount(() => {
@@ -135,21 +161,20 @@
 					<div class="col_stack">
 						{#each jigi_ids as jid, i}
 							<div class="row_stack">
-								<select bind:value={jigi_ids[i]}>
+								<select bind:value={jid} aria-label={`지기 ${i + 1}`}>
 									<option value="" disabled>선택</option>
 									{#each $users as user}
 										<option value={String(user.id)}>{user.name} {user.major} {user.year_id}</option>
 									{/each}
 								</select>
-								{#if i > 0}
-									<button class="iconbtn" type="button" on:click={() => removeJigiRow(i)}
-										><img src={minusicon} alt="-" /></button
-									>
-								{/if}
+								<!-- Also the first row, in both lists: a 시간표 칸 may have no 지기 or 견습 -->
+								<button class="iconbtn" type="button" on:click={() => removeJigiRow(i)}
+									><img src={minusicon} alt={`지기 ${i + 1} 삭제`} /></button
+								>
 							</div>
 						{/each}
 						<button class="iconbtn" type="button" on:click={addJigiRow}
-							><img src={plusicon} alt="+" /></button
+							><img src={plusicon} alt="지기 추가" /></button
 						>
 					</div>
 				{:else}
@@ -157,15 +182,10 @@
 				{/if}
 			</div>
 			<div class="col_stack">
-				{#if !isJigiEditing}
-					<button class="button" on:click={toggleJigiEdit}>
-						<div class="button_label">수정</div>
-					</button>
-				{:else}
-					<button class="button" on:click={confirmJigiEdit}>
-						<div class="button_label">확인</div>
-					</button>
-				{/if}
+				<!-- One button for 수정 and 확인, in both lists: swapping two buttons dropped the keyboard focus -->
+				<button class="button" on:click={isJigiEditing ? confirmJigiEdit : toggleJigiEdit}>
+					<div class="button_label">{isJigiEditing ? '확인' : '수정'}</div>
+				</button>
 			</div>
 		</div>
 		<div class="row_stack">
@@ -177,21 +197,19 @@
 					<div class="col_stack">
 						{#each mentee_ids as mid, i}
 							<div class="row_stack">
-								<select bind:value={mentee_ids[i]}>
+								<select bind:value={mid} aria-label={`견습 ${i + 1}`}>
 									<option value="" disabled>선택</option>
 									{#each $users as user}
 										<option value={String(user.id)}>{user.name} {user.major} {user.year_id}</option>
 									{/each}
 								</select>
-								{#if i > 0}
-									<button class="iconbtn" type="button" on:click={() => removeMenteeRow(i)}
-										><img src={minusicon} alt="-" /></button
-									>
-								{/if}
+								<button class="iconbtn" type="button" on:click={() => removeMenteeRow(i)}
+									><img src={minusicon} alt={`견습 ${i + 1} 삭제`} /></button
+								>
 							</div>
 						{/each}
 						<button class="iconbtn" type="button" on:click={addMenteeRow}
-							><img src={plusicon} alt="+" /></button
+							><img src={plusicon} alt="견습 추가" /></button
 						>
 					</div>
 				{:else}
@@ -199,15 +217,9 @@
 				{/if}
 			</div>
 			<div class="col_stack">
-				{#if !isMenteeEditing}
-					<button class="button" on:click={toggleMenteeEdit}>
-						<div class="button_label">수정</div>
-					</button>
-				{:else}
-					<button class="button" on:click={confirmMenteeEdit}>
-						<div class="button_label">확인</div>
-					</button>
-				{/if}
+				<button class="button" on:click={isMenteeEditing ? confirmMenteeEdit : toggleMenteeEdit}>
+					<div class="button_label">{isMenteeEditing ? '확인' : '수정'}</div>
+				</button>
 			</div>
 		</div>
 	</div>

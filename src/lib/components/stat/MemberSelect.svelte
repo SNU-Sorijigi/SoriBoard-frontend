@@ -10,9 +10,11 @@
 	onMount(async () => {
 		try {
 			const res = await fetch('/api/user/');
-			if (res.ok) users = await res.json();
+			if (!res.ok) throw new Error(`Failed to fetch users: ${res.status}`);
+			users = await res.json();
 		} catch (e) {
 			console.error('지기 목록을 불러오지 못했습니다.', e);
+			alert('지기 목록을 불러오지 못했습니다.');
 		}
 	});
 
@@ -27,10 +29,10 @@
 </script>
 
 <div class="member-select">
-	<select on:change={onUserChange} value={userId ?? ''}>
+	<select on:change={onUserChange} value={userId ?? ''} aria-label="지기">
 		<option value="">지기 선택</option>
 		{#each users as user}
-			<option value={user.id}>{user.name} {user.major} {user.year_id}</option>
+			<option value={String(user.id)}>{user.name} {user.major} {user.year_id}</option>
 		{/each}
 	</select>
 	<label class="mentee">

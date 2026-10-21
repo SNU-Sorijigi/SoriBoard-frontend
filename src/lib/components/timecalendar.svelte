@@ -23,9 +23,10 @@
 		}
 	}
 
+	// Read the clock again: a page left open past midnight would go to, and mark, the day it was
+	// opened. month and year follow currentDate.
 	function goToday() {
-		month = currentDate.getMonth();
-		year = currentDate.getFullYear();
+		currentDate = new Date();
 	}
 
 	function formatMonthDisplay(month, year) {
@@ -49,6 +50,15 @@
 		}
 		return list;
 	}
+	// A month whose weeks fail to load says so once, not once per week
+	let loadErrorShown = false;
+	$: year, month, (loadErrorShown = false);
+	function reportLoadError() {
+		if (loadErrorShown) return;
+		loadErrorShown = true;
+		alert('타임 정보를 불러오지 못했습니다.');
+	}
+
 	$: weeksInMonth = calculateWeeksInMonth(year, month);
 	$: weekList = createWeekList(weeksInMonth);
 </script>
@@ -58,10 +68,10 @@
 		<div class="month">{formatMonthDisplay(month, year)}</div>
 		<div class="buttons">
 			<button class="button" on:click={goToday}>&nbsp&nbsp오늘&nbsp&nbsp</button>
-			<button class="button" on:click={prevMonth}
+			<button class="button" aria-label="이전 달" on:click={prevMonth}
 				>&nbsp&nbsp&nbsp&nbsp{'<'}&nbsp&nbsp&nbsp&nbsp</button
 			>
-			<button class="button" on:click={nextMonth}
+			<button class="button" aria-label="다음 달" on:click={nextMonth}
 				>&nbsp&nbsp&nbsp&nbsp{'>'}&nbsp&nbsp&nbsp&nbsp</button
 			>
 		</div>
@@ -78,7 +88,14 @@
 		</div>
 		<div class="month-block">
 			{#each weekList as index (year.toString() + '-' + month.toString() + '-' + index)}
-				<WeekBlock week={index} {month} {year} on:createTime></WeekBlock>
+				<WeekBlock
+					week={index}
+					{month}
+					{year}
+					today={currentDate}
+					on:createTime
+					on:loadError={reportLoadError}
+				></WeekBlock>
 			{/each}
 		</div>
 	</div>
