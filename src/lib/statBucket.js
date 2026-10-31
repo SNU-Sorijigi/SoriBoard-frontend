@@ -143,8 +143,28 @@ export function clipRange(range, filters) {
 }
 
 // timeline 응답 → 카드 데이터. 학기 버킷이면 라벨 '2025-1' 을 '2025-1학기' 로 보인다.
-/** @param {{ filters?: { bucket?: string }, labels: string[] }} envelope */
-export function timelineView(envelope) {
-	if (envelope.filters?.bucket !== 'semester') return envelope;
-	return { ...envelope, labels: envelope.labels.map((label) => `${label}학기`) };
+// today 를 주면 오늘이 든 버킷(아직 진행 중이라 일부만 센 것)에 ' (진행 중)' 을 붙인다:
+// '2026-2학기 (진행 중)'. 응답의 기간이 오늘 전에 끝났으면(지난 직접 지정) 진행 중인 버킷은 없다.
+/**
+ * @param {{ filters?: { bucket?: string, end?: string | null }, labels: string[] }} envelope
+ * @param {string} [today] YYYY-MM-DD
+ */
+export function timelineView(envelope, today = '') {
+	const bucket = envelope.filters?.bucket ?? '';
+	const end = envelope.filters?.end;
+	const live = Boolean(today) && !(end && end < today);
+	/** @param {string} label */
+	const running = (label) => {
+		const range = live ? bucketRange(bucket, label) : null;
+		return Boolean(range && range.start <= today && today <= range.end);
+	};
+	if (bucket !== 'semester' && !envelope.labels.some(running)) return envelope;
+	/** @param {string} label */
+	const name = (label) => (bucket === 'semester' ? `${label}학기` : label);
+	return {
+		...envelope,
+		labels: envelope.labels.map((label) =>
+			running(label) ? `${name(label)} (진행 중)` : name(label)
+		)
+	};
 }

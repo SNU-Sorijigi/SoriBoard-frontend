@@ -374,7 +374,7 @@
 	// 제목과 표의 머리글은 응답이 적용한 bucket 을 따른다(늦은 응답이 다른 이름으로 보이지 않게).
 	$: shownBucket = timeline?.filters?.bucket ?? timelineBucket;
 	$: timelineTitle = `${timelineBucketName(shownBucket)} 선곡`;
-	$: timelineData = timeline && timelineView(timeline);
+	$: timelineData = timeline && timelineView(timeline, current.end);
 	$: timelineOpt =
 		timelineData && countBarOption(timelineData, timelineTitle, subtitleFor(timeline));
 	$: soloistOpt =

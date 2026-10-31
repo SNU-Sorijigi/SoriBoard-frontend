@@ -94,6 +94,60 @@ test('학기 labels read as 학기; week and month labels stay', () => {
 	assert.equal(timelineView(month), month);
 });
 
+test('the bucket that holds today reads (진행 중); ended ones and past ranges stay', () => {
+	const today = '2026-11-01';
+	const semester = {
+		filters: { bucket: 'semester' },
+		labels: ['2025-2', '2026-1', '2026-2'],
+		values: [6, 52, 21]
+	};
+	assert.deepEqual(timelineView(semester, today).labels, [
+		'2025-2학기',
+		'2026-1학기',
+		'2026-2학기 (진행 중)'
+	]);
+	assert.deepEqual(semester.labels, ['2025-2', '2026-1', '2026-2']);
+	// 2026-2학기 runs to 2027-02-28: a day in February is still in it.
+	assert.equal(timelineView(semester, '2027-02-28').labels.at(-1), '2026-2학기 (진행 중)');
+	assert.equal(timelineView(semester, '2027-03-01').labels.at(-1), '2026-2학기');
+
+	const month = {
+		filters: { bucket: 'month', start: '2026-09-01', end: today },
+		labels: ['2026-09', '2026-10', '2026-11'],
+		values: [10, 9, 2]
+	};
+	assert.deepEqual(timelineView(month, today).labels, ['2026-09', '2026-10', '2026-11 (진행 중)']);
+	assert.deepEqual(month.labels, ['2026-09', '2026-10', '2026-11']);
+	const week = {
+		filters: { bucket: 'week', start: '2026-09-01', end: '2027-02-28' },
+		labels: ['2026-10-19', '2026-10-26'],
+		values: [2, 5]
+	};
+	assert.deepEqual(timelineView(week, today).labels, ['2026-10-19', '2026-10-26 (진행 중)']);
+	// the Monday of a week is in it too
+	assert.deepEqual(timelineView(week, '2026-10-26').labels, ['2026-10-19', '2026-10-26 (진행 중)']);
+
+	// a 직접 지정 range that ended before today cuts its last bucket short, but nothing is running
+	const past = {
+		filters: { bucket: 'week', start: '2026-09-01', end: '2026-10-29' },
+		labels: ['2026-10-19', '2026-10-26'],
+		values: [2, 3]
+	};
+	assert.equal(timelineView(past, today), past);
+	const pastSemester = { ...semester, filters: { bucket: 'semester', end: '2026-10-15' } };
+	assert.deepEqual(timelineView(pastSemester, today).labels, [
+		'2025-2학기',
+		'2026-1학기',
+		'2026-2학기'
+	]);
+
+	// every bucket has ended, or no today given: as before
+	assert.equal(timelineView(month, '2026-12-01'), month);
+	assert.equal(timelineView(month), month);
+	assert.equal(timelineView(week, '2026-10-18'), week);
+	assert.deepEqual(timelineView(semester).labels, ['2025-2학기', '2026-1학기', '2026-2학기']);
+});
+
 const readBucket = (search) => readDiversityBucket(new URLSearchParams(search));
 
 test('the 주별/월별 toggle reads week from the URL, anything else as 월별', () => {

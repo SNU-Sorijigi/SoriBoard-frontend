@@ -532,7 +532,7 @@
 		orchestras && horizontalBarOption(orchestras, '많이 튼 오케스트라', subtitleFor(orchestras));
 	$: worksOpt = works && horizontalBarOption(works, '많이 튼 곡', subtitleFor(works));
 	$: timelineTitle = `${timelineBucketName(timelineBucket)} 선곡 추이`;
-	$: timelineData = timeline && timelineView(timeline);
+	$: timelineData = timeline && timelineView(timeline, endDate);
 	$: timelineOpt = timelineData && timelineOption(timelineData, timelineTitle, viewLabel);
 	$: eraOpt = eras && eraPieOption(eras, '시대별 분포', subtitleFor(eras));
 	$: eraNote = unknownEraNote(eras);
