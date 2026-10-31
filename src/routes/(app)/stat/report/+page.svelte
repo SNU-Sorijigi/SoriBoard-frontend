@@ -6,7 +6,7 @@
 	import ReportTable from '$lib/components/stat/ReportTable.svelte';
 	import { eraPieOption } from '$lib/chartOptions.js';
 	import { formatCount, groupEvenness } from '$lib/statTable.js';
-	import { sortSemesters, semesterLabel } from '$lib/statPeriod.js';
+	import { sortSemesters, semesterLabel, currentSemesterRange } from '$lib/statPeriod.js';
 	import { composerHref } from '$lib/composerStats.js';
 	import { historyHref, workHistoryHref, targetHistoryHref } from '$lib/playHistory.js';
 	import { DRILL_CARDS } from '$lib/statDrill.js';
@@ -25,6 +25,8 @@
 		loadWithPrevious,
 		firstsTable,
 		reportRangeText,
+		reportRange,
+		ongoingText,
 		kpiChangeText,
 		evennessChangeText
 	} from '$lib/semesterReport.js';
@@ -230,6 +232,10 @@
 	$: previousLabel = previous ? semesterLabel(previous) : '';
 	// 요약을 받기 전(또는 받지 못하면)에는 학기 목록의 연도·학기로 짐작한 날짜(semesterReport.js).
 	$: rangeText = reportRangeText(summary, semester);
+	// 오늘(브라우저의 날짜, 이번 학기와 같은 규칙)이 학기 안이면 아직 끝나지 않은 학기다: 머리말에
+	// '진행 중 · 오늘까지'를, KPI 아래에 지난 학기 수치는 학기 전체라는 문장을 둔다. 페이지를 열 때 한 번 정한다.
+	const today = currentSemesterRange().end;
+	$: ongoing = ongoingText(reportRange(summary, semester), today);
 	const total = (envelope) => (envelope ? `총 ${envelope.total_plays.toLocaleString()}곡` : '');
 	const count = (v) => (v == null ? '—' : formatCount(v));
 	$: empty = summary && summary.total_plays === 0;
@@ -424,6 +430,7 @@
 			{#if semester}
 				<span class="semester">{label}</span>
 				<span class="range">{rangeText}</span>
+				{#if ongoing}<span class="range">{ongoing}</span>{/if}
 			{/if}
 		</div>
 		<div class="controls">
@@ -511,6 +518,12 @@
 				<button class="tool-btn" on:click={retryPrevious} aria-label="지난 학기 수치 다시 시도">
 					다시 시도
 				</button>
+			</p>
+		{/if}
+		<!-- 진행 중인 학기는 지난 학기 전체와 견주므로 줄어든 것처럼 보인다: 그렇다고 쓴다(인쇄에도 남는다) -->
+		{#if ongoing && previousLabel && !empty}
+			<p class="kpi-note">
+				진행 중인 학기입니다. 지난 학기({previousLabel}) 수치는 학기 전체입니다.
 			</p>
 		{/if}
 
@@ -845,11 +858,15 @@
 		grid-template-columns: repeat(2, 1fr);
 		margin-bottom: 0;
 	}
-	.kpi-error {
+	.kpi-error,
+	.kpi-note {
 		margin: -8px 0 16px;
 		text-align: center;
 		font-family: var(--small-medium-font-family, 'Noto Sans KR', sans-serif);
 		font-size: var(--small-medium-font-size, 13px);
+	}
+	.kpi-note {
+		color: var(--gray-gray-600, #7c7c7c);
 	}
 	.grid {
 		display: grid;
