@@ -43,15 +43,35 @@ export function previousSemester(semester, sorted) {
 }
 
 // 머리말의 날짜 범위: 요약(stats/summary)이 돌려준 적용 기간. 그 전(또는 요약을 받지 못하면)에는
-// 학기의 연도·학기로 짐작한 날짜를 보인다(백엔드의 semester_id 와 같은 규칙, statBucket.js).
+// 학기의 연도·학기로 짐작한 날짜다(백엔드의 semester_id 와 같은 규칙, statBucket.js). 없으면 null.
+/**
+ * @param {{ filters?: { start?: string, end?: string } } | null | undefined} summary
+ * @param {{ year: number, semester_num: number } | null} semester
+ * @returns {{ start?: string, end?: string } | null}
+ */
+export function reportRange(summary, semester) {
+	if (summary?.filters) return summary.filters;
+	if (!semester) return null;
+	return bucketRange('semester', `${semester.year}-${semester.semester_num}`);
+}
+
 /**
  * @param {{ filters?: { start?: string, end?: string } } | null | undefined} summary
  * @param {{ year: number, semester_num: number } | null} semester
  */
 export function reportRangeText(summary, semester) {
-	if (summary?.filters) return periodRangeText(summary.filters);
-	if (!semester) return '';
-	return periodRangeText(bucketRange('semester', `${semester.year}-${semester.semester_num}`));
+	return periodRangeText(reportRange(summary, semester));
+}
+
+// 아직 끝나지 않은 학기(시작일 ≤ 오늘 ≤ 끝날)면 머리말에 '진행 중 · 2026-11-01까지'. 날짜는 모두
+// YYYY-MM-DD 라 문자열 비교가 날짜 비교다. 끝난 학기, 시작 전인 학기, 범위가 없으면 ''.
+/**
+ * @param {{ start?: string, end?: string } | null | undefined} range
+ * @param {string} today YYYY-MM-DD
+ */
+export function ongoingText(range, today) {
+	if (!range?.start || !range.end || !today) return '';
+	return range.start <= today && today <= range.end ? `진행 중 · ${today}까지` : '';
 }
 
 // 시대·장르처럼 지난 학기와 견주는 카드의 응답 한 쌍. 두 요청은 함께 보낸다.

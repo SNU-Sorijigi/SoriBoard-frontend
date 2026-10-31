@@ -14,7 +14,9 @@ import {
 	firstIdSet,
 	loadWithPrevious,
 	firstsTable,
-	reportRangeText
+	reportRangeText,
+	reportRange,
+	ongoingText
 } from '../../src/lib/semesterReport.js';
 import { rankTable } from '../../src/lib/statTable.js';
 
@@ -450,4 +452,38 @@ test('reportRangeText shows the echoed range, else the 학기 dates from the lis
 	// No 학기 yet, or one the rule does not know: no dates.
 	assert.equal(reportRangeText(null, null), '');
 	assert.equal(reportRangeText(null, { id: 7, year: 2026, semester_num: 3 }), '');
+});
+
+test('reportRange returns the echoed filters, else the guessed 학기 dates', () => {
+	const spring = { id: 4, year: 2026, semester_num: 1 };
+	const filters = { semester_id: '4', start: '2026-03-01', end: '2026-08-31' };
+	assert.equal(reportRange({ filters }, spring), filters);
+	assert.deepEqual(reportRange({ filters: { start: '2026-03-02', end: '2026-08-30' } }, spring), {
+		start: '2026-03-02',
+		end: '2026-08-30'
+	});
+	assert.deepEqual(reportRange(null, { id: 3, year: 2026, semester_num: 2 }), {
+		start: '2026-09-01',
+		end: '2027-02-28'
+	});
+	assert.deepEqual(reportRange(undefined, spring), { start: '2026-03-01', end: '2026-08-31' });
+	assert.equal(reportRange(null, null), null);
+	assert.equal(reportRange(null, { id: 7, year: 2026, semester_num: 3 }), null);
+});
+
+test('ongoingText says 진행 중 only from the first to the last day of the range', () => {
+	const autumn = { start: '2026-09-01', end: '2027-02-28' };
+	assert.equal(ongoingText(autumn, '2026-11-01'), '진행 중 · 2026-11-01까지');
+	assert.equal(ongoingText(autumn, '2026-09-01'), '진행 중 · 2026-09-01까지');
+	assert.equal(ongoingText(autumn, '2027-02-28'), '진행 중 · 2027-02-28까지');
+	// Not started yet, or over.
+	assert.equal(ongoingText(autumn, '2026-08-31'), '');
+	assert.equal(ongoingText(autumn, '2027-03-01'), '');
+	assert.equal(ongoingText({ start: '2026-03-01', end: '2026-08-31' }, '2026-11-01'), '');
+	// No range, or a range without an end or a start.
+	assert.equal(ongoingText(null, '2026-11-01'), '');
+	assert.equal(ongoingText(undefined, '2026-11-01'), '');
+	assert.equal(ongoingText({ start: '2026-09-01' }, '2026-11-01'), '');
+	assert.equal(ongoingText({ end: '2027-02-28' }, '2026-11-01'), '');
+	assert.equal(ongoingText({ start: '2026-09-01', end: '' }, '2026-11-01'), '');
 });
