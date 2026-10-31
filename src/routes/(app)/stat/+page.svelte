@@ -242,7 +242,7 @@
 	// 앞 학기의 요약은 같은 범위·지기·견습 포함으로 요약과 함께 부르고, 실패하면 줄만 없다.
 	// 앞 학기의 요청이 하나라도 실패하면 KPI 칸 아래에 그 학기를 밝히고, 실패한 요청만 다시 부르게 한다.
 	// 시대·장르의 표도 앞 학기의 비율과 견준다(학기 결산의 mixTable). 실패하면 그 표만 지금과 같다.
-	// 선곡 다양성의 칸도 앞 학기의 다양성 응답과 견준다(버킷과 무관하므로 백엔드 기본 버킷으로 부른다).
+	// 선곡 다양성의 칸도 앞 학기의 다양성 응답과 견준다(summary 는 버킷과 무관하므로 월별로 부른다).
 	// 많이 튼 표에는 앞 학기 같은 길이의 목록에서의 순위를 붙인다(학기 결산의 rankChangeTable).
 	// 처음 튼 작곡가·곡의 부제에는 앞 학기에 처음 튼 수를 붙인다(같은 firsts 를 kind 별로 부른다).
 	let previousSummary = null;
@@ -262,12 +262,17 @@
 		const chosen = list.find((s) => String(s.id) === p);
 		return chosen ? previousSemester(chosen, list) : null;
 	};
-	// 장르 카드는 다양성 응답에서 그리지만, 앞 학기는 같은 분류를 세는 stats/genres 로 가볍게 부른다.
+	// 앞 학기의 장르도 지금 학기의 카드처럼 다양성 응답에서 꺼낸다(요청 하나, stats/genres 와 같은 수). 월별 버킷이면 쓰지 않는 timeline 이 작다.
 	const previousRequests = {
 		summary: { apply: (result) => (previousSummary = result) },
 		eras: { apply: (result) => (previousEras = result) },
-		genres: { apply: (result) => (previousGenres = result) },
-		diversity: { apply: (result) => (previousTiles = diversityTiles(result)) },
+		diversity: {
+			extra: { bucket: 'month' },
+			apply: (result) => {
+				previousTiles = diversityTiles(result);
+				previousGenres = genreDistribution(result);
+			}
+		},
 		firstComposers: {
 			endpoint: 'firsts',
 			extra: { kind: 'composer' },
