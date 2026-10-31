@@ -28,7 +28,8 @@
 		reportRange,
 		ongoingText,
 		kpiChangeText,
-		evennessChangeText
+		evennessChangeText,
+		genrePair
 	} from '$lib/semesterReport.js';
 
 	// 한 학기의 결산(클럽 전체). 학기는 URL(semester_id)에 두고, 없으면 가장 최근 학기다.
@@ -65,6 +66,7 @@
 		return pair;
 	};
 	// 지난 학기와 견주는 카드의 요청: [엔드포인트, 덧붙일 인자].
+	// 장르별 분포는 따로 부르지 않고 다양성 응답의 summary.genre 로 그린다(통계처럼).
 	/** @type {Record<string, [string, Record<string, string>?]>} */
 	const compared = {
 		summary: ['summary'],
@@ -74,7 +76,6 @@
 		conductors: ['conductors', { limit: '10' }],
 		orchestras: ['orchestras', { limit: '10' }],
 		eras: ['eras'],
-		genres: ['genres'],
 		// 선곡 다양성은 summary 만 쓴다. 월별 버킷이면 쓰지 않는 timeline 이 작다.
 		diversity: ['diversity', { bucket: 'month' }],
 		firstComposers: ['firsts', { kind: 'composer' }],
@@ -91,7 +92,8 @@
 	let loading = Object.fromEntries(CARD_KEYS.map((key) => [key, true]));
 	/** @type {Record<string, string>} */
 	let errors = {};
-	$: ({ eras, genres } = data);
+	$: ({ eras } = data);
+	$: genres = genrePair(data.diversity);
 	// 처음 튼 작곡가·곡: 이 학기의 목록과, 부제에 개수만 쓰는 지난 학기의 목록.
 	$: firstComposers = data.firstComposers?.current;
 	$: firstWorks = data.firstWorks?.current;
@@ -347,16 +349,18 @@
 		};
 	};
 	// 학기 이름은 인자로 받는다: $: 는 함수 안에서 읽는 변수를 따라가지 않는다.
-	const mixCard = (key, title, pair, nameHeader, now, before) => ({
+	// source: 카드를 그리는 요청(불러오는 중·오류·다시 시도는 그 요청의 것). 장르는 다양성 응답으로 그린다.
+	const mixCard = (key, source, title, pair, nameHeader, now, before) => ({
 		key,
+		source,
 		title,
 		pair,
 		table: pair?.current.labels.length ? mixTable(pair.current, pair.previous, nameHeader) : null,
 		subtitle: mixSubtitle(pair, now, before)
 	});
 	$: mixCards = [
-		mixCard('eras', '시대별 분포', eras, '시대', label, previousLabel),
-		mixCard('genres', '장르별 분포', genres, '장르', label, previousLabel)
+		mixCard('eras', 'eras', '시대별 분포', eras, '시대', label, previousLabel),
+		mixCard('genres', 'diversity', '장르별 분포', genres, '장르', label, previousLabel)
 	];
 
 	// 선곡 다양성: 통계의 시대·장르 다양성 칸과 같은 정수 %와 지난 학기와 견준 줄(%p).
@@ -582,7 +586,7 @@
 						<button
 							class="tool-btn csv-btn"
 							on:click={() => saveCsv(card)}
-							disabled={!!(loading[card.key] || errors[card.key] || !card.table)}
+							disabled={!!(loading[card.source] || errors[card.source] || !card.table)}
 							title="표를 CSV로 저장"
 							aria-label={`${card.title} CSV 저장`}
 						>
@@ -590,14 +594,14 @@
 						</button>
 						<h2 id={`report-${card.key}`}>{card.title}</h2>
 						<p class="subtitle" id={`report-${card.key}-sub`}>{card.subtitle}</p>
-						{#if loading[card.key]}
+						{#if loading[card.source]}
 							<div class="placeholder">불러오는 중...</div>
-						{:else if errors[card.key]}
+						{:else if errors[card.source]}
 							<div class="placeholder error">
-								{card.title} — {errors[card.key]}
+								{card.title} — {errors[card.source]}
 								<button
 									class="tool-btn"
-									on:click={(e) => retry(card.key, e, e.currentTarget.closest('section'))}
+									on:click={(e) => retry(card.source, e, e.currentTarget.closest('section'))}
 									aria-label={`${card.title} 다시 시도`}
 								>
 									다시 시도

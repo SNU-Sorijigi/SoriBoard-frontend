@@ -16,9 +16,11 @@ import {
 	firstsTable,
 	reportRangeText,
 	reportRange,
-	ongoingText
+	ongoingText,
+	genrePair
 } from '../../src/lib/semesterReport.js';
 import { rankTable } from '../../src/lib/statTable.js';
+import { genreDistribution } from '../../src/lib/statCards.js';
 
 // sortSemesters 순서(최신 학기 먼저)
 const sorted = [
@@ -486,4 +488,68 @@ test('ongoingText says 진행 중 only from the first to the last day of the ran
 	assert.equal(ongoingText({ start: '2026-09-01' }, '2026-11-01'), '');
 	assert.equal(ongoingText({ end: '2027-02-28' }, '2026-11-01'), '');
 	assert.equal(ongoingText({ start: '2026-09-01', end: '' }, '2026-11-01'), '');
+});
+
+// 다양성 응답(stats/diversity?bucket=month)의 모양: summary.genre 와 응답의 total_plays.
+const diversityAnswer = (start, total, labels, values) => ({
+	filters: { start, end: '2026-12-31', bucket: 'month' },
+	total_plays: total,
+	timeline: [],
+	summary: {
+		era: { labels: ['낭만'], values: [total] },
+		genre: { labels, values },
+		unique_works: 3
+	}
+});
+const nowDiv = diversityAnswer('2026-09-01', 24, ['교향곡', '협주곡', '기타'], [3, 7, 14]);
+const beforeDiv = diversityAnswer('2026-03-01', 29, ['교향곡', '독주곡'], [4, 25]);
+
+test('genrePair turns both 다양성 answers into 장르 envelopes', () => {
+	const pair = genrePair({ current: nowDiv, previous: beforeDiv, previousError: null });
+	assert.deepEqual(pair, {
+		current: genreDistribution(nowDiv),
+		previous: genreDistribution(beforeDiv),
+		previousError: null
+	});
+	assert.deepEqual(pair.current.labels, ['교향곡', '협주곡', '기타']);
+	assert.deepEqual(pair.current.values, [3, 7, 14]);
+	assert.equal(pair.current.total_plays, 24);
+	assert.deepEqual(pair.previous.labels, ['교향곡', '독주곡']);
+	assert.equal(pair.previous.total_plays, 29);
+	assert.equal(
+		mixSubtitle(pair, '2026-2학기', '2026-1학기'),
+		'2026-2학기 총 24곡 · 지난 학기(2026-1학기) 총 29곡'
+	);
+});
+
+test('genrePair keeps a failed previous 학기 and its retry', () => {
+	const error = new Error('diversity 500');
+	const failed = genrePair({ current: nowDiv, previous: null, previousError: error });
+	assert.equal(failed.previous, null);
+	assert.equal(failed.previousError, error);
+	assert.equal(
+		mixSubtitle(failed, '2026-2학기', '2026-1학기'),
+		'2026-2학기 총 24곡 · 지난 학기(2026-1학기)를 불러오지 못했습니다'
+	);
+	const retrying = genrePair({
+		current: nowDiv,
+		previous: null,
+		previousError: error,
+		retryingPrevious: true
+	});
+	assert.equal(retrying.retryingPrevious, true);
+	assert.equal(retrying.previousError, error);
+	assert.equal(
+		mixSubtitle(retrying, '2026-2학기', '2026-1학기'),
+		'2026-2학기 총 24곡 · 지난 학기(2026-1학기)를 불러오지 못했습니다'
+	);
+});
+
+test('genrePair: no answer yet gives null, the oldest 학기 has no previous', () => {
+	assert.equal(genrePair(null), null);
+	assert.equal(genrePair(undefined), null);
+	assert.equal(mixSubtitle(genrePair(undefined), '2026-2학기', ''), '2026-2학기');
+	const oldest = genrePair({ current: nowDiv, previous: null, previousError: null });
+	assert.equal(oldest.previous, null);
+	assert.equal(mixSubtitle(oldest, '2025-2학기', ''), '2025-2학기 총 24곡 · 지난 학기 없음');
 });

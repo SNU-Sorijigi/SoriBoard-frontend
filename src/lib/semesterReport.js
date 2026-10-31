@@ -10,6 +10,7 @@ import {
 } from './statTable.js';
 import { periodRangeText } from './statPeriod.js';
 import { bucketRange } from './statBucket.js';
+import { genreDistribution } from './statCards.js';
 
 const ID = /^[1-9]\d*$/;
 
@@ -92,6 +93,18 @@ export async function loadWithPrevious(loadNow, loadBefore) {
 	return before.status === 'fulfilled'
 		? { current: now.value, previous: before.value, previousError: null }
 		: { current: now.value, previous: null, previousError: before.reason ?? 'failed' };
+}
+
+// 장르 카드의 짝: 다양성 응답의 짝(loadWithPrevious)에서 summary.genre 로 만든 장르 봉투(통계처럼,
+// stats/genres 와 같은 분류). previousError·retryingPrevious 는 그대로 둔다. 짝이 없으면 null.
+/** @param {{ current: any, previous: any, previousError?: unknown, retryingPrevious?: boolean } | null | undefined} pair */
+export function genrePair(pair) {
+	if (!pair) return null;
+	return {
+		...pair,
+		current: genreDistribution(pair.current),
+		previous: pair.previous ? genreDistribution(pair.previous) : null
+	};
 }
 
 /** @param {{ total_plays: number } | null | undefined} envelope */
