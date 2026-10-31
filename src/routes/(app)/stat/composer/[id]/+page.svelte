@@ -25,7 +25,8 @@
 		previousSemester,
 		kpiChangeText,
 		rankChangeTable,
-		mixTable
+		mixTable,
+		ongoingText
 	} from '$lib/semesterReport.js';
 	import { catalogHref } from '$lib/composerCatalog.js';
 	import {
@@ -337,6 +338,8 @@
 	$: title = composer ? composer.name : composerError ? `작곡가 #${composerId}` : '작곡가';
 	// 머리말 기간: 백엔드가 돌려준 범위. 아직 없으면 보낼 범위로 짐작한다(학기는 학기 목록의 연도·학기로).
 	$: semesterRange = semesterRangeOf(period, semesters);
+	// 고른 학기가 아직 진행 중이면 '진행 중 · 2026-11-01까지'(학기 결산과 같다). current.end 는 처음 연 날이다.
+	$: ongoing = ongoingText(semesterRange, current.end);
 	$: periodText = appliedFilters
 		? periodRangeText(appliedFilters)
 		: period === CURRENT
@@ -447,6 +450,7 @@
 			{/if}
 			{#if composerId && !notFound}
 				<span class="facts">{periodText}</span>
+				{#if ongoing}<span class="facts">{ongoing}</span>{/if}
 			{/if}
 			<a class="page-link" href={composerStatHref(filter)}>통계</a>
 			{#if composerId && !notFound}
@@ -576,6 +580,12 @@
 				<button class="tool-btn" on:click={retryWhole} aria-label="전체 기록 다시 시도">
 					다시 시도
 				</button>
+			</p>
+		{/if}
+		<!-- 진행 중인 학기를 학기 전체인 앞 학기와 견주면 모든 칸이 줄어 보이므로 그렇다고 적는다(학기 결산과 같은 말) -->
+		{#if ongoing && previousTarget}
+			<p class="kpi-note">
+				진행 중인 학기입니다. 지난 학기({semesterLabel(previousTarget)}) 수치는 학기 전체입니다.
 			</p>
 		{/if}
 
@@ -810,12 +820,16 @@
 	.kpi-change span {
 		white-space: nowrap;
 	}
-	.kpi-error {
+	.kpi-error,
+	.kpi-note {
 		margin: -8px 0 16px;
 		text-align: center;
 		font-family: var(--small-medium-font-family, 'Noto Sans KR', sans-serif);
 		font-size: var(--small-medium-font-size, 13px);
 		color: var(--secondary-secondary-800, #95560d);
+	}
+	.kpi-note {
+		color: var(--gray-gray-600, #7c7c7c);
 	}
 	/* 카드(ChartCard)의 단추와 같은 모양 */
 	.tool-btn {
