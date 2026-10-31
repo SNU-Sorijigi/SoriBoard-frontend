@@ -4,7 +4,7 @@
 // (user_id, include_mentees)로 두고, 기본값(전체 지기)은 남기지 않는다. 링크는 모두 그 기간·지기를 연다.
 import { CURRENT, ALL, CUSTOM, readStatPeriod, readStatRange } from './statPeriod.js';
 import { historyHref, bucketHistoryLinks, statHref } from './playHistory.js';
-import { DRILL_CARDS, previousWorkCount } from './statDrill.js';
+import { DRILL_CARDS, previousWorkValue } from './statDrill.js';
 import { competitionRanks, formatCount } from './statTable.js';
 import { periodTitle } from './statTitle.js';
 import { spansSemesters } from './statBucket.js';
@@ -263,15 +263,17 @@ export function composerWorkName(item, composer) {
 
 // 곡 표: 순위, 곡, 횟수, 처음 튼 날, 마지막으로 튼 날(날짜는 기간과 상관없이 그 곡의 전체 선곡 기준).
 // 앞 학기의 목록(previous)을 주면 마지막에 지난 학기 칸을 둔다. 없으면(null) 칸을 두지 않는다.
+// 이 학기(works.filters.start)에 클럽이 처음 튼 곡은 그 칸이 '첫 선곡'(statDrill.js 의 previousWorkValue).
 /**
- * @param {{ items: { id: number, name: string, count: number, composer_id?: number | null,
- *   first_played?: string | null, last_played?: string | null }[] }} works
+ * @param {{ filters?: { start?: string }, items: { id: number, name: string, count: number,
+ *   composer_id?: number | null, first_played?: string | null, last_played?: string | null }[] }} works
  * @param {{ id: number, name: string } | null} composer
  * @param {{ items: { id: number, count: number }[] } | null} [previous]
  * @returns {import('./statTable.js').Table}
  */
 export function composerWorksTable(works, composer, previous = null) {
 	const ranks = competitionRanks(works.items.map((item) => item.count));
+	const start = works.filters?.start;
 	const columns = [
 		{ name: '순위', numeric: true },
 		{ name: '곡' },
@@ -290,22 +292,26 @@ export function composerWorksTable(works, composer, previous = null) {
 				item.first_played ?? '—',
 				item.last_played ?? '—'
 			];
-			return previous ? [...row, formatCount(previousWorkCount(previous, item.id))] : row;
+			if (!previous) return row;
+			const value = previousWorkValue(previous, item, start);
+			return [...row, typeof value === 'string' ? value : formatCount(value)];
 		})
 	};
 }
 
 // 곡 표의 CSV(csvTable.js): 곡, 횟수, 처음, 마지막. 순위는 빼고(차트 카드의 CSV 처럼) 횟수는 숫자 그대로,
-// 날짜는 YYYY-MM-DD, 없으면 빈칸. previous 를 주면 지난 학기(숫자, 알 수 없으면 빈칸)도 둔다(표와 같다).
+// 날짜는 YYYY-MM-DD, 없으면 빈칸. previous 를 주면 지난 학기(숫자, 알 수 없으면 빈칸, 이 학기에 처음
+// 튼 곡은 '첫 선곡')도 둔다(표와 같다).
 /**
- * @param {{ items: { id: number, name: string, count: number, composer_id?: number | null,
- *   first_played?: string | null, last_played?: string | null }[] }} works
+ * @param {{ filters?: { start?: string }, items: { id: number, name: string, count: number,
+ *   composer_id?: number | null, first_played?: string | null, last_played?: string | null }[] }} works
  * @param {{ id: number, name: string } | null} composer
  * @param {{ items: { id: number, count: number }[] } | null} [previous]
  * @returns {{ headers: string[], rows: unknown[][] }}
  */
 export function composerWorksCsv(works, composer, previous = null) {
 	const headers = ['곡', '횟수', '처음', '마지막'];
+	const start = works.filters?.start;
 	return {
 		headers: previous ? [...headers, '지난 학기'] : headers,
 		rows: works.items.map((item) => {
@@ -315,7 +321,7 @@ export function composerWorksCsv(works, composer, previous = null) {
 				item.first_played ?? '',
 				item.last_played ?? ''
 			];
-			return previous ? [...row, previousWorkCount(previous, item.id) ?? ''] : row;
+			return previous ? [...row, previousWorkValue(previous, item, start) ?? ''] : row;
 		})
 	};
 }

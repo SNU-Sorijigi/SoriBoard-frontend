@@ -8,6 +8,7 @@ import {
 	drillParams,
 	workLabel,
 	previousWorkCount,
+	previousWorkValue,
 	drillWorksTable,
 	readDrillQuery,
 	writeDrillQuery,
@@ -359,4 +360,70 @@ test('a linked id that is not among the items is not found', () => {
 	assert.equal(drillItemIndex(null, 7), -1);
 	assert.equal(drillItemIndex({}, 7), -1);
 	assert.equal(drillTarget('composers', composers, drillItemIndex(composers, 8)), null);
+});
+
+test('previousWorkValue: 첫 선곡 for a piece first played on or after the 학기 start, else the count', () => {
+	const previous = { items: [{ id: 7, count: 6 }] };
+	const start = '2026-03-01';
+	// 학기 첫날도 이 학기다.
+	assert.equal(
+		previousWorkValue(previous, { id: 1, first_played: '2026-03-01' }, start),
+		'첫 선곡'
+	);
+	assert.equal(
+		previousWorkValue(previous, { id: 1, first_played: '2026-05-02' }, start),
+		'첫 선곡'
+	);
+	assert.equal(previousWorkValue(previous, { id: 1, first_played: '2026-02-28' }, start), 0);
+	assert.equal(previousWorkValue(previous, { id: 7, first_played: '2025-09-02' }, start), 6);
+	// first_played 가 없으면(옛 백엔드) 표시하지 않는다.
+	assert.equal(previousWorkValue(previous, { id: 1, first_played: null }, start), 0);
+	assert.equal(previousWorkValue(previous, { id: 1 }, start), 0);
+	assert.equal(previousWorkValue(previous, { id: 1, first_played: '' }, start), 0);
+	// start 가 없으면 지금처럼 횟수.
+	for (const none of [undefined, null, ''])
+		assert.equal(previousWorkValue(previous, { id: 1, first_played: '2026-05-02' }, none), 0);
+	// 앞 학기 목록이 잘렸어도 이 학기에 처음 튼 곡은 앞 학기에 없었다: '—' 가 아니라 '첫 선곡'.
+	const cut = { items: Array.from({ length: WORKS_LIMIT }, (_, i) => ({ id: 100 + i, count: 1 })) };
+	assert.equal(previousWorkValue(cut, { id: 1, first_played: '2026-03-01' }, start), '첫 선곡');
+	assert.equal(previousWorkValue(cut, { id: 1, first_played: '2026-02-28' }, start), null);
+	assert.equal(previousWorkValue(cut, { id: 100, first_played: '2020-01-01' }, start), 1);
+});
+
+test('drillWorksTable: 지난 학기 says 첫 선곡 for pieces first played in this 학기, and the CSV keeps it', () => {
+	const target = drillTarget('composers', { items: [{ id: 7, name: '가' }] }, 0);
+	assert.ok(target);
+	const items = [
+		{ id: 1, name: '가 - 교향곡', count: 8, composer_id: 7, first_played: '2025-09-08' },
+		{ id: 2, name: '가 - 신곡', count: 4, composer_id: 7, first_played: '2026-05-02' },
+		{ id: 3, name: '가 - 서곡', count: 2, composer_id: 7, first_played: '2026-02-28' },
+		{ id: 4, name: '가 - 개막곡', count: 1, composer_id: 7, first_played: '2026-03-01' },
+		{ id: 5, name: '가 - 소품', count: 1, composer_id: 7, first_played: null },
+		{ id: 6, name: '가 - 소곡', count: 1, composer_id: 7 }
+	];
+	const works = { filters: { semester_id: '3', start: '2026-03-01' }, items };
+	const previous = { items: [{ id: 1, count: 6 }] };
+	const table = drillWorksTable(works, target, previous);
+	assert.deepEqual(
+		table.rows.map((row) => row.at(-1)),
+		['6', '첫 선곡', '0', '첫 선곡', '0', '0']
+	);
+	assert.deepEqual(
+		tableCsv(table).rows.map((row) => row.at(-1)),
+		['6', '첫 선곡', '0', '첫 선곡', '0', '0']
+	);
+	// 앞 학기 목록이 잘렸으면: 이 학기에 처음 튼 곡은 '첫 선곡', 나머지 없는 곡은 '—'.
+	const cut = { items: Array.from({ length: WORKS_LIMIT }, (_, i) => ({ id: 100 + i, count: 1 })) };
+	assert.deepEqual(
+		drillWorksTable(works, target, cut).rows.map((row) => row.at(-1)),
+		['—', '첫 선곡', '—', '첫 선곡', '—', '—']
+	);
+	// filters 나 start 가 없으면 지금처럼 횟수만.
+	for (const other of [{ items }, { filters: { scope: 'all' }, items }])
+		assert.deepEqual(
+			drillWorksTable(other, target, previous).rows.map((row) => row.at(-1)),
+			['6', '0', '0', '0', '0', '0']
+		);
+	// 앞 학기가 없으면 칸이 없다.
+	assert.equal(drillWorksTable(works, target).columns.length, 5);
 });

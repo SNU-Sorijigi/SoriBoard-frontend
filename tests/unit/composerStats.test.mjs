@@ -265,6 +265,63 @@ test('with the previous 학기, the works table and CSV add 지난 학기, match
 	assert.deepEqual(composerWorksCsv(works, composer).headers, ['곡', '횟수', '처음', '마지막']);
 });
 
+test('with a 학기 start, 지난 학기 says 첫 선곡 for works first played in it, in the table and CSV', () => {
+	const composer = { id: 1, name: 'C' };
+	const items = [
+		{ id: 1, name: 'C - 가', count: 8, composer_id: 1, first_played: '2025-09-08' },
+		{ id: 2, name: 'C - 나', count: 4, composer_id: 1, first_played: '2026-05-02' },
+		{ id: 3, name: 'C - 다', count: 2, composer_id: 1, first_played: '2026-02-28' },
+		{ id: 4, name: 'C - 라', count: 1, composer_id: 1, first_played: '2026-03-01' },
+		{ id: 5, name: 'C - 마', count: 1, composer_id: 1, first_played: null },
+		{ id: 6, name: 'C - 바', count: 1, composer_id: 1 }
+	];
+	const works = { filters: { semester_id: '3', start: '2026-03-01' }, items };
+	const previous = { total_plays: 6, items: [{ id: 1, name: 'C - 가', count: 6 }] };
+	assert.deepEqual(
+		composerWorksTable(works, composer, previous).rows.map((row) => row[5]),
+		['6', '첫 선곡', '0', '첫 선곡', '0', '0']
+	);
+	const csv = composerWorksCsv(works, composer, previous);
+	assert.deepEqual(
+		csv.rows.map((row) => row[4]),
+		[6, '첫 선곡', 0, '첫 선곡', 0, 0]
+	);
+	assert.equal(
+		toCsvTable(csv.headers, csv.rows),
+		'곡,횟수,처음,마지막,지난 학기\n가,8,2025-09-08,,6\n나,4,2026-05-02,,첫 선곡\n다,2,2026-02-28,,0\n' +
+			'라,1,2026-03-01,,첫 선곡\n마,1,,,0\n바,1,,,0'
+	);
+
+	// 앞 학기 목록이 잘렸으면: 이 학기에 처음 튼 곡은 '첫 선곡', 나머지 없는 곡은 표 '—', CSV 빈칸.
+	const cut = {
+		total_plays: 5000,
+		items: Array.from({ length: WORKS_LIMIT }, (_, i) => ({ id: 100 + i, count: 1 }))
+	};
+	assert.deepEqual(
+		composerWorksTable(works, composer, cut).rows.map((row) => row[5]),
+		['—', '첫 선곡', '—', '첫 선곡', '—', '—']
+	);
+	assert.deepEqual(
+		composerWorksCsv(works, composer, cut).rows.map((row) => row[4]),
+		['', '첫 선곡', '', '첫 선곡', '', '']
+	);
+
+	// filters 나 start 가 없으면 지금처럼 횟수만.
+	for (const other of [{ items }, { filters: { scope: 'all' }, items }]) {
+		assert.deepEqual(
+			composerWorksTable(other, composer, previous).rows.map((row) => row[5]),
+			['6', '0', '0', '0', '0', '0']
+		);
+		assert.deepEqual(
+			composerWorksCsv(other, composer, previous).rows.map((row) => row[4]),
+			[6, 0, 0, 0, 0, 0]
+		);
+	}
+	// 앞 학기가 없으면 칸이 없다.
+	assert.equal(composerWorksTable(works, composer).columns.length, 5);
+	assert.deepEqual(composerWorksCsv(works, composer).headers, ['곡', '횟수', '처음', '마지막']);
+});
+
 test('composerSemesterLinks opens each 학기 of 학기별 선곡 with this composer', () => {
 	const timeline = { filters: { bucket: 'semester' }, labels: ['2025-1', '2025-2'] };
 	assert.deepEqual(composerSemesterLinks('4', timeline), [

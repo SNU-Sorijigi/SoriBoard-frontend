@@ -73,12 +73,29 @@ export function previousWorkCount(previous, id) {
 	return previous.items.length >= WORKS_LIMIT ? null : 0;
 }
 
+// 지난 학기 칸의 값. 클럽이 그 곡을 이 학기에 처음 틀었으면(전체 기록의 first_played 가 학기 첫날
+// start 이후, YYYY-MM-DD 라 문자열로 비교한다) 앞 학기에 튼 적이 없으므로 0 이나 '—' 대신 '첫 선곡'
+// (통계·학기 결산의 많이 튼 곡 표와 같다). start 나 first_played 가 없으면(옛 백엔드) previousWorkCount.
+/**
+ * @param {{ items: { id: number, count: number }[] }} previous
+ * @param {{ id: number, first_played?: string | null }} item
+ * @param {string | null | undefined} start
+ * @returns {number | null | '첫 선곡'}
+ */
+export function previousWorkValue(previous, item, start) {
+	const first = item.first_played;
+	if (typeof start === 'string' && start && typeof first === 'string' && first && first >= start)
+		return '첫 선곡';
+	return previousWorkCount(previous, item.id);
+}
+
 // 패널의 표: 순위, 곡, 횟수, 처음, 마지막(작곡가 페이지의 곡 표와 같다). 날짜는 기간·대상과 상관없이
 // 그 곡의 전체 선곡 기준(stats/works 의 first_played·last_played), 없으면 '—'.
-// 앞 학기의 같은 대상·범위의 목록(previous)을 주면 마지막에 지난 학기 칸을 둔다.
+// 앞 학기의 같은 대상·범위의 목록(previous)을 주면 마지막에 지난 학기 칸을 둔다(previousWorkValue:
+// 이 학기(works.filters.start)에 처음 튼 곡은 '첫 선곡').
 /**
- * @param {{ items: { id: number, name: string, count: number, composer_id?: number | null,
- *   first_played?: string | null, last_played?: string | null }[] }} works
+ * @param {{ filters?: { start?: string }, items: { id: number, name: string, count: number,
+ *   composer_id?: number | null, first_played?: string | null, last_played?: string | null }[] }} works
  * @param {DrillTarget} target
  * @param {{ items: { id: number, count: number }[] } | null} [previous]
  * @returns {import('./statTable.js').Table}
@@ -100,10 +117,14 @@ export function drillWorksTable(works, target, previous = null) {
 		items[i].last_played ?? '—'
 	]);
 	if (!previous) return { ...table, columns, rows };
+	const start = works.filters?.start;
 	return {
 		...table,
 		columns: [...columns, { name: '지난 학기', numeric: true }],
-		rows: rows.map((row, i) => [...row, formatCount(previousWorkCount(previous, items[i].id))])
+		rows: rows.map((row, i) => {
+			const value = previousWorkValue(previous, items[i], start);
+			return [...row, typeof value === 'string' ? value : formatCount(value)];
+		})
 	};
 }
 
