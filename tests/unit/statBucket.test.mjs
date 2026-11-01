@@ -11,7 +11,8 @@ import {
 	bucketRange,
 	clipRange,
 	semesterIdOf,
-	semesterRangeOf
+	semesterRangeOf,
+	semesterBefore
 } from '../../src/lib/statBucket.js';
 
 const TODAY = '2026-10-26';
@@ -273,4 +274,49 @@ test('semesterRangeOf answers null without the 학기 or for a period that is no
 	}
 	// 1·2학기가 아니면 짐작하지 않는다.
 	assert.equal(semesterRangeOf('7', semesters), null);
+});
+
+// /api/semester's list, newest first (as PeriodSelect sorts it).
+const LISTED = [
+	{ id: 7, year: 2026, semester_num: 2 },
+	{ id: 6, year: 2026, semester_num: 1 },
+	{ id: 5, year: 2025, semester_num: 2 },
+	{ id: 4, year: 2025, semester_num: 1 }
+];
+
+test('semesterBefore: the running 학기 listed gives the list’s next 학기', () => {
+	assert.equal(semesterBefore('2026-2', LISTED), LISTED[1]);
+	assert.equal(semesterBefore('2026-1', LISTED), LISTED[2]);
+});
+
+test('semesterBefore: a 학기 not yet listed gives the newest listed one older than it', () => {
+	assert.equal(semesterBefore('2027-1', LISTED), LISTED[0]);
+	assert.equal(semesterBefore('2026-2', LISTED.slice(1)), LISTED[1]);
+});
+
+test('semesterBefore: a gap in the list skips to the newest older 학기', () => {
+	const gap = [LISTED[0], LISTED[3]];
+	assert.equal(semesterBefore('2026-2', gap), LISTED[3]);
+});
+
+test('semesterBefore does not rely on the list order', () => {
+	const unsorted = [LISTED[3], LISTED[1], LISTED[0], LISTED[2]];
+	assert.equal(semesterBefore('2026-2', unsorted), LISTED[1]);
+	assert.equal(semesterBefore('2026-1', unsorted), LISTED[2]);
+});
+
+test('semesterBefore with a January date’s label compares with that 2학기’s 1학기', () => {
+	assert.equal(semesterOf('2027-01-15'), '2026-2');
+	assert.equal(semesterBefore(semesterOf('2027-01-15'), LISTED), LISTED[1]);
+});
+
+test('semesterBefore: no older 학기, no list or a bad label gives null', () => {
+	assert.equal(semesterBefore('2025-1', LISTED), null);
+	assert.equal(semesterBefore('2025-2', [LISTED[0], LISTED[2]]), null);
+	assert.equal(semesterBefore('2026-2', []), null);
+	assert.equal(semesterBefore('2026-2', null), null);
+	assert.equal(semesterBefore('2026-2', undefined), null);
+	assert.equal(semesterBefore('2026-3', LISTED), null);
+	assert.equal(semesterBefore('2026-09-01', LISTED), null);
+	assert.equal(semesterBefore('', LISTED), null);
 });

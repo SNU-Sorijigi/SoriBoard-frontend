@@ -117,6 +117,29 @@ export function semesterIdOf(label, semesters) {
 	return found ? String(found.id) : null;
 }
 
+// 학기 라벨('2026-2')보다 앞선 학기 중 가장 최근 것(학기 목록의 항목). 목록의 순서에 기대지 않는다.
+// 이번 학기가 목록에 있으면 목록의 그다음 학기와 같고, 아직 없어도(9월 초) 앞 학기를 찾는다.
+// 라벨이 학기 형식이 아니거나 목록이 없거나(못 받았으면) 앞선 학기가 없으면 null.
+/**
+ * @template {{ id: number, year: number, semester_num: number }} S
+ * @param {string} label
+ * @param {S[] | null | undefined} semesters
+ * @returns {S | null}
+ */
+export function semesterBefore(label, semesters) {
+	const m = SEMESTER.exec(label);
+	if (!m || !Array.isArray(semesters)) return null;
+	/** @param {{ year: number, semester_num: number }} s */
+	const order = (s) => s.year * 10 + s.semester_num;
+	const limit = Number(m[1]) * 10 + Number(m[2]);
+	/** @type {S | null} */
+	let found = null;
+	for (const s of semesters) {
+		if (order(s) < limit && (!found || order(s) > order(found))) found = s;
+	}
+	return found;
+}
+
 // 학기 id(기간 값) → 학기 목록에서 찾은 그 학기의 날짜 범위(백엔드의 semester_id 와 같은 규칙).
 // 목록에 없거나(목록을 못 받았으면) 학기가 아닌 기간이면 null.
 /**
