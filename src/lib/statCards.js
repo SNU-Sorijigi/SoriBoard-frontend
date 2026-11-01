@@ -39,6 +39,20 @@ export function retryKeys(card, errors, derived = DERIVED_CARDS) {
 	return cards.filter((key) => errors[key]);
 }
 
+// 카드의 '다시 시도'와 함께 다시 부를 앞 학기 요청: keys 를 그리는 요청 가운데 실패한 것(처음 나온 순서, 한 번씩).
+// 앞 학기의 요청 이름은 requestGroups 의 요청 이름과 같다(diversity, eras, composers, …, firstWorks).
+/**
+ * @param {string[]} keys
+ * @param {string[]} failed
+ * @param {Record<string, string>} [derived]
+ * @returns {string[]}
+ */
+export function previousRetryRequests(keys, failed, derived = DERIVED_CARDS) {
+	return requestGroups(keys, derived)
+		.map(([request]) => request)
+		.filter((request) => failed.includes(request));
+}
+
 // 다양성 응답 → 장르별 분포 카드의 봉투({ filters, total_plays, labels, values }).
 // summary 는 주별/월별 버킷과 무관하다. summary.genre 에는 총계가 없어 응답의 total_plays 를 쓴다.
 /** @param {any} diversity */

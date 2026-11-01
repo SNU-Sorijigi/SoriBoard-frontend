@@ -5,7 +5,8 @@ import {
 	genreDistribution,
 	diversityTiles,
 	DERIVED_CARDS,
-	retryKeys
+	retryKeys,
+	previousRetryRequests
 } from '../../src/lib/statCards.js';
 
 test('the genre card is drawn from the diversity answer', () => {
@@ -136,4 +137,30 @@ test('retryKeys never includes a card without an error', () => {
 	assert.deepEqual(retryKeys('diversity', errors), ['genres']);
 	assert.deepEqual(retryKeys('eras', errors), []);
 	assert.deepEqual(retryKeys('summary', {}), []);
+});
+
+test('previousRetryRequests: the tiles retry re-asks the failed previous diversity only', () => {
+	assert.deepEqual(previousRetryRequests(['diversityTiles'], ['summary', 'diversity', 'eras']), [
+		'diversity'
+	]);
+});
+
+test('previousRetryRequests: the cards of one request re-ask it once', () => {
+	assert.deepEqual(
+		previousRetryRequests(['diversity', 'genres', 'diversityTiles'], ['diversity']),
+		['diversity']
+	);
+});
+
+test("previousRetryRequests: a card never re-asks another card's previous request", () => {
+	assert.deepEqual(previousRetryRequests(['eras'], ['diversity']), []);
+	assert.deepEqual(previousRetryRequests(['works'], ['works', 'firstWorks']), ['works']);
+	assert.deepEqual(previousRetryRequests(['firstComposers'], ['firstComposers', 'firstWorks']), [
+		'firstComposers'
+	]);
+});
+
+test('previousRetryRequests: nothing failed, nothing re-asked', () => {
+	assert.deepEqual(previousRetryRequests(['diversity', 'genres', 'eras'], []), []);
+	assert.deepEqual(previousRetryRequests([], ['diversity']), []);
 });

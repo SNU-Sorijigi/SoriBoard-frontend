@@ -17,7 +17,13 @@
 	} from '$lib/chartOptions.js';
 	import { readStatQuery, statQueryHref } from '$lib/statQuery.js';
 	import { createLatestRequests } from '$lib/latestRequest.js';
-	import { requestGroups, retryKeys, genreDistribution, diversityTiles } from '$lib/statCards.js';
+	import {
+		requestGroups,
+		retryKeys,
+		previousRetryRequests,
+		genreDistribution,
+		diversityTiles
+	} from '$lib/statCards.js';
 	import {
 		chooseTimelineBucket,
 		timelineBucketName,
@@ -228,7 +234,17 @@
 	}
 	// '다시 시도': 그 카드의 요청이 그리는 카드 가운데 실패한 것만 한 번에 다시 부른다(statCards.js).
 	// loadAll 과 달리 drill-down 패널과 기간별 선곡 추이의 단위는 그대로 둔다.
-	const retry = (key) => load(retryKeys(key, errors));
+	// 그 카드의 앞 학기 요청도 실패했으면 retryPrevious 처럼 같은 토큰으로 함께 다시 부른다
+	// (요약을 다시 부르면 load 가 앞 학기를 모두 다시 부른다).
+	function retry(key) {
+		const keys = retryKeys(key, errors);
+		if (!keys.includes('summary')) {
+			const again = previousRetryRequests(keys, previousFailed);
+			previousFailed = previousFailed.filter((name) => !again.includes(name));
+			again.forEach(askPrevious);
+		}
+		return load(keys);
+	}
 	// KPI 줄의 '다시 시도'는 누르면 줄째 사라지므로, 포커스를 다시 불러오는 칸들로 옮긴다.
 	function retryRow(key, row) {
 		row?.focus();
