@@ -24,7 +24,9 @@
 		timelineView,
 		readDiversityBucket,
 		writeDiversityBucket,
-		semesterRangeOf
+		semesterRangeOf,
+		semesterOf,
+		semesterBefore
 	} from '$lib/statBucket.js';
 	import {
 		shareTable,
@@ -260,7 +262,9 @@
 	let previousToken = 0; // 이전 보기의 늦은 응답은 버린다.
 	/** @type {string[]} 실패한 앞 학기 요청(엔드포인트). KPI 칸 아래에 다시 시도와 함께 알린다. */
 	let previousFailed = [];
+	// 이번 학기는 id 가 아닌 날짜 범위라, 그 시작일의 학기보다 앞선 가장 최근 학기와 견준다(statBucket.js).
 	const previousOf = (p, list) => {
+		if (p === CURRENT) return semesterBefore(semesterOf(startDate), list);
 		const chosen = list.find((s) => String(s.id) === p);
 		return chosen ? previousSemester(chosen, list) : null;
 	};
@@ -862,8 +866,9 @@
 				</button>
 			</p>
 		{/if}
-		<!-- 진행 중인 학기를 학기 전체인 앞 학기와 견주면 모든 칸이 줄어 보이므로 그렇다고 적는다(학기 결산과 같은 말) -->
-		{#if ongoing && previousTarget}
+		<!-- 진행 중인 학기를 학기 전체인 앞 학기와 견주면 모든 칸이 줄어 보이므로 그렇다고 적는다(학기 결산과 같은 말).
+		     이번 학기는 늘 오늘까지라 진행 중이다(머리말의 '진행 중' 칸은 학기를 고를 때만 보인다). -->
+		{#if (ongoing || period === CURRENT) && previousTarget}
 			<p class="kpi-note">
 				진행 중인 학기입니다. 지난 학기({semesterLabel(previousTarget)}) 수치는 학기 전체입니다.
 			</p>
