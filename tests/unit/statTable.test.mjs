@@ -11,6 +11,7 @@ import {
 	formatEvenness,
 	groupEvenness,
 	chartLabel,
+	tableRegionLabel,
 	placeholderText,
 	unknownEraNote
 } from '../../src/lib/statTable.js';
@@ -165,6 +166,16 @@ test('a chart is named by its title and subtitle and points to the table', () =>
 		"월별 선곡 수 차트. 수치는 '표로 보기'에서 볼 수 있습니다."
 	);
 	assert.equal(chartLabel('', ''), "차트. 수치는 '표로 보기'에서 볼 수 있습니다.");
+});
+
+test('a table area is named by its title and 표, apart from the card that has that title', () => {
+	assert.equal(tableRegionLabel('많이 튼 곡'), '많이 튼 곡 표');
+	assert.equal(tableRegionLabel(' 가상스키의 곡 '), '가상스키의 곡 표');
+	assert.equal(tableRegionLabel(''), '표');
+	assert.equal(tableRegionLabel('  '), '표');
+	for (const t of ['많이 튼 곡', ' 가상스키의 곡 ', '시대별 분포', '', '  ']) {
+		assert.notEqual(tableRegionLabel(t), t.trim());
+	}
 });
 
 test('a card without a chart names itself, except while it loads', () => {

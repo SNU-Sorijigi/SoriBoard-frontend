@@ -4,6 +4,7 @@
 
 <script>
 	import { createEventDispatcher } from 'svelte';
+	import { tableRegionLabel } from '$lib/statTable.js';
 
 	// 차트 카드의 '표로 보기': 차트와 같은 제목·부제와 수치를 표로 보인다(statTable.js 의 표).
 	/** @type {import('$lib/statTable.js').Table} */
@@ -28,9 +29,9 @@
 	{#if subtitle}
 		<div class="table-subtitle" id={subtitleId}>{subtitle}</div>
 	{/if}
-	<!-- 카드 높이 안에서 스크롤하므로, 키보드로도 스크롤할 수 있게 영역에 포커스를 준다. -->
+	<!-- 카드 높이 안에서 스크롤하므로 키보드로도 스크롤하게 포커스를 주고, 감싼 카드와 구별되게 '<제목> 표'라 부른다. -->
 	<!-- svelte-ignore a11y-no-noninteractive-tabindex -->
-	<div class="table-scroll" role="region" aria-labelledby={titleId} tabindex="0">
+	<div class="table-scroll" role="region" aria-label={tableRegionLabel(title)} tabindex="0">
 		<table aria-labelledby={titleId} aria-describedby={subtitle ? subtitleId : undefined}>
 			<thead>
 				<tr>

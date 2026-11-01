@@ -136,6 +136,12 @@ export function chartLabel(title, subtitle = '') {
 	return `${sub ? `${name} — ${sub}` : name}. 수치는 '표로 보기'에서 볼 수 있습니다.`;
 }
 
+// '표로 보기' 스크롤 영역의 이름(`<제목> 표`): 같은 제목을 단 카드·패널 영역과 이름이 겹치지 않게 한다.
+/** @param {string} title */
+export function tableRegionLabel(title) {
+	return `${title.trim()} 표`.trim();
+}
+
 // 차트를 그리지 못할 때 카드에 보일 문구. 차트 제목은 캔버스에만 그려지므로, 남아 있는 문구(실패,
 // 빈 데이터)에는 어느 카드인지 제목을 붙인다. 불러오는 중은 잠깐이라 그대로 둔다.
 /**
