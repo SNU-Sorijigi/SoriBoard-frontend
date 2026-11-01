@@ -574,7 +574,7 @@
 							class="kpi-link"
 							href={historyLink}
 							title="선곡 기록에서 보기"
-							aria-label="총 선곡 {count(summary.total_plays)}곡 선곡 기록에서 보기"
+							aria-label="총 선곡 {count(summary.total_plays)} 곡 선곡 기록에서 보기"
 							>{count(summary.total_plays)}</a
 						>
 					{:else}

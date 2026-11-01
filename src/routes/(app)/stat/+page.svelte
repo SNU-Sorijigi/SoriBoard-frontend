@@ -743,7 +743,7 @@
 							class="kpi-link"
 							href={historyLink}
 							title="선곡 기록에서 보기"
-							aria-label="총 선곡 {summary.total_plays.toLocaleString()}곡 선곡 기록에서 보기"
+							aria-label="총 선곡 {summary.total_plays.toLocaleString()} 곡 선곡 기록에서 보기"
 							>{summary.total_plays.toLocaleString()}</a
 						>
 					{:else}
@@ -779,7 +779,7 @@
 							class="kpi-link"
 							href={requestedLink}
 							title="선곡 기록에서 보기"
-							aria-label="신청곡 {summary.requested.toLocaleString()}곡 선곡 기록에서 보기"
+							aria-label="신청곡 {summary.requested.toLocaleString()} 곡 선곡 기록에서 보기"
 							>{summary.requested.toLocaleString()}</a
 						>
 					{:else}

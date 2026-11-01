@@ -511,7 +511,7 @@
 								class="kpi-link"
 								href={kpiLinks[key]}
 								title="선곡 기록에서 보기"
-								aria-label="{name} {count(summary[key])}곡 선곡 기록에서 보기"
+								aria-label="{name} {count(summary[key])} 곡 선곡 기록에서 보기"
 								>{count(summary[key])}</a
 							>
 						{:else}

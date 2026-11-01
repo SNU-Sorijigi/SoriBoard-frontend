@@ -305,7 +305,7 @@
 												class="count"
 												href={targetHistoryHref('composer_id', composer.id)}
 												title="선곡 기록에서 보기"
-												aria-label={`${composer.name} 선곡 ${composer.num_time_music.toLocaleString()}곡 선곡 기록에서 보기`}
+												aria-label={`${composer.name} 선곡 ${composer.num_time_music.toLocaleString()} 곡 선곡 기록에서 보기`}
 												>{composer.num_time_music.toLocaleString()}</a
 											>
 										{:else}
@@ -340,7 +340,7 @@
 												class="count"
 												href={targetHistoryHref('composer_id', composer.id)}
 												title="선곡 기록에서 보기"
-												aria-label={`${composer.name} 선곡 ${composer.num_time_music.toLocaleString()}곡 선곡 기록에서 보기`}
+												aria-label={`${composer.name} 선곡 ${composer.num_time_music.toLocaleString()} 곡 선곡 기록에서 보기`}
 												>{composer.num_time_music.toLocaleString()}</a
 											>
 										{:else}

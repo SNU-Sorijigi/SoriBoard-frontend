@@ -144,7 +144,7 @@
 										class="count"
 										href={links.count}
 										title="선곡 기록에서 보기"
-										aria-label={`${row.name} 선곡 ${row.count.toLocaleString()}곡 선곡 기록에서 보기`}
+										aria-label={`${row.name} 선곡 ${row.count.toLocaleString()} 곡 선곡 기록에서 보기`}
 										>{row.count.toLocaleString()}</a
 									>
 								{:else}
