@@ -10,6 +10,7 @@ import {
 	previousWorkCount,
 	previousWorkValue,
 	drillWorksTable,
+	drillSubtitle,
 	readDrillQuery,
 	writeDrillQuery,
 	drillItemIndex
@@ -426,4 +427,62 @@ test('drillWorksTable: 지난 학기 says 첫 선곡 for pieces first played in 
 		);
 	// 앞 학기가 없으면 칸이 없다.
 	assert.equal(drillWorksTable(works, target).columns.length, 5);
+});
+
+test('drillSubtitle: 대상 · 범위 · 총 N곡, with 지난 학기 N곡 right after it once the previous 학기 has loaded', () => {
+	const target = { noun: '작곡가' };
+	const scope = '2025-2학기 · 전체';
+	const works = (total, n) => ({
+		total_plays: total,
+		items: Array.from({ length: n }, (_, i) => ({ id: i + 1, count: 1 }))
+	});
+	const dates = ' · 처음·마지막은 전체 기록 기준';
+	// still loading: the target and the scope only, with or without the previous 학기
+	assert.equal(drillSubtitle(target, scope, null), '작곡가 · 2025-2학기 · 전체');
+	assert.equal(
+		drillSubtitle(target, scope, null, { total_plays: 21, items: [] }),
+		'작곡가 · 2025-2학기 · 전체'
+	);
+	// no previous 학기: as before
+	assert.equal(drillSubtitle(target, scope, works(0, 0)), '작곡가 · 2025-2학기 · 전체 · 총 0곡');
+	assert.equal(
+		drillSubtitle(target, scope, works(34, 3)),
+		`작곡가 · 2025-2학기 · 전체 · 총 34곡${dates}`
+	);
+	assert.equal(
+		drillSubtitle(target, scope, works(412, WORKS_LIMIT), null),
+		`작곡가 · 2025-2학기 · 전체 · 총 412곡 · 상위 ${WORKS_LIMIT}곡${dates}`
+	);
+	// the previous 학기's total, 0 included
+	assert.equal(
+		drillSubtitle(target, scope, works(34, 3), { total_plays: 21, items: [] }),
+		`작곡가 · 2025-2학기 · 전체 · 총 34곡 · 지난 학기 21곡${dates}`
+	);
+	assert.equal(
+		drillSubtitle({ noun: '작곡가' }, '2025-2학기 · 가상이', works(5, 2), {
+			total_plays: 0,
+			items: []
+		}),
+		`작곡가 · 2025-2학기 · 가상이 · 총 5곡 · 지난 학기 0곡${dates}`
+	);
+	assert.equal(
+		drillSubtitle(target, scope, works(412, WORKS_LIMIT), { total_plays: 300, items: [] }),
+		`작곡가 · 2025-2학기 · 전체 · 총 412곡 · 지난 학기 300곡 · 상위 ${WORKS_LIMIT}곡${dates}`
+	);
+	// empty panel (opened from a link): no 처음·마지막 clause
+	assert.equal(
+		drillSubtitle(target, scope, works(0, 0), { total_plays: 12, items: [] }),
+		'작곡가 · 2025-2학기 · 전체 · 총 0곡 · 지난 학기 12곡'
+	);
+	// thousands on both sides
+	assert.equal(
+		drillSubtitle(target, scope, works(1234, 3), { total_plays: 1234, items: [] }),
+		`작곡가 · 2025-2학기 · 전체 · 총 1,234곡 · 지난 학기 1,234곡${dates}`
+	);
+	// a previous answer without a numeric total adds nothing
+	for (const previous of [{}, { total_plays: null }, { total_plays: '21' }, { total_plays: NaN }])
+		assert.equal(
+			drillSubtitle(target, scope, works(34, 3), previous),
+			`작곡가 · 2025-2학기 · 전체 · 총 34곡${dates}`
+		);
 });

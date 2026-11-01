@@ -89,6 +89,28 @@ export function previousWorkValue(previous, item, start) {
 	return previousWorkCount(previous, item.id);
 }
 
+// 패널의 부제(표의 caption·aria-describedby): 대상 · 기간·범위 · 총 N곡, 앞 학기 목록(previous)이 오면
+// 그 total_plays 를 '지난 학기 N곡'으로 바로 뒤에 둔다. works 가 아직 없으면(불러오는 중) 대상 · 범위만.
+/**
+ * @param {{ noun: string }} target
+ * @param {string} scopeLabel
+ * @param {{ total_plays: number, items: unknown[] } | null} works
+ * @param {{ total_plays?: unknown } | null} [previous]
+ */
+export function drillSubtitle(target, scopeLabel, works, previous = null) {
+	if (!works) return `${target.noun} · ${scopeLabel}`;
+	const count = works.items.length;
+	const before = previous?.total_plays;
+	return (
+		`${target.noun} · ${scopeLabel} · 총 ${works.total_plays.toLocaleString()}곡` +
+		(typeof before === 'number' && Number.isFinite(before)
+			? ` · 지난 학기 ${before.toLocaleString()}곡`
+			: '') +
+		(count >= WORKS_LIMIT ? ` · 상위 ${WORKS_LIMIT}곡` : '') +
+		(count > 0 ? ' · 처음·마지막은 전체 기록 기준' : '')
+	);
+}
+
 // 패널의 표: 순위, 곡, 횟수, 처음, 마지막(작곡가 페이지의 곡 표와 같다). 날짜는 기간·대상과 상관없이
 // 그 곡의 전체 선곡 기준(stats/works 의 first_played·last_played), 없으면 '—'.
 // 앞 학기의 같은 대상·범위의 목록(previous)을 주면 마지막에 지난 학기 칸을 둔다(previousWorkValue:

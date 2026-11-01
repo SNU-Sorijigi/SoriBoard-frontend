@@ -1,7 +1,7 @@
 <script>
 	import { onMount, createEventDispatcher } from 'svelte';
 	import DataTable from './DataTable.svelte';
-	import { WORKS_LIMIT, drillWorksTable } from '$lib/statDrill.js';
+	import { drillSubtitle, drillWorksTable } from '$lib/statDrill.js';
 	import { closeOnEscape } from '$lib/escapeKey.js';
 	import { downloadCsvTable, tableCsv } from '$lib/csvTable.js';
 	import { todayStamp } from '$lib/csv.js';
@@ -11,7 +11,7 @@
 	/** @type {import('$lib/statDrill.js').DrillTarget} */
 	export let target;
 	export let works = null; // stats/works 응답
-	export let previous = null; // 앞 학기의 같은 대상·범위의 stats/works 응답. 주면 표에 지난 학기 칸이 붙는다.
+	export let previous = null; // 앞 학기의 같은 대상·범위의 stats/works 응답. 주면 표에 지난 학기 칸이, 부제에 그 학기의 총 곡 수가 붙는다.
 	export let loading = false;
 	export let error = '';
 	export let scopeLabel = '';
@@ -58,11 +58,7 @@
 
 	$: title = `${target.name}의 곡`;
 	$: items = works ? works.items : [];
-	$: subtitle = works
-		? `${target.noun} · ${scopeLabel} · 총 ${works.total_plays.toLocaleString()}곡` +
-			(items.length >= WORKS_LIMIT ? ` · 상위 ${WORKS_LIMIT}곡` : '') +
-			(items.length > 0 ? ' · 처음·마지막은 전체 기록 기준' : '')
-		: `${target.noun} · ${scopeLabel}`;
+	$: subtitle = drillSubtitle(target, scopeLabel, works, previous);
 	$: table = items.length > 0 && drillWorksTable(works, target, previous);
 	$: links = workLink ? items.map(workLink) : [];
 </script>
