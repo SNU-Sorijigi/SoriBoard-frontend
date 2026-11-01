@@ -6,6 +6,7 @@
 	import MemberSelect from '$lib/components/stat/MemberSelect.svelte';
 	import PlayTable from '$lib/components/stat/PlayTable.svelte';
 	import { currentSemesterRange } from '$lib/statPeriod.js';
+	import { composerHref } from '$lib/composerStats.js';
 	import { downloadCsvTable } from '$lib/csvTable.js';
 	import { todayStamp } from '$lib/csv.js';
 	import { downloadName, memberFileText } from '$lib/statFileName.js';
@@ -332,6 +333,17 @@
 		includeMentees,
 		requested
 	});
+	// 작곡가로 좁힌 목록은 그 작곡가 페이지를 링크한다(행의 작곡가 링크와 같은 기간·지기).
+	$: composerTarget = targets.find((t) => t.param === 'composer_id');
+	$: composerLink =
+		composerTarget &&
+		composerHref(composerTarget.id, {
+			period,
+			start: customStart,
+			end: customEnd,
+			userId,
+			includeMentees
+		});
 	$: hasMore = count !== null && offset < count;
 	// 탭 제목: id 필터(이름을 찾기 전에는 '작곡가 #12'), 지기, 기간(이번 학기는 빼고).
 	// 검색어와 신청곡은 넣지 않는다: '가상 작곡가 D · 전체 기간 · 선곡 기록'.
@@ -353,6 +365,10 @@
 			<h1>선곡 기록</h1>
 			<span class="period">{periodText}</span>
 			<a class="stat-link" href={statLink}>통계</a>
+			<!-- 작곡가 페이지의 '선곡 기록'이 이 목록을 연다(#38): 거꾸로 가는 링크 -->
+			{#if composerLink}
+				<a class="stat-link" href={composerLink} title="이 작곡가 페이지 열기">작곡가 페이지</a>
+			{/if}
 		</div>
 	</header>
 
