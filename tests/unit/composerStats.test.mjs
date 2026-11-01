@@ -19,6 +19,7 @@ import {
 	composerTimelineBucket,
 	composerWorkName,
 	composerWorksTable,
+	composerFirstsTable,
 	composerWorksCsv,
 	composerIsWholeRecord,
 	composerWholeDates
@@ -117,6 +118,34 @@ test("a work drops the composer's own name, matched by id", () => {
 		'가상 C - 교향곡 1번'
 	);
 	assert.equal(composerWorkName({ name: '교향곡 1번', composer_id: 3 }, composer), '교향곡 1번');
+});
+
+test("the 처음 튼 곡 table drops the composer's name and keeps the backend's order", () => {
+	const composer = { id: 3, name: '가상 C' };
+	const firsts = {
+		items: [
+			{ id: 11, name: '가상 C - 교향곡 1번', count: 1234, first_played: '2025-09-02' },
+			{ id: 12, name: '가상 C - 서곡', count: 2, first_played: '2025-10-15' },
+			{ id: 13, name: '무제', count: 1, first_played: '2025-11-01' }
+		]
+	};
+	const before = structuredClone(firsts);
+	const table = composerFirstsTable(firsts, composer);
+	assert.deepEqual(
+		table.columns.map((c) => c.name),
+		['곡', '처음 튼 날', '횟수']
+	);
+	assert.deepEqual(table.rows, [
+		['교향곡 1번', '2025-09-02', '1,234'],
+		['서곡', '2025-10-15', '2'],
+		['무제', '2025-11-01', '1']
+	]);
+	assert.deepEqual(firsts, before);
+	// 작곡가 정보를 못 받았으면 이름은 백엔드가 준 그대로다.
+	assert.deepEqual(
+		composerFirstsTable(firsts, null).rows.map((row) => row[0]),
+		['가상 C - 교향곡 1번', '가상 C - 서곡', '무제']
+	);
 });
 
 test('the works table ranks ties together and shows each work’s first and last play', () => {

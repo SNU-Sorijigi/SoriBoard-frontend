@@ -3,6 +3,7 @@
 	import { afterNavigate, goto } from '$app/navigation';
 	import ChartCard from '$lib/components/stat/ChartCard.svelte';
 	import DataTable from '$lib/components/stat/DataTable.svelte';
+	import TableCard from '$lib/components/stat/TableCard.svelte';
 	import PeriodSelect from '$lib/components/stat/PeriodSelect.svelte';
 	import MemberSelect from '$lib/components/stat/MemberSelect.svelte';
 	import { horizontalBarOption, countBarOption, eraPieOption } from '$lib/chartOptions.js';
@@ -29,6 +30,7 @@
 		ongoingText
 	} from '$lib/semesterReport.js';
 	import { catalogHref } from '$lib/composerCatalog.js';
+	import { hasPeriodStart, firstsSubtitle, firstsEmptyText } from '$lib/statFirsts.js';
 	import {
 		readComposerId,
 		readComposerPeriod,
@@ -47,6 +49,7 @@
 		composerTimelineBucket,
 		composerWorksTable,
 		composerWorksCsv,
+		composerFirstsTable,
 		composerIsWholeRecord,
 		composerWholeDates
 	} from '$lib/composerStats.js';
@@ -87,9 +90,13 @@
 		soloists: (id) => getJson('soloists', id, { limit: String(LIMITS.soloists) }),
 		conductors: (id) => getJson('conductors', id, { limit: String(LIMITS.conductors) }),
 		orchestras: (id) => getJson('orchestras', id, { limit: String(LIMITS.orchestras) }),
-		genres: (id) => getJson('genres', id)
+		genres: (id) => getJson('genres', id),
+		firstWorks: (id) => getJson('firsts', id, { kind: 'work' })
 	};
 	const CARD_KEYS = Object.keys(cardRequests);
+	// 처음 튼 곡(stats/firsts)은 기간의 시작이 있을 때만 묻는다. 없으면 모든 곡이 '처음'이다(statFirsts.js).
+	const asksFirsts = (p, s) =>
+		hasPeriodStart({ period: p, start: p === CUSTOM ? s : current.start });
 
 	let composer = null; // composers/<id>/: 이름, 출생 연도, 시대
 	let notFound = false;
@@ -100,7 +107,7 @@
 	let loading = Object.fromEntries(CARD_KEYS.map((key) => [key, true]));
 	/** @type {Record<string, string>} */
 	let errors = {};
-	$: ({ summary, timeline, works, soloists, conductors, orchestras, genres } = data);
+	$: ({ summary, timeline, works, soloists, conductors, orchestras, genres, firstWorks } = data);
 
 	// 백엔드가 적용했다고 돌려준 기간(filters). 기간이 바뀔 때 비운다.
 	let appliedFilters = null;
@@ -174,7 +181,9 @@
 		loading = Object.fromEntries(CARD_KEYS.map((key) => [key, Boolean(id)]));
 		loadPreviousSummary();
 		if (!id) return;
-		for (const key of CARD_KEYS) loadCard(key, id, gen);
+		const firsts = asksFirsts(period, customStart);
+		if (!firsts) loading.firstWorks = false;
+		for (const key of CARD_KEYS) if (key !== 'firstWorks' || firsts) loadCard(key, id, gen);
 		// filter 는 아직 이전 값일 수 있으므로 기간·지기 변수를 바로 쓴다(nextTimelineBucket 과 같다).
 		if (!composerIsWholeRecord({ period, start: customStart, end: customEnd, userId })) {
 			loadWhole(id, gen);
@@ -248,6 +257,7 @@
 	// 많이 튼 독주자·지휘자·오케스트라 표에는 앞 학기 같은 길이의 목록에서의 순위를 붙인다(통계와 같다).
 	// 많이 튼 곡 표에는 앞 학기에 튼 횟수를 붙인다(같은 WORKS_LIMIT 의 목록).
 	// 장르별 분포 표에는 앞 학기의 비율과 변화를 붙인다(통계와 같다).
+	// 처음 튼 곡의 부제에는 앞 학기에 처음 튼 곡 수를 붙인다(통계와 같다).
 	// 실패하면 그 표는 지금과 같다. 앞 학기의 요청이 하나라도 실패하면 KPI 칸 아래에 그 학기를 밝히고,
 	// 실패한 요청만 다시 부르게 한다(통계와 같다).
 	let previousSummary = null;
@@ -255,6 +265,7 @@
 	let previousRanks = {};
 	let previousWorks = null; // 앞 학기의 곡 목록
 	let previousGenres = null; // 앞 학기의 장르별 분포
+	let previousFirstWorks = null; // 앞 학기에 처음 튼 곡
 	let previousAsked = null; // 마지막으로 부른 앞 학기 id(없으면 null)
 	let previousTarget = null; // 마지막으로 부른 앞 학기
 	let previousComposerId = null; // 그때의 작곡가(다시 시도도 같은 작곡가로 부른다)
@@ -272,6 +283,11 @@
 			extra: { limit: String(WORKS_LIMIT) }
 		},
 		genres: { apply: (result) => (previousGenres = result) },
+		firstWorks: {
+			endpoint: 'firsts',
+			extra: { kind: 'work' },
+			apply: (result) => (previousFirstWorks = result)
+		},
 		...Object.fromEntries(
 			Object.entries(LIMITS).map(([key, limit]) => [
 				key,
@@ -284,10 +300,11 @@
 	};
 	async function askPrevious(endpoint) {
 		const gen = previousGeneration;
-		const { apply, extra = {} } = previousRequests[endpoint];
+		// 기록이 endpoint 를 밝히면 그것을 부른다(처음 튼 곡은 firsts). 실패 목록에는 기록의 키를 둔다.
+		const { apply, extra = {}, endpoint: path = endpoint } = previousRequests[endpoint];
 		try {
 			// getJson 은 extra 를 마지막에 넣으므로 기간의 semester_id 만 바뀌고 지기는 그대로다.
-			const result = await getJson(endpoint, previousComposerId, {
+			const result = await getJson(path, previousComposerId, {
 				...extra,
 				semester_id: String(previousTarget.id)
 			});
@@ -311,6 +328,7 @@
 		previousRanks = {};
 		previousWorks = null;
 		previousGenres = null;
+		previousFirstWorks = null;
 		if (!previous || !id) return;
 		await Promise.allSettled(Object.keys(previousRequests).map(askPrevious));
 	}
@@ -412,6 +430,10 @@
 	}
 	// 링크는 모두 같은 기간·지기를 연다. 곡 이름은 그 곡의 선곡 기록으로 간다.
 	$: worksLinks = works ? works.items.map((item) => composerWorkHref(item.id, filter)) : [];
+	$: firstWorkLinks = firstWorks
+		? firstWorks.items.map((item) => composerWorkHref(item.id, filter))
+		: [];
+	$: firstsAsked = asksFirsts(period, customStart);
 	// 독주자·지휘자·오케스트라는 이 작곡가의 곡을 그 사람(악단)과 튼 선곡 기록으로 간다(표의 이름, 차트의 막대).
 	$: soloistLinks = composerRankLinks(composerId, 'soloists', soloists, filter);
 	$: conductorLinks = composerRankLinks(composerId, 'conductors', conductors, filter);
@@ -700,6 +722,31 @@
 					csv={genreTable && tableCsv(genreTable)}
 					csvHeaders={['장르', '횟수']}
 				/>
+				<!-- 처음 튼 곡: 클럽 전체에서 처음 튼 날이 이 기간에 드는 이 작곡가의 곡(stats/firsts, 통계와 같다).
+				     기간의 시작이 없으면(전체 기간, 시작을 비운 직접 지정) 모든 곡이 '처음'이므로 카드가 없다 -->
+				{#if firstsAsked}
+					<div class="wide">
+						<TableCard
+							title="처음 튼 곡"
+							subtitle={firstsSubtitle(
+								[periodName, memberText].filter(Boolean).join(' · '),
+								firstWorks,
+								'곡',
+								'곡',
+								previousFirstWorks
+							)}
+							table={firstWorks?.items.length ? composerFirstsTable(firstWorks, composer) : null}
+							links={firstWorkLinks}
+							loading={loading.firstWorks}
+							error={errors.firstWorks}
+							retry={() => retry('firstWorks')}
+							{fileTag}
+							emptyText={firstWorks?.items.length === 0
+								? firstsEmptyText('처음 튼 곡', '곡', previousFirstWorks)
+								: ''}
+						/>
+					</div>
+				{/if}
 			</div>
 		{/if}
 	{/if}
@@ -858,6 +905,11 @@
 		display: grid;
 		grid-template-columns: repeat(2, 1fr);
 		gap: 16px;
+	}
+	/* 처음 튼 곡은 격자의 마지막 줄을 다 쓴다(빈칸이 남지 않게) */
+	.wide {
+		grid-column: 1 / -1;
+		min-width: 0;
 	}
 	/* ChartCard 와 같은 카드 */
 	.card {

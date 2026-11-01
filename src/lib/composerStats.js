@@ -8,6 +8,7 @@ import { DRILL_CARDS, previousWorkValue } from './statDrill.js';
 import { competitionRanks, formatCount } from './statTable.js';
 import { periodTitle } from './statTitle.js';
 import { spansSemesters } from './statBucket.js';
+import { firstsTable } from './semesterReport.js';
 
 const ID = /^[1-9]\d*$/;
 const UNKNOWN_ERA = '미상';
@@ -297,6 +298,22 @@ export function composerWorksTable(works, composer, previous = null) {
 			return [...row, typeof value === 'string' ? value : formatCount(value)];
 		})
 	};
+}
+
+// 처음 튼 곡(stats/firsts, 이 작곡가로 거른 것): 통계의 표와 같고, 곡 이름에서 작곡가를 뺀다(항목에 composer_id 는 없다).
+/**
+ * @param {{ items: { id: number, name: string, count: number, first_played: string }[] }} firsts
+ * @param {{ id: number, name: string } | null} composer
+ * @returns {import('./statTable.js').Table}
+ */
+export function composerFirstsTable(firsts, composer) {
+	const items = composer
+		? firsts.items.map((item) => ({
+				...item,
+				name: composerWorkName({ ...item, composer_id: composer.id }, composer)
+			}))
+		: firsts.items;
+	return firstsTable({ items }, '곡');
 }
 
 // 곡 표의 CSV(csvTable.js): 곡, 횟수, 처음, 마지막. 순위는 빼고(차트 카드의 CSV 처럼) 횟수는 숫자 그대로,
