@@ -568,15 +568,19 @@
 
 	// 다양성: 버킷 라벨, 선곡 수 막대, 다양성(고른정도) 추이.
 	$: bucketLabel = diversityBucket === 'week' ? '주별' : '월별';
+	// 선곡 추이처럼 오늘이 든 주·월에 ' (진행 중)'(statBucket.js); 막대·점의 링크는 원래 라벨로 만든다.
+	$: diversityLabels =
+		diversity &&
+		timelineView({ filters: diversity.filters, labels: diversity.timeline.labels }, endDate).labels;
 	$: countData = diversity && {
-		labels: diversity.timeline.labels,
+		labels: diversityLabels,
 		values: diversity.timeline.plays
 	};
 	$: countOpt = countData && countBarOption(countData, `${bucketLabel} 선곡 수`, viewLabel);
 	$: diversityOpt =
 		diversity &&
 		diversityLineOption(
-			diversity.timeline.labels,
+			diversityLabels,
 			[
 				{ name: '시대 다양성', values: diversity.timeline.era_evenness },
 				{ name: '장르 다양성', values: diversity.timeline.genre_evenness }
@@ -586,19 +590,19 @@
 		);
 	// 다양성 추이: 차트의 data(PNG·CSV 저장의 빈 데이터 판단용)와, 두 계열을 모두 싣는 CSV.
 	$: diversityCsvData = diversity && {
-		labels: diversity.timeline.labels,
+		labels: diversityLabels,
 		values: diversity.timeline.era_evenness
 	};
 	$: diversityCsv =
 		diversity &&
-		seriesCsv(diversity.timeline.labels, '기간', [
+		seriesCsv(diversityLabels, '기간', [
 			{ name: '시대다양성', values: diversity.timeline.era_evenness },
 			{ name: '장르다양성', values: diversity.timeline.genre_evenness }
 		]);
 	// 표로 보기: 다양성 추이는 두 계열을 모두 싣는다(그 밖의 시계열 카드는 data 로 만든다).
 	$: diversityTable =
 		diversity &&
-		seriesTable(diversity.timeline.labels, '기간', [
+		seriesTable(diversityLabels, '기간', [
 			{ name: '시대 다양성', values: diversity.timeline.era_evenness, format: formatEvenness },
 			{ name: '장르 다양성', values: diversity.timeline.genre_evenness, format: formatEvenness }
 		]);

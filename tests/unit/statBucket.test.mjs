@@ -148,6 +148,18 @@ test('the bucket that holds today reads (진행 중); ended ones and past ranges
 	assert.deepEqual(timelineView(semester).labels, ['2025-2학기', '2026-1학기', '2026-2학기']);
 });
 
+test('선곡 다양성 marks its running week or month from an envelope of filters and labels only', () => {
+	const today = '2026-11-01';
+	const filters = { bucket: 'week', start: '2026-09-01', end: today };
+	const week = { filters, labels: ['2026-10-19', '2026-10-26'] };
+	assert.deepEqual(timelineView(week, today).labels, ['2026-10-19', '2026-10-26 (진행 중)']);
+	const month = { filters: { ...filters, bucket: 'month' }, labels: ['2026-10', '2026-11'] };
+	assert.deepEqual(timelineView(month, today).labels, ['2026-10', '2026-11 (진행 중)']);
+	// a range that ended before today: unchanged
+	const past = { filters: { ...filters, end: '2026-10-15' }, labels: ['2026-10-19', '2026-10-26'] };
+	assert.deepEqual(timelineView(past, today).labels, ['2026-10-19', '2026-10-26']);
+});
+
 const readBucket = (search) => readDiversityBucket(new URLSearchParams(search));
 
 test('the 주별/월별 toggle reads week from the URL, anything else as 월별', () => {
