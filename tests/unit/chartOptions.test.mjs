@@ -1,6 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { timelineOption, diversityLineOption, eraPieOption } from '../../src/lib/chartOptions.js';
+import {
+	timelineOption,
+	diversityLineOption,
+	eraPieOption,
+	horizontalBarOption
+} from '../../src/lib/chartOptions.js';
 import { shareTable, SHARE_PRECISION } from '../../src/lib/statTable.js';
 
 const labels = ['2025-1학기', '2025-2학기', '2026-1학기', '2026-2학기'];
@@ -73,4 +78,38 @@ test('pie tooltips escape the name, as the string template did', () => {
 		option.tooltip.formatter({ name: '<b>&', value: 1, percent: 100 }),
 		'&#60;b&#62;&#38;: 1곡 (100.0%)'
 	);
+});
+
+// 막대 툴팁의 글자들(태그를 떼고 줄마다). ECharts 축 툴팁은 params 를 배열로 준다.
+const tooltipLines = (option, dataIndex) => {
+	const { data } = option.yAxis;
+	const html = option.tooltip.formatter([
+		{ name: data[dataIndex], value: option.series[0].data[dataIndex], dataIndex, marker: '<i></i>' }
+	]);
+	return html
+		.split(/<[^>]+>/)
+		.map((part) => part.trim())
+		.filter(Boolean);
+};
+const bars = { labels: ['브람스 <1>', '바흐', '가상 작곡가'], values: [1234, 5, 3] };
+
+test('bar tooltips stay ECharts’ default without notes', () => {
+	const option = horizontalBarOption(bars, '많이 튼 작곡가', '2026-1학기 · 전체');
+	assert.equal(option.tooltip.trigger, 'axis');
+	assert.equal('formatter' in option.tooltip, false);
+});
+
+test('bar tooltips add each bar’s note under its name and count, 1위 on the top bar', () => {
+	const notes = ['지난 학기 3위', '', '지난 학기 첫 선곡'];
+	const option = horizontalBarOption(bars, '많이 튼 작곡가', '2026-1학기 · 전체', notes);
+	assert.equal(option.tooltip.trigger, 'axis');
+	// 막대는 뒤집혀 있다: 마지막 dataIndex 가 맨 위의 1위.
+	assert.deepEqual(tooltipLines(option, 2), ['브람스 &#60;1&#62;', '1,234', '지난 학기 3위']);
+	assert.deepEqual(tooltipLines(option, 1), ['바흐', '5']);
+	assert.deepEqual(tooltipLines(option, 0), ['가상 작곡가', '3', '지난 학기 첫 선곡']);
+	const html = option.tooltip.formatter([
+		{ name: '브람스 <1>', value: 1234, dataIndex: 2, marker: '<i class="m"></i>' }
+	]);
+	assert.ok(html.includes('<i class="m"></i>'), html);
+	assert.ok(!html.includes('<1>'), html);
 });

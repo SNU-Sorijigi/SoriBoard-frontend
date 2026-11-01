@@ -26,6 +26,7 @@
 		previousSemester,
 		kpiChangeText,
 		rankChangeTable,
+		rankNotes,
 		mixTable,
 		ongoingText
 	} from '$lib/semesterReport.js';
@@ -396,11 +397,24 @@
 	$: timelineOpt =
 		timelineData && countBarOption(timelineData, timelineTitle, subtitleFor(timeline));
 	$: soloistOpt =
-		soloists && horizontalBarOption(soloists, '많이 튼 독주자', subtitleFor(soloists));
+		soloists &&
+		horizontalBarOption(soloists, '많이 튼 독주자', subtitleFor(soloists), rankNotes(soloistTable));
 	$: conductorOpt =
-		conductors && horizontalBarOption(conductors, '많이 튼 지휘자', subtitleFor(conductors));
+		conductors &&
+		horizontalBarOption(
+			conductors,
+			'많이 튼 지휘자',
+			subtitleFor(conductors),
+			rankNotes(conductorTable)
+		);
 	$: orchestraOpt =
-		orchestras && horizontalBarOption(orchestras, '많이 튼 오케스트라', subtitleFor(orchestras));
+		orchestras &&
+		horizontalBarOption(
+			orchestras,
+			'많이 튼 오케스트라',
+			subtitleFor(orchestras),
+			rankNotes(orchestraTable)
+		);
 	$: genreOpt = genres && eraPieOption(genres, '장르별 분포', subtitleFor(genres));
 	// 표로 보기와 CSV 저장은 같은 표다(순위·이름·횟수, 학기를 고르면 지난 학기).
 	$: soloistTable =

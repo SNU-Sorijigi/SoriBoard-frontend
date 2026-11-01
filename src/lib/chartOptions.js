@@ -70,16 +70,39 @@ const BASE_TEXT_STYLE = { fontFamily: FONT, color: TEXT };
 // 잘린다('2026-2학기', '2026-10-19'). 끝 이름표만 안쪽으로 붙여 정렬한다.
 const EDGE_LABELS_INSIDE = { alignMinLabel: 'left', alignMaxLabel: 'right' };
 
+// 툴팁은 HTML 로 그려지므로 이름을 이스케이프한다(ECharts 의 문자열 템플릿이 하던 일).
+/** @param {string} s */
+const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+
+// 막대 툴팁: ECharts 기본 축 툴팁(이름, 표식과 굵은 값)과 같은 모양에, 그 막대의 note 가 있으면
+// 한 줄 더(Micron). notes 는 막대 순서(뒤집힌 순서)이고, 축 툴팁은 params 를 배열로 준다.
+function barTooltip(notes) {
+	const row = (html) =>
+		`<div style="margin:10px 0 0;line-height:1">${html}<div style="clear:both"></div></div>`;
+	return (params) => {
+		const p = Array.isArray(params) ? params[0] : params;
+		const note = notes[p.dataIndex];
+		const value = escapeHtml(Number(p.value).toLocaleString('en-US'));
+		return (
+			`<div style="line-height:1">${escapeHtml(p.name)}</div>` +
+			row(`${p.marker}<span style="float:right;margin-left:10px;font-weight:900">${value}</span>`) +
+			(note ? row(`<span style="font-size:12px;color:${SUBTEXT}">${escapeHtml(note)}</span>`) : '')
+		);
+	};
+}
+
 // 가로 막대 (top-N): composers / works / conductors / orchestras 공용.
-export function horizontalBarOption({ labels, values }, title, subtitle) {
+// notes(1위부터, 막대마다 한 줄 또는 '')를 주면 툴팁에 덧붙인다(지난 학기 순위). 없으면 기본 툴팁.
+export function horizontalBarOption({ labels, values }, title, subtitle, notes = null) {
 	// ECharts category 축은 아래에서 위로 그려지므로 역순으로 넣어 1위가 맨 위로.
 	const cats = [...labels].reverse();
 	const vals = [...values].reverse();
+	const formatter = notes ? { formatter: barTooltip([...notes].reverse()) } : {};
 	return {
 		title: titleBlock(title, subtitle),
 		textStyle: BASE_TEXT_STYLE,
 		grid: { left: 8, right: 48, top: subtitle ? 70 : 56, bottom: 16, containLabel: true },
-		tooltip: { trigger: 'axis', axisPointer: BAND_POINTER, ...TOOLTIP_BOX },
+		tooltip: { trigger: 'axis', axisPointer: BAND_POINTER, ...TOOLTIP_BOX, ...formatter },
 		xAxis: {
 			type: 'value',
 			axisLabel: { fontFamily: FONT, color: SUBTEXT },
@@ -230,10 +253,6 @@ export function diversityLineOption(labels, series, title, subtitle) {
 		}))
 	};
 }
-
-// 툴팁은 HTML 로 그려지므로 이름을 이스케이프한다(ECharts 의 문자열 템플릿이 하던 일).
-/** @param {string} s */
-const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 // 시대 분포 도넛 (eras) — 장르 분포도 같은 형태라 공용으로 쓴다.
 export function eraPieOption({ labels, values }, title, subtitle) {

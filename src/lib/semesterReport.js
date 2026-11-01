@@ -256,6 +256,21 @@ export function rankChangeTable(current, previous, nameHeader, limit = 10, first
 	};
 }
 
+// 막대 툴팁의 셋째 줄(horizontalBarOption 의 notes): rankChangeTable 의 지난 학기 칸을 그대로
+// '지난 학기 3위'처럼, '—'(지난 학기에 선곡 없음)이면 ''. 지난 학기 칸이 없으면 null(툴팁 그대로).
+// 표에서 읽으므로 툴팁과 표로 보기가 늘 같은 말을 한다.
+/**
+ * @param {import('./statTable.js').Table | null | undefined} table
+ * @returns {string[] | null}
+ */
+export function rankNotes(table) {
+	if (!table || table.columns[table.columns.length - 1]?.name !== '지난 학기') return null;
+	return table.rows.map((row) => {
+		const cell = row[row.length - 1];
+		return cell === '—' ? '' : `지난 학기 ${cell}`;
+	});
+}
+
 // 처음 튼 목록(stats/firsts)의 id 모음(rankChangeTable 의 firstIds). 받지 못했으면 null.
 /**
  * @param {{ items: { id: number }[] } | null | undefined} firsts

@@ -11,6 +11,7 @@ import {
 	mixTable,
 	mixSubtitle,
 	rankChangeTable,
+	rankNotes,
 	firstIdSet,
 	loadWithPrevious,
 	firstsTable,
@@ -296,6 +297,26 @@ test('rankChangeTable reads 첫 선곡 for a row first played this 학기, not N
 		rankChangeTable(now, before, '곡', 10, null).rows.map((row) => row[3]),
 		['3위', '10위 밖', '10위 밖']
 	);
+});
+
+test('rankNotes reads the 지난 학기 column as the bar tooltip’s line, 1위 first', () => {
+	const now = ranking([
+		[1, '브람스', 12],
+		[4, '가상 작곡가', 7],
+		[6, '모차르트', 5]
+	]);
+	const before = ranking([
+		[1, '브람스', 9],
+		[8, '바흐', 6]
+	]);
+	const table = rankChangeTable(now, before, '작곡가', 12, new Set([4]));
+	assert.deepEqual(rankNotes(table), ['지난 학기 1위', '지난 학기 첫 선곡', '지난 학기 12위 밖']);
+	// 지난 학기에 선곡이 없으면('—') 덧붙일 줄이 없다.
+	assert.deepEqual(rankNotes(rankChangeTable(now, ranking([], 0), '작곡가', 12)), ['', '', '']);
+	// 지난 학기 칸이 없으면(비교 없음) null: 툴팁은 그대로다.
+	assert.equal(rankNotes(rankChangeTable(now, null, '작곡가')), null);
+	assert.equal(rankNotes(rankTable(now, '작곡가')), null);
+	assert.equal(rankNotes(null), null);
 });
 
 test('rankChangeTable keeps a previous rank over 첫 선곡, and dashes for an empty 학기', () => {

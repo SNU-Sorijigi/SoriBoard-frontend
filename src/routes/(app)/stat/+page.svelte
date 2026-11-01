@@ -62,6 +62,7 @@
 		evennessChangeText,
 		mixTable,
 		rankChangeTable,
+		rankNotes,
 		firstIdSet,
 		firstsTable,
 		ongoingText
@@ -523,14 +524,34 @@
 		envelope ? `${viewLabel} · 총 ${envelope.total_plays.toLocaleString()}곡` : '';
 
 	$: composerOpt =
-		composers && horizontalBarOption(composers, '많이 튼 작곡가', subtitleFor(composers));
+		composers &&
+		horizontalBarOption(
+			composers,
+			'많이 튼 작곡가',
+			subtitleFor(composers),
+			rankNotes(composerTable)
+		);
 	$: soloistOpt =
-		soloists && horizontalBarOption(soloists, '많이 튼 독주자', subtitleFor(soloists));
+		soloists &&
+		horizontalBarOption(soloists, '많이 튼 독주자', subtitleFor(soloists), rankNotes(soloistTable));
 	$: conductorOpt =
-		conductors && horizontalBarOption(conductors, '많이 튼 지휘자', subtitleFor(conductors));
+		conductors &&
+		horizontalBarOption(
+			conductors,
+			'많이 튼 지휘자',
+			subtitleFor(conductors),
+			rankNotes(conductorTable)
+		);
 	$: orchestraOpt =
-		orchestras && horizontalBarOption(orchestras, '많이 튼 오케스트라', subtitleFor(orchestras));
-	$: worksOpt = works && horizontalBarOption(works, '많이 튼 곡', subtitleFor(works));
+		orchestras &&
+		horizontalBarOption(
+			orchestras,
+			'많이 튼 오케스트라',
+			subtitleFor(orchestras),
+			rankNotes(orchestraTable)
+		);
+	$: worksOpt =
+		works && horizontalBarOption(works, '많이 튼 곡', subtitleFor(works), rankNotes(worksTable));
 	$: timelineTitle = `${timelineBucketName(timelineBucket)} 선곡 추이`;
 	$: timelineData = timeline && timelineView(timeline, endDate);
 	$: timelineOpt = timelineData && timelineOption(timelineData, timelineTitle, viewLabel);
