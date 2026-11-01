@@ -19,7 +19,12 @@
 		patchErrorText,
 		replaceComposer
 	} from '$lib/composerCatalog.js';
-	import { readSpellingKind, catalogViewHref, DEFAULT_KIND } from '$lib/catalogSpelling.js';
+	import {
+		readSpellingKind,
+		catalogViewHref,
+		catalogPageTitle,
+		DEFAULT_KIND
+	} from '$lib/catalogSpelling.js';
 	import SpellingVariants from '$lib/components/stat/SpellingVariants.svelte';
 
 	// 작곡가 정리: 모든 작곡가의 시대·출생 연도·선곡 수. 시대 미상을 앞에 두고, 한 줄씩 고친다.
@@ -187,7 +192,7 @@
 </script>
 
 <svelte:head>
-	<title>작곡가 정리</title>
+	<title>{catalogPageTitle(spellingKind)}</title>
 </svelte:head>
 
 <div class="catalog-page">

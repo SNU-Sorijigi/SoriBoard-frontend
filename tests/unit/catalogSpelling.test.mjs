@@ -5,6 +5,7 @@ import {
 	DEFAULT_KIND,
 	readSpellingKind,
 	catalogViewHref,
+	catalogPageTitle,
 	duplicatesSearch,
 	rowLinks,
 	groupHeading,
@@ -368,4 +369,19 @@ test('a spelling link keeps 직접 지정, 이번 학기 and 전체 기간', () 
 		variantHistoryHref({ ...current, period: 'all' }, target, 5),
 		'/stat/history?period=all&composer_id=5'
 	);
+});
+
+test('the tab title names the 표기 정리 view and its kind, never the search word', () => {
+	assert.equal(catalogPageTitle(null), '작곡가 정리');
+	for (const { kind, label } of SPELLING_KINDS) {
+		assert.equal(catalogPageTitle(kind), `${label} · 표기 정리`);
+	}
+	assert.equal(catalogPageTitle('player'), '연주자 · 표기 정리');
+	assert.equal(catalogPageTitle('music'), '곡 · 표기 정리');
+	assert.equal(catalogPageTitle('band'), '표기 정리');
+	const titleOf = (href) => catalogPageTitle(readSpellingKind(urlOf(href).searchParams));
+	for (const { kind, label } of SPELLING_KINDS) {
+		assert.equal(titleOf(catalogViewHref('가상', kind)), `${label} · 표기 정리`);
+	}
+	assert.equal(titleOf(catalogViewHref('가상', null)), '작곡가 정리');
 });

@@ -6,6 +6,7 @@ import { catalogHref } from './composerCatalog.js';
 import { composerHref } from './composerStats.js';
 import { historyHref, targetHistoryHref } from './playHistory.js';
 import { ALL } from './statPeriod.js';
+import { pageTitle } from './statTitle.js';
 
 export const SPELLING_VIEW = 'spelling';
 export const DEFAULT_KIND = 'composer';
@@ -54,6 +55,11 @@ export function readSpellingKind(params) {
 	const kind = params.get('kind');
 	return kind && kindSpec(kind) ? kind : DEFAULT_KIND;
 }
+
+// 이 페이지의 탭 제목: 작곡가 목록(null)은 '작곡가 정리', 표기 정리는 '연주자 · 표기 정리'(모르는 종류는 '표기 정리').
+/** @param {string | null} kind */
+export const catalogPageTitle = (kind) =>
+	kind ? pageTitle(kindSpec(kind)?.label, '표기 정리') : '작곡가 정리';
 
 // 검색어와 보기를 담은 이 페이지의 경로. 표기 정리로 가도 목록의 검색어는 남긴다.
 /**
