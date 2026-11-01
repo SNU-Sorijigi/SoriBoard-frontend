@@ -5,7 +5,7 @@
 	import EChart from '$lib/components/stat/EChart.svelte';
 	import ReportTable from '$lib/components/stat/ReportTable.svelte';
 	import { eraPieOption } from '$lib/chartOptions.js';
-	import { formatCount, groupEvenness } from '$lib/statTable.js';
+	import { formatCount, groupEvenness, unknownEraNote } from '$lib/statTable.js';
 	import { sortSemesters, semesterLabel, currentSemesterRange } from '$lib/statPeriod.js';
 	import { composerHref } from '$lib/composerStats.js';
 	import {
@@ -364,7 +364,9 @@
 		title,
 		pair,
 		table: pair?.current.labels.length ? mixTable(pair.current, pair.previous, nameHeader) : null,
-		subtitle: mixSubtitle(pair, now, before)
+		subtitle: mixSubtitle(pair, now, before),
+		// 통계의 시대별 분포 카드와 같은 경고: 이번 학기의 시대 미상이 20%를 넘으면 그 비율(표의 '미상' 칸과 같은 수)
+		note: key === 'eras' ? unknownEraNote(pair?.current) : ''
 	});
 	$: mixCards = [
 		mixCard('eras', 'eras', '시대별 분포', eras, '시대', label, previousLabel),
@@ -648,6 +650,13 @@
 									/>
 								</div>
 							</div>
+							{#if card.note}
+								<p class="mix-note">
+									{card.note}<span class="note-link"
+										>&nbsp;· <a href="/stat/composers">작곡가 정리</a></span
+									>
+								</p>
+							{/if}
 						{/if}
 					</section>
 				{/each}
@@ -1005,6 +1014,18 @@
 		flex: 1;
 		min-width: 0;
 	}
+	/* 통계 ChartCard 의 .note 와 같은 모양 */
+	.mix-note {
+		margin: 4px 0 0;
+		font-family: var(--small-medium-font-family, 'Noto Sans KR', sans-serif);
+		font-size: var(--small-medium-font-size, 13px);
+		color: var(--secondary-secondary-800, #95560d);
+		text-align: center;
+	}
+	.mix-note a {
+		color: inherit;
+		text-underline-offset: 3px;
+	}
 
 	@page {
 		size: A4;
@@ -1025,7 +1046,8 @@
 			padding: 0;
 		}
 		.controls,
-		.tool-btn {
+		.tool-btn,
+		.note-link {
 			display: none;
 		}
 		.card {
