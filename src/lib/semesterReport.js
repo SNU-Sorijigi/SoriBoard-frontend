@@ -6,10 +6,11 @@ import {
 	formatShare,
 	SHARE_PRECISION,
 	rankTable,
-	competitionRanks
+	competitionRanks,
+	seriesTable
 } from './statTable.js';
 import { periodRangeText } from './statPeriod.js';
-import { bucketRange } from './statBucket.js';
+import { bucketRange, timelineView } from './statBucket.js';
 import { genreDistribution } from './statCards.js';
 
 const ID = /^[1-9]\d*$/;
@@ -297,4 +298,22 @@ export function firstsTable(firsts, nameHeader) {
 		rowHeader: 0,
 		rows: firsts.items.map((item) => [item.name, item.first_played, formatCount(item.count)])
 	};
+}
+
+// 월별 선곡: 다양성 응답(bucket=month)의 timeline 으로 달마다 선곡 수와 곡 수(선곡이 있는 달만,
+// 오래된 달부터). 오늘이 든 달은 통계의 차트처럼 '2026-11 (진행 중)' 이다(timelineView).
+// 응답이 없거나 선곡이 있는 달이 없으면 null.
+/**
+ * @param {{ filters?: { bucket?: string, end?: string | null },
+ *   timeline: { labels: string[], plays: number[], distinct_works: number[] } } | null | undefined} envelope
+ * @param {string} [today] YYYY-MM-DD
+ * @returns {import('./statTable.js').Table | null}
+ */
+export function monthlyTable(envelope, today = '') {
+	if (!envelope?.timeline?.labels.length) return null;
+	const { labels, plays, distinct_works } = envelope.timeline;
+	return seriesTable(timelineView({ filters: envelope.filters, labels }, today).labels, '월', [
+		{ name: '선곡', values: plays },
+		{ name: '곡', values: distinct_works }
+	]);
 }

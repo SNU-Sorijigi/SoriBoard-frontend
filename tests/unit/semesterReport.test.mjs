@@ -18,7 +18,8 @@ import {
 	reportRangeText,
 	reportRange,
 	ongoingText,
-	genrePair
+	genrePair,
+	monthlyTable
 } from '../../src/lib/semesterReport.js';
 import { rankTable } from '../../src/lib/statTable.js';
 import { genreDistribution } from '../../src/lib/statCards.js';
@@ -573,4 +574,64 @@ test('genrePair: no answer yet gives null, the oldest 학기 has no previous', (
 	const oldest = genrePair({ current: nowDiv, previous: null, previousError: null });
 	assert.equal(oldest.previous, null);
 	assert.equal(mixSubtitle(oldest, '2025-2학기', ''), '2025-2학기 총 24곡 · 지난 학기 없음');
+});
+
+// 다양성 응답(bucket=month)의 모양: 선곡이 있는 달만, 오래된 달부터.
+const monthly = (end) => ({
+	filters: { scope: 'all', semester_id: '3', start: '2026-09-01', end, bucket: 'month' },
+	total_plays: 1250,
+	timeline: {
+		bucket: 'month',
+		labels: ['2026-09', '2026-10', '2026-11'],
+		plays: [1234, 10, 6],
+		distinct_works: [987, 9, 1]
+	}
+});
+
+test('monthlyTable is null without an answer or without months', () => {
+	assert.equal(monthlyTable(null, '2026-11-01'), null);
+	assert.equal(monthlyTable(undefined), null);
+	const none = monthly('2027-02-28');
+	none.timeline = { bucket: 'month', labels: [], plays: [], distinct_works: [] };
+	assert.equal(monthlyTable(none, '2026-11-01'), null);
+});
+
+test('monthlyTable has a row per month: 월 | 선곡 | 곡', () => {
+	const table = monthlyTable(monthly('2026-10-31'), '2026-11-01');
+	assert.deepEqual(
+		table.columns.map((c) => [c.name, Boolean(c.numeric)]),
+		[
+			['월', false],
+			['선곡', true],
+			['곡', true]
+		]
+	);
+	assert.equal(table.rowHeader, 0);
+	assert.deepEqual(table.rows, [
+		['2026-09', '1,234', '987'],
+		['2026-10', '10', '9'],
+		['2026-11', '6', '1']
+	]);
+});
+
+test('monthlyTable marks the month holding today while the 학기 runs', () => {
+	assert.deepEqual(
+		monthlyTable(monthly('2027-02-28'), '2026-11-01').rows.map((r) => r[0]),
+		['2026-09', '2026-10', '2026-11 (진행 중)']
+	);
+	// 오늘이 학기의 마지막 날이어도 진행 중이다.
+	assert.deepEqual(
+		monthlyTable(monthly('2026-11-01'), '2026-11-01').rows.map((r) => r[0]),
+		['2026-09', '2026-10', '2026-11 (진행 중)']
+	);
+	// 끝난 학기: 오늘이 마지막 달 안이어도 표시하지 않는다.
+	assert.deepEqual(
+		monthlyTable(monthly('2026-10-31'), '2026-11-15').rows.map((r) => r[0]),
+		['2026-09', '2026-10', '2026-11']
+	);
+	// 오늘이 없으면 표시하지 않는다.
+	assert.deepEqual(
+		monthlyTable(monthly('2027-02-28')).rows.map((r) => r[0]),
+		['2026-09', '2026-10', '2026-11']
+	);
 });

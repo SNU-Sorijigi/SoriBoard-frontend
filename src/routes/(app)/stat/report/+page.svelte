@@ -8,7 +8,12 @@
 	import { formatCount, groupEvenness } from '$lib/statTable.js';
 	import { sortSemesters, semesterLabel, currentSemesterRange } from '$lib/statPeriod.js';
 	import { composerHref } from '$lib/composerStats.js';
-	import { historyHref, workHistoryHref, targetHistoryHref } from '$lib/playHistory.js';
+	import {
+		historyHref,
+		workHistoryHref,
+		targetHistoryHref,
+		bucketHistoryLinks
+	} from '$lib/playHistory.js';
 	import { DRILL_CARDS } from '$lib/statDrill.js';
 	import { pageTitle } from '$lib/statTitle.js';
 	import { downloadCsvTable, tableCsv } from '$lib/csvTable.js';
@@ -29,7 +34,8 @@
 		ongoingText,
 		kpiChangeText,
 		evennessChangeText,
-		genrePair
+		genrePair,
+		monthlyTable
 	} from '$lib/semesterReport.js';
 
 	// 한 학기의 결산(클럽 전체). 학기는 URL(semester_id)에 두고, 없으면 가장 최근 학기다.
@@ -76,7 +82,7 @@
 		conductors: ['conductors', { limit: '10' }],
 		orchestras: ['orchestras', { limit: '10' }],
 		eras: ['eras'],
-		// 선곡 다양성은 summary 만 쓴다. 월별 버킷이면 쓰지 않는 timeline 이 작다.
+		// 선곡 다양성·장르별 분포는 summary 를, 월별 선곡은 달마다 센 timeline 을 쓴다.
 		diversity: ['diversity', { bucket: 'month' }],
 		firstComposers: ['firsts', { kind: 'composer' }],
 		firstWorks: ['firsts', { kind: 'work' }]
@@ -112,6 +118,8 @@
 	// 선곡 다양성의 칸: 이 학기와 지난 학기의 다양성 응답의 summary(통계의 칸과 같은 값).
 	$: diversity = data.diversity?.current?.summary;
 	$: previousDiversity = data.diversity?.previous?.summary;
+	// 월별 선곡: 이 학기의 다양성 응답의 timeline(선곡이 있는 달만).
+	$: monthly = data.diversity?.current;
 
 	// 다른 학기로 바꾸면 이전 학기의 늦은 응답은 버린다.
 	let generation = 0;
@@ -400,6 +408,23 @@
 		firstsCard('firstWorks', '처음 튼 곡', firstWorks, previousFirstWorks, '곡', '곡', semesterId)
 	];
 
+	// 월별 선곡: 달마다 선곡 수와 곡 수. 진행 중인 달은 통계의 차트처럼 '(진행 중)' 을 붙이고,
+	// 달 이름은 통계의 월별 막대처럼 그 달의 선곡 기록을 연다(링크는 '(진행 중)' 없는 라벨로 만든다).
+	// 부제의 총 선곡은 표와 같은 응답의 것이다(요약 요청이 늦거나 실패해도 행의 합과 맞다).
+	$: monthlyCard = {
+		key: 'monthly',
+		title: '월별 선곡',
+		table: monthlyTable(monthly, today),
+		links:
+			monthly && historyFilter
+				? bucketHistoryLinks(historyFilter, {
+						filters: monthly.filters,
+						labels: monthly.timeline.labels
+					})
+				: [],
+		subtitle: [total(monthly), '선곡이 있는 달만'].filter(Boolean).join(' · ')
+	};
+
 	// 'CSV 저장': 카드의 표를 보이는 그대로(횟수만 쉼표 없이) 내려받는다. 파일 이름은 통계처럼
 	// 학기결산_2025-2학기_많이 튼 작곡가_20261030.csv.
 	function saveCsv(card) {
@@ -660,6 +685,44 @@
 								</div>
 							{/each}
 						</div>
+					{/if}
+				</section>
+
+				<!-- 백엔드는 선곡이 없는 달을 빼고 보낸다: 부제가 그렇다고 알린다 -->
+				<section class="card wide" tabindex="-1" aria-labelledby="report-monthly">
+					<button
+						class="tool-btn csv-btn"
+						on:click={() => saveCsv(monthlyCard)}
+						disabled={!!(loading.diversity || errors.diversity || !monthlyCard.table)}
+						title="표를 CSV로 저장"
+						aria-label="월별 선곡 CSV 저장"
+					>
+						CSV 저장
+					</button>
+					<h2 id="report-monthly">월별 선곡</h2>
+					<p class="subtitle" id="report-monthly-sub">{monthlyCard.subtitle}</p>
+					{#if loading.diversity}
+						<div class="placeholder">불러오는 중...</div>
+					{:else if errors.diversity}
+						<div class="placeholder error">
+							월별 선곡 — {errors.diversity}
+							<button
+								class="tool-btn"
+								on:click={(e) => retry('diversity', e, e.currentTarget.closest('section'))}
+								aria-label="월별 선곡 다시 시도"
+							>
+								다시 시도
+							</button>
+						</div>
+					{:else if !monthlyCard.table}
+						<div class="placeholder">데이터가 없습니다</div>
+					{:else}
+						<ReportTable
+							table={monthlyCard.table}
+							links={monthlyCard.links}
+							labelledby="report-monthly"
+							describedby="report-monthly-sub"
+						/>
 					{/if}
 				</section>
 
