@@ -114,6 +114,22 @@ test('pie tooltips escape the name, as the string template did', () => {
 	);
 });
 
+test('pie slices and their labels show the arrow (they open nothing); bars keep the hand', () => {
+	const pie = eraPieOption({ labels: ['바로크', '고전'], values: [3, 1] }, '시대별 분포', '');
+	const [slices] = pie.series;
+	// zrender 의 기본 커서는 'pointer' 다. 이름표는 따로 그려지는 글자라 silent 여야 한다.
+	assert.equal(slices.cursor, 'default');
+	assert.equal(slices.label.silent, true);
+	// 막대와 막대 이름은 drill-down 을 열므로 손가락 커서 그대로.
+	const bar = horizontalBarOption(
+		{ labels: ['바흐'], values: [1] },
+		'많이 튼 작곡가',
+		'2026-1학기 · 전체'
+	);
+	assert.equal(bar.series[0].cursor, undefined);
+	assert.equal(bar.yAxis.triggerEvent, true);
+});
+
 // 막대 툴팁의 글자들(태그를 떼고 줄마다). ECharts 축 툴팁은 params 를 배열로 준다.
 const tooltipLines = (option, dataIndex) => {
 	const { data } = option.yAxis;

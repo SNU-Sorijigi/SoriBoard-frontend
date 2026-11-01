@@ -337,7 +337,11 @@ export function eraPieOption({ labels, values }, title, subtitle) {
 				percentPrecision: SHARE_PRECISION,
 				itemStyle: { borderColor: OUTLINE, borderWidth: 1 },
 				emphasis: NO_EMPHASIS,
+				// 조각을 눌러도 열리는 것이 없어 손가락 커서를 쓰지 않는다(조각·이름표).
+				// 조각이 무언가를 열게 되면(예: 백엔드 ?era=) 그 차트에서는 둘 다 뺀다.
+				cursor: 'default',
 				label: {
+					silent: true,
 					fontFamily: FONT,
 					color: TEXT,
 					formatter: (p) => `${p.name}\n${formatShare(p.percent)}`
