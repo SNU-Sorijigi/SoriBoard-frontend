@@ -70,6 +70,12 @@ const BASE_TEXT_STYLE = { fontFamily: FONT, color: TEXT };
 // 잘린다('2026-2학기', '2026-10-19'). 끝 이름표만 안쪽으로 붙여 정렬한다.
 const EDGE_LABELS_INSIDE = { alignMinLabel: 'left', alignMaxLabel: 'right' };
 
+// 아직 진행 중인 버킷의 x 이름표('2026-10-26 (진행 중)')는 날짜 밑 둘째 줄에 '(진행 중)' 을 둔다.
+// 한 줄로 길어지면 ECharts 가 축 이름을 솎아 내 표시하려던 바로 그 이름이 숨는다. 그리는 이름만 바뀌고
+// 카테고리 값(툴팁, 표로 보기, CSV)은 그대로다.
+/** @param {string | number} value */
+const twoLineName = (value) => String(value).replace(/ \(진행 중\)$/, '\n(진행 중)');
+
 // 툴팁은 HTML 로 그려지므로 이름을 이스케이프한다(ECharts 의 문자열 템플릿이 하던 일).
 /** @param {string} s */
 const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -144,7 +150,7 @@ export function timelineOption({ labels, values }, title, subtitle) {
 			data: labels,
 			boundaryGap: false,
 			axisLine: AXIS_LINE,
-			axisLabel: { fontFamily: FONT, color: TEXT, ...EDGE_LABELS_INSIDE }
+			axisLabel: { fontFamily: FONT, color: TEXT, ...EDGE_LABELS_INSIDE, formatter: twoLineName }
 		},
 		yAxis: {
 			type: 'value',
@@ -179,7 +185,7 @@ export function countBarOption({ labels, values }, title, subtitle) {
 			type: 'category',
 			data: labels,
 			axisLine: AXIS_LINE,
-			axisLabel: { fontFamily: FONT, color: TEXT, hideOverlap: true }
+			axisLabel: { fontFamily: FONT, color: TEXT, hideOverlap: true, formatter: twoLineName }
 		},
 		yAxis: {
 			type: 'value',
@@ -224,7 +230,13 @@ export function diversityLineOption(labels, series, title, subtitle) {
 			data: labels,
 			boundaryGap: false,
 			axisLine: AXIS_LINE,
-			axisLabel: { fontFamily: FONT, color: TEXT, hideOverlap: true, ...EDGE_LABELS_INSIDE }
+			axisLabel: {
+				fontFamily: FONT,
+				color: TEXT,
+				hideOverlap: true,
+				...EDGE_LABELS_INSIDE,
+				formatter: twoLineName
+			}
 		},
 		yAxis: {
 			type: 'value',

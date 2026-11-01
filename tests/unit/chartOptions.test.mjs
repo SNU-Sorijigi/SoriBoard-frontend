@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
 	timelineOption,
+	countBarOption,
 	diversityLineOption,
 	eraPieOption,
 	horizontalBarOption
@@ -22,6 +23,23 @@ test('line charts keep their first and last x labels inside the canvas', () => {
 		assert.equal(option.xAxis.boundaryGap, false);
 		assert.equal(option.xAxis.axisLabel.alignMinLabel, 'left');
 		assert.equal(option.xAxis.axisLabel.alignMaxLabel, 'right');
+	}
+});
+
+test('the still-running bucket is drawn on two lines, (진행 중) under its date', () => {
+	const marked = ['2026-10-19', '2026-10-26 (진행 중)'];
+	for (const option of [
+		timelineOption({ labels: marked, values: [3, 1] }, '주별 선곡 추이', '이번 학기'),
+		countBarOption({ labels: marked, values: [3, 1] }, '주별 선곡 수', '이번 학기'),
+		diversityLineOption(marked, series, '주별 다양성 추이', '0=편중 · 1=고름')
+	]) {
+		const name = option.xAxis.axisLabel.formatter;
+		assert.equal(name('2026-10-26 (진행 중)'), '2026-10-26\n(진행 중)');
+		assert.equal(name('2026-2학기 (진행 중)'), '2026-2학기\n(진행 중)');
+		assert.equal(name('2026-11 (진행 중)'), '2026-11\n(진행 중)');
+		for (const plain of ['2026-10-19', '2026-1학기', '2026-09']) assert.equal(name(plain), plain);
+		// 카테고리 값(툴팁, 표로 보기, CSV 가 읽는 것)은 한 줄 그대로
+		assert.deepEqual(option.xAxis.data, marked);
 	}
 });
 
