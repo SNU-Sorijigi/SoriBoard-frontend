@@ -9,7 +9,10 @@ import {
 	rowLinks,
 	groupHeading,
 	spellingSummary,
-	composerVariants
+	composerVariants,
+	spellingKindOf,
+	spellingVariants,
+	variantHistoryHref
 } from '../../src/lib/catalogSpelling.js';
 import { readHistoryQuery } from '../../src/lib/playHistory.js';
 import { readCatalogQuery } from '../../src/lib/composerCatalog.js';
@@ -196,4 +199,173 @@ test('no group, no answer or a malformed one gives no spellings', () => {
 test('a group with only that composer gives no spellings', () => {
 	const alone = { groups: [{ key: 'a', count: 3, rows: [{ id: 2, name: 'A', count: 3 }] }] };
 	assert.deepEqual(composerVariants(alone, 2), []);
+});
+
+test("선곡 기록's id filters name their catalog/duplicates kind", () => {
+	assert.equal(spellingKindOf('composer_id'), 'composer');
+	assert.equal(spellingKindOf('player_id'), 'player');
+	assert.equal(spellingKindOf('conductor_id'), 'conductor');
+	assert.equal(spellingKindOf('orchestra_id'), 'orchestra');
+	assert.equal(spellingKindOf('music_id'), 'music');
+	for (const param of ['user_id', '', undefined, null]) assert.equal(spellingKindOf(param), null);
+});
+
+test('spellings of a name kind are those of composerVariants', () => {
+	for (const id of [2, 5, 8, '9', 3]) {
+		assert.deepEqual(
+			spellingVariants(variantsResponse, id),
+			composerVariants(variantsResponse, id)
+		);
+	}
+	assert.deepEqual(
+		spellingVariants(variantsResponse, '5').map((row) => row.id),
+		[2, 9]
+	);
+});
+
+// A title with two catalog numbers is in two groups (Op. 10 and Op. 11).
+const musicResponse = {
+	kind: 'music',
+	groups: [
+		{
+			key: 'op11',
+			count: 9,
+			rows: [
+				{ id: 7, name: 'Suite op 11', count: 4 },
+				{ id: 5, name: 'Suites Op. 10 & Op. 11', count: 3 },
+				{ id: 4, name: 'Suite Op.11', count: 2 }
+			]
+		},
+		{
+			key: 'op10',
+			count: 8,
+			rows: [
+				{ id: 5, name: 'Suites Op. 10 & Op. 11', count: 3 },
+				{ id: 6, name: 'Suite op.10', count: 3 },
+				{ id: 3, name: 'Suite Op 10', count: 2 }
+			]
+		},
+		{
+			key: 'op67',
+			count: 2,
+			rows: [
+				{ id: 1, name: 'Sym. Op. 67', count: 2 },
+				{ id: 2, name: 'Sym. op.67', count: 0 }
+			]
+		}
+	]
+};
+
+test("a piece in two groups gives both groups' other rows, once each, most played first", () => {
+	assert.deepEqual(
+		spellingVariants(musicResponse, 5).map((row) => row.id),
+		[7, 6, 3, 4]
+	);
+	// Ties on count go by name, then id.
+	const tied = {
+		groups: [
+			{
+				rows: [
+					{ id: 1, name: 'b', count: 1 },
+					{ id: 9, name: 'x', count: 1 }
+				]
+			},
+			{
+				rows: [
+					{ id: 9, name: 'x', count: 1 },
+					{ id: 4, name: 'a', count: 1 },
+					{ id: 2, name: 'a', count: 1 }
+				]
+			}
+		]
+	};
+	assert.deepEqual(
+		spellingVariants(tied, 9).map((row) => row.id),
+		[2, 4, 1]
+	);
+	// A row of the piece's own group only.
+	assert.deepEqual(
+		spellingVariants(musicResponse, 6).map((row) => row.id),
+		[5, 3]
+	);
+	assert.deepEqual(spellingVariants(musicResponse, '1'), [{ id: 2, name: 'Sym. op.67', count: 0 }]);
+});
+
+test('no group, no answer or a malformed one gives no other rows', () => {
+	for (const response of [null, undefined, {}, { groups: null }, { groups: {} }]) {
+		assert.deepEqual(spellingVariants(response, 5), []);
+	}
+	assert.deepEqual(spellingVariants({ groups: [{ key: 'x' }, null, { rows: null }] }, 5), []);
+	assert.deepEqual(spellingVariants(musicResponse, 99), []);
+	assert.deepEqual(spellingVariants(musicResponse, null), []);
+	assert.deepEqual(
+		spellingVariants({ groups: [{ rows: [{ id: 5, name: 'A', count: 1 }] }] }, 5),
+		[]
+	);
+});
+
+const historyFilter = (over = {}) => ({
+	period: '3',
+	start: '',
+	end: '',
+	q: '교향곡',
+	userId: '4',
+	includeMentees: true,
+	requested: 'true',
+	targets: [
+		{ param: 'player_id', id: '12' },
+		{ param: 'music_id', id: '20' }
+	],
+	...over
+});
+
+test('a spelling link is the same list with only that filter swapped', () => {
+	const filter = historyFilter();
+	const href = variantHistoryHref(filter, filter.targets[1], 21);
+	assert.equal(urlOf(href).pathname, '/stat/history');
+	assert.equal(urlOf(href).searchParams.get('semester_id'), '3');
+	assert.deepEqual(readHistoryQuery(urlOf(href).searchParams), {
+		...filter,
+		targets: [
+			{ param: 'player_id', id: '12' },
+			{ param: 'music_id', id: '21' }
+		]
+	});
+	const player = readHistoryQuery(
+		urlOf(variantHistoryHref(filter, { param: 'player_id', id: '12' }, '13')).searchParams
+	);
+	assert.deepEqual(player.targets, [
+		{ param: 'player_id', id: '13' },
+		{ param: 'music_id', id: '20' }
+	]);
+	// The filter given is not changed.
+	assert.deepEqual(filter, historyFilter());
+});
+
+test('a spelling link keeps 직접 지정, 이번 학기 and 전체 기간', () => {
+	const target = { param: 'composer_id', id: '2' };
+	const custom = historyFilter({
+		period: 'custom',
+		start: '2026-03-02',
+		end: '2026-04-30',
+		q: '',
+		userId: null,
+		includeMentees: false,
+		requested: '',
+		targets: [target]
+	});
+	const read = readHistoryQuery(urlOf(variantHistoryHref(custom, target, 5)).searchParams);
+	assert.deepEqual(read, { ...custom, targets: [{ param: 'composer_id', id: '5' }] });
+
+	const current = { ...custom, period: 'current', start: '', end: '' };
+	const href = variantHistoryHref(current, target, 5);
+	assert.equal(href, '/stat/history?composer_id=5');
+	assert.deepEqual(readHistoryQuery(urlOf(href).searchParams), {
+		...current,
+		targets: [{ param: 'composer_id', id: '5' }]
+	});
+	assert.equal(
+		variantHistoryHref({ ...current, period: 'all' }, target, 5),
+		'/stat/history?period=all&composer_id=5'
+	);
 });

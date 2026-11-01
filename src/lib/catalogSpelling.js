@@ -10,10 +10,15 @@ import { ALL } from './statPeriod.js';
 export const SPELLING_VIEW = 'spelling';
 export const DEFAULT_KIND = 'composer';
 
-// catalog/duplicates/ 의 kind. param 은 선곡 기록이 그 대상을 거르는 id 필터(작곡가는 작곡가 페이지로
-// 잇는다).
+// catalog/duplicates/ 의 kind. param 은 선곡 기록이 그 대상을 거르는 id 필터(표기 정리의 이름 칸은
+// 작곡가만 작곡가 페이지로 잇는다: rowLinks).
 export const SPELLING_KINDS = [
-	{ kind: 'composer', label: '작곡가', empty: '표기가 갈린 작곡가가 없습니다', param: null },
+	{
+		kind: 'composer',
+		label: '작곡가',
+		empty: '표기가 갈린 작곡가가 없습니다',
+		param: 'composer_id'
+	},
 	{ kind: 'player', label: '연주자', empty: '표기가 갈린 연주자가 없습니다', param: 'player_id' },
 	{
 		kind: 'conductor',
@@ -113,20 +118,68 @@ export function spellingSummary(groups) {
 	return `${groups.length.toLocaleString()}묶음 · 표기 ${rows.toLocaleString()}개`;
 }
 
-// 작곡가 페이지의 '표기만 다른 이름': 응답(catalog/duplicates/?kind=composer)에서 그 작곡가가 든 묶음의
-// 다른 표기들(백엔드의 순서 그대로, 가장 많이 튼 것부터). 경로의 id 는 문자열이고 응답의 id 는 수라
+// 선곡 기록의 id 필터(composer_id 등) → 그 catalog/duplicates/ 의 kind. 없으면 null.
+/**
+ * @param {string | null | undefined} param
+ * @returns {string | null}
+ */
+export const spellingKindOf = (param) =>
+	(param && SPELLING_KINDS.find((spec) => spec.param === param)?.kind) || null;
+
+// 백엔드의 행 순서: 가장 많이 튼 것부터, 그다음 이름, 그다음 id.
+/**
+ * @param {SpellingRow} a
+ * @param {SpellingRow} b
+ */
+const byCount = (a, b) =>
+	(b.count ?? 0) - (a.count ?? 0) ||
+	(a.name < b.name ? -1 : a.name > b.name ? 1 : 0) ||
+	a.id - b.id;
+
+// '표기만 다른 이름'(작곡가 페이지, 선곡 기록): 응답(catalog/duplicates/)에서 그 id 가 든 모든 묶음의
+// 다른 행들. 이름은 한 묶음에만 들지만 곡은 작품 번호마다 한 묶음이라 둘 이상에 들 수 있어, 같은 id 는
+// 한 번만 두고 백엔드의 순서(가장 많이 튼 것부터)로 합친다. 경로의 id 는 문자열이고 응답의 id 는 수라
 // 문자열로 견준다. 응답이 없거나 틀렸거나, 묶음에 없거나 혼자면 [].
+/**
+ * @param {{ groups?: SpellingGroup[] | null } | null | undefined} response
+ * @param {number | string | null | undefined} id
+ * @returns {SpellingRow[]}
+ */
+export function spellingVariants(response, id) {
+	const groups = response?.groups;
+	if (id == null || !Array.isArray(groups)) return [];
+	const wanted = String(id);
+	/** @type {Map<string, SpellingRow>} */
+	const others = new Map();
+	for (const group of groups) {
+		const rows = Array.isArray(group?.rows) ? group.rows : [];
+		if (!rows.some((row) => String(row?.id) === wanted)) continue;
+		for (const row of rows) {
+			const key = String(row?.id);
+			if (row && key !== wanted && !others.has(key)) others.set(key, row);
+		}
+	}
+	return [...others.values()].sort(byCount);
+}
+
+// 작곡가 페이지의 '표기만 다른 이름': 그 작곡가가 든 묶음의 다른 표기들.
 /**
  * @param {{ groups?: SpellingGroup[] | null } | null | undefined} response
  * @param {number | string | null | undefined} composerId
  * @returns {SpellingRow[]}
  */
-export function composerVariants(response, composerId) {
-	const groups = response?.groups;
-	if (composerId == null || !Array.isArray(groups)) return [];
-	const id = String(composerId);
-	const group = groups.find(
-		(g) => Array.isArray(g?.rows) && g.rows.some((row) => String(row?.id) === id)
+export const composerVariants = (response, composerId) => spellingVariants(response, composerId);
+
+// 선곡 기록의 '표기만 다른 이름' 링크: 같은 목록(기간, 지기, 검색어, 신청곡, 다른 id 필터 그대로)에서
+// 그 필터(target 과 같은 param)의 id 만 바꾼다.
+/**
+ * @param {import('./playHistory.js').HistoryFilter} filter
+ * @param {import('./playHistory.js').HistoryTarget} target
+ * @param {number | string} id
+ */
+export function variantHistoryHref(filter, target, id) {
+	const targets = (filter.targets ?? []).map((t) =>
+		t.param === target.param ? { param: t.param, id: String(id) } : t
 	);
-	return group ? group.rows.filter((row) => String(row?.id) !== id) : [];
+	return historyHref({ ...filter, targets });
 }

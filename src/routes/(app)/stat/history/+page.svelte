@@ -27,6 +27,13 @@
 		semesterRangeParams,
 		historyPeriod
 	} from '$lib/playHistory.js';
+	import {
+		catalogViewHref,
+		duplicatesSearch,
+		spellingKindOf,
+		spellingVariants,
+		variantHistoryHref
+	} from '$lib/catalogSpelling.js';
 
 	// 검색어·기간·지기·신청곡과 통계 drill-down 의 id 필터는 URL에 둔다(링크로 같은 목록을 연다).
 	// 페이지가 시작될 때 한 번만 읽는다.
@@ -164,10 +171,54 @@
 		}
 	}
 
+	// 표기 정리의 묶음(catalog/duplicates/, 전체 기간·전체 지기): id 필터의 종류마다 한 번만 부른다.
+	// 필터는 해제로 줄기만 하므로 다시 부르지 않는다. 못 받으면 줄을 두지 않는다.
+	/** @type {Record<string, any>} */
+	let duplicates = {};
+	/** @param {string} kind */
+	async function loadDuplicates(kind) {
+		try {
+			const res = await fetch(`/api/catalog/duplicates${duplicatesSearch(kind)}`);
+			if (!res.ok) throw new Error(`catalog/duplicates ${res.status}`);
+			const result = await res.json();
+			duplicates = { ...duplicates, [kind]: result };
+		} catch (e) {
+			console.error('표기만 다른 이름 로딩 실패', e);
+		}
+	}
+	// id 필터마다 그 대상의 다른 표기와, 지금 조건에서 그 id 만 바꾼 링크(없으면 줄을 두지 않는다).
+	// 조건을 바꾸면 링크도 따라 바뀌도록 filter() 대신 값을 하나하나 적는다.
+	$: variantView = {
+		period,
+		start: customStart,
+		end: customEnd,
+		q,
+		userId,
+		includeMentees,
+		requested,
+		targets
+	};
+	$: variantLines = targets
+		.map((target) => {
+			const kind = spellingKindOf(target.param);
+			const rows = kind ? spellingVariants(duplicates[kind], target.id) : [];
+			return {
+				target,
+				kind,
+				rows: rows.map((row) => ({
+					...row,
+					plays: (row.count ?? 0).toLocaleString(),
+					href: variantHistoryHref(variantView, target, row.id)
+				}))
+			};
+		})
+		.filter((line) => line.rows.length);
+
 	onMount(() => {
 		load();
 		targets.forEach(loadTargetName);
 		loadSemesterRange();
+		new Set(targets.map((t) => spellingKindOf(t.param)).filter(Boolean)).forEach(loadDuplicates);
 	});
 
 	function onSearch() {
@@ -354,6 +405,19 @@
 		</div>
 	</div>
 
+	<!-- 표기만 다른 이름(표기 정리의 묶음): 그 선곡은 이 목록에 들지 않으므로 알리고, 이 목록에서 그 필터의
+	     id 만 바꿔 연다. 이 페이지는 URL을 처음 한 번만 읽으므로 링크는 페이지를 새로 불러온다
+	     (data-sveltekit-reload). 이름은 띄어쓰기가 달라도 보이도록 그대로 둔다 -->
+	{#each variantLines as line (line.target.param)}
+		<p class="variants-note">
+			{line.kind === 'music' ? '작품 번호가 같은 곡' : '표기만 다른 이름'}: {#each line.rows as row, i (row.id)}{i
+					? ', '
+					: ''}‘<a class="variant" href={row.href} data-sveltekit-reload>{row.name}</a>’ 선곡 {row.plays}회{/each}
+			(전체 기간). 이 목록에는 들지 않습니다. ·
+			<a href={catalogViewHref('', line.kind)}>표기 정리</a>
+		</p>
+	{/each}
+
 	<div class="result-bar">
 		<p class="result-count" aria-live="polite">
 			{#if count !== null}
@@ -438,16 +502,25 @@
 	}
 	.period,
 	.result-count,
-	.more-count {
+	.more-count,
+	.variants-note {
 		font-family: var(--small-medium-font-family, 'Noto Sans KR', sans-serif);
 		font-size: var(--small-medium-font-size, 13px);
 		color: var(--gray-gray-600, #7c7c7c);
 	}
-	.stat-link {
+	.variants-note {
+		margin: 16px 0 -8px;
+	}
+	.stat-link,
+	.variants-note a {
 		font-family: var(--small-medium-font-family, 'Noto Sans KR', sans-serif);
 		font-size: var(--small-medium-font-size, 13px);
 		color: var(--primary-primary-800, #6a5134);
 		text-underline-offset: 3px;
+	}
+	/* 띄어쓰기가 다른 표기도 그대로 보이도록(표기 정리, 작곡가 페이지와 같다) */
+	.variants-note .variant {
+		white-space: pre-wrap;
 	}
 	.toolbar {
 		display: flex;
