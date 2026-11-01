@@ -70,6 +70,10 @@ const BASE_TEXT_STYLE = { fontFamily: FONT, color: TEXT };
 // 잘린다('2026-2학기', '2026-10-19'). 끝 이름표만 안쪽으로 붙여 정렬한다.
 const EDGE_LABELS_INSIDE = { alignMinLabel: 'left', alignMaxLabel: 'right' };
 
+// 시간 축은 마지막(가장 최근) 버킷 이름을 늘 그린다. ECharts 는 첫 이름부터 n 개마다 그려서 간격이 맞을
+// 때만 마지막 이름이 보이고, 진행 중인 버킷의 '(진행 중)' 이 숨는다. 겹치면 그 앞 이름이 빠진다.
+const LAST_NAME_SHOWN = { showMaxLabel: true };
+
 // 아직 진행 중인 버킷의 x 이름표('2026-10-26 (진행 중)')는 날짜 밑 둘째 줄에 '(진행 중)' 을 둔다.
 // 한 줄로 길어지면 ECharts 가 축 이름을 솎아 내 표시하려던 바로 그 이름이 숨는다. 그리는 이름만 바뀌고
 // 카테고리 값(툴팁, 표로 보기, CSV)은 그대로다.
@@ -150,7 +154,13 @@ export function timelineOption({ labels, values }, title, subtitle) {
 			data: labels,
 			boundaryGap: false,
 			axisLine: AXIS_LINE,
-			axisLabel: { fontFamily: FONT, color: TEXT, ...EDGE_LABELS_INSIDE, formatter: twoLineName }
+			axisLabel: {
+				fontFamily: FONT,
+				color: TEXT,
+				...EDGE_LABELS_INSIDE,
+				...LAST_NAME_SHOWN,
+				formatter: twoLineName
+			}
 		},
 		yAxis: {
 			type: 'value',
@@ -179,13 +189,20 @@ export function countBarOption({ labels, values }, title, subtitle) {
 	return {
 		title: titleBlock(title, subtitle),
 		textStyle: BASE_TEXT_STYLE,
-		grid: { left: 8, right: 16, top: subtitle ? 70 : 56, bottom: 24, containLabel: true },
+		// right 28: 막대 밑 가운데에 늘 그리는 마지막 이름(LAST_NAME_SHOWN)이 캔버스 밖으로 나가지 않게
+		grid: { left: 8, right: 28, top: subtitle ? 70 : 56, bottom: 24, containLabel: true },
 		tooltip: { trigger: 'axis', axisPointer: BAND_POINTER, ...TOOLTIP_BOX },
 		xAxis: {
 			type: 'category',
 			data: labels,
 			axisLine: AXIS_LINE,
-			axisLabel: { fontFamily: FONT, color: TEXT, hideOverlap: true, formatter: twoLineName }
+			axisLabel: {
+				fontFamily: FONT,
+				color: TEXT,
+				hideOverlap: true,
+				...LAST_NAME_SHOWN,
+				formatter: twoLineName
+			}
 		},
 		yAxis: {
 			type: 'value',
@@ -235,6 +252,7 @@ export function diversityLineOption(labels, series, title, subtitle) {
 				color: TEXT,
 				hideOverlap: true,
 				...EDGE_LABELS_INSIDE,
+				...LAST_NAME_SHOWN,
 				formatter: twoLineName
 			}
 		},

@@ -43,6 +43,19 @@ test('the still-running bucket is drawn on two lines, (진행 중) under its dat
 	}
 });
 
+test('time charts always name their newest bucket, and the bar chart leaves room for it', () => {
+	const bar = countBarOption({ labels, values: [3, 1, 4, 1] }, '월별 선곡 수', '전체');
+	for (const option of [
+		timelineOption({ labels, values: [3, 1, 4, 1] }, '학기별 선곡 추이', '전체'),
+		bar,
+		diversityLineOption(labels, series, '월별 다양성 추이', '0=편중 · 1=고름')
+	]) {
+		assert.equal(option.xAxis.axisLabel.showMaxLabel, true);
+	}
+	// 막대 밑 가운데에 놓이는 마지막 이름이 캔버스 밖으로 나가지 않도록
+	assert.ok(bar.grid.right >= 28, `grid.right ${bar.grid.right}`);
+});
+
 test('diversity legend sits below the subtitle, and the plot below the legend', () => {
 	const option = diversityLineOption(labels, series, '월별 다양성 추이', '0=편중 · 1=고름');
 	// 부제는 위에서 약 45~62px 를 차지한다(범례가 48 이면 그 위에 겹쳤다).
