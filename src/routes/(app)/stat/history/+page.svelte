@@ -25,7 +25,6 @@
 		targetName,
 		targetText,
 		historyFileTags,
-		semesterRangeParams,
 		historyPeriod
 	} from '$lib/playHistory.js';
 	import {
@@ -155,23 +154,6 @@
 		}
 	}
 
-	// 학기를 고르면 머리말에 보일 그 학기의 날짜 범위(백엔드가 적용한 filters). 가장 최근 요청만 반영한다.
-	let semesterFilters = null;
-	let rangeRequestId = 0;
-	async function loadSemesterRange() {
-		const id = ++rangeRequestId;
-		const params = semesterRangeParams(period);
-		if (!params) return;
-		try {
-			const res = await fetch(`/api/stats/summary?${params}`);
-			if (!res.ok) throw new Error(`summary ${res.status}`);
-			const result = await res.json();
-			if (id === rangeRequestId) semesterFilters = result.filters;
-		} catch (e) {
-			console.error('선곡 기록 학기 범위 로딩 실패', e);
-		}
-	}
-
 	// 표기 정리의 묶음(catalog/duplicates/, 전체 기간·전체 지기): id 필터의 종류마다 한 번만 부른다.
 	// 필터는 해제로 줄기만 하므로 다시 부르지 않는다. 못 받으면 줄을 두지 않는다.
 	/** @type {Record<string, any>} */
@@ -218,7 +200,6 @@
 	onMount(() => {
 		load();
 		targets.forEach(loadTargetName);
-		loadSemesterRange();
 		new Set(targets.map((t) => spellingKindOf(t.param)).filter(Boolean)).forEach(loadDuplicates);
 	});
 
@@ -241,7 +222,6 @@
 	const onPeriodChange = (e) => {
 		period = e.detail;
 		apply();
-		loadSemesterRange();
 	};
 	function onMemberChange(e) {
 		userId = e.detail.userId;
@@ -316,12 +296,11 @@
 	}
 
 	// 머리말의 기간과, 직접 지정을 고르면 입력란에 채울 범위(지금 보이는 기간, 전체 기간이면 이번 학기).
-	// 학기의 범위를 받기 전에는 학기 목록(PeriodSelect)으로 짐작한다.
+	// 학기의 날짜는 학기 목록(PeriodSelect)의 연도·학기로 정한다(백엔드의 semester_id 와 같은 규칙).
 	let semesters = [];
 	$: ({ text: periodText, shown: shownRange } = historyPeriod(
 		{ period, start: customStart, end: customEnd },
 		current,
-		semesterFilters,
 		semesters
 	));
 	$: statLink = statHref({

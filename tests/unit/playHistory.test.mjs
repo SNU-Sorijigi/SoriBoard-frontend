@@ -25,7 +25,6 @@ import {
 	jigiText,
 	fetchAllPlays,
 	playCsvRow,
-	semesterRangeParams,
 	historyPeriod,
 	bucketHistoryLinks
 } from '../../src/lib/playHistory.js';
@@ -531,78 +530,57 @@ test('recordingParts gives the trimmed 음반 번호 and 음원 종류, or empty
 	assert.deepEqual(recordingParts(play), { number: '', source: '' });
 });
 
-test('semesterRangeParams asks stats/summary for a 학기 only', () => {
-	assert.equal(semesterRangeParams('7').toString(), 'semester_id=7');
-	for (const period of ['current', 'all', 'custom'])
-		assert.equal(semesterRangeParams(period), null);
-});
-
 test('historyPeriod: header text and the range 직접 지정 starts from', () => {
-	const current = { start: '2026-09-01', end: '2026-10-27' };
-	const at = (period, start = '', end = '') => ({ period, start, end });
-	assert.deepEqual(historyPeriod(at('current'), current, null), {
-		text: '2026-09-01 ~ 2026-10-27',
-		shown: current
-	});
-	assert.deepEqual(historyPeriod(at('all'), current, null), { text: '전체 기간', shown: current });
-	assert.deepEqual(historyPeriod(at('custom', '2025-01-01', ''), current, null), {
-		text: '2025-01-01 ~',
-		shown: { start: '2025-01-01', end: '' }
-	});
-
-	const second = { scope: 'all', semester_id: '1', start: '2025-09-01', end: '2026-02-28' };
-	assert.deepEqual(historyPeriod(at('1'), current, second), {
-		text: '2025-09-01 ~ 2026-02-28',
-		shown: { start: '2025-09-01', end: '2026-02-28' }
-	});
-	// 범위를 받기 전, 다른 학기의 범위, 백엔드가 모르는 학기(semester_id 없이 전체 기간)는 쓰지 않는다.
-	const blank = { text: '', shown: current };
-	assert.deepEqual(historyPeriod(at('1'), current, null), blank);
-	assert.deepEqual(historyPeriod(at('3'), current, second), blank);
-	assert.deepEqual(historyPeriod(at('99'), current, { scope: 'all' }), blank);
-	// 다른 기간에서는 학기의 범위를 무시한다.
-	assert.deepEqual(historyPeriod(at('all'), current, second), {
-		text: '전체 기간',
-		shown: current
-	});
-});
-
-test('historyPeriod guesses a 학기’s dates from the 학기 list until its range arrives', () => {
 	const current = { start: '2026-09-01', end: '2026-10-27' };
 	const at = (period, start = '', end = '') => ({ period, start, end });
 	const semesters = [
 		{ id: 1, year: 2025, semester_num: 2 },
 		{ id: 3, year: 2025, semester_num: 1 }
 	];
-	const guess = { start: '2025-09-01', end: '2026-02-28' };
-	const guessed = { text: '2025-09-01 ~ 2026-02-28', shown: guess };
-	// 범위를 받기 전, 다른 학기의 범위를 받았을 때, 백엔드가 그 학기를 모를 때는 목록으로 짐작한다.
-	assert.deepEqual(historyPeriod(at('1'), current, null, semesters), guessed);
-	assert.deepEqual(
-		historyPeriod(at('1'), current, { semester_id: '3', start: '2025-03-01' }, semesters),
-		guessed
-	);
-	assert.deepEqual(historyPeriod(at('1'), current, { scope: 'all' }, semesters), guessed);
-	// 받은 범위가 그 학기의 것이면 그것을 쓴다.
-	const echoed = { semester_id: '1', start: '2025-09-02', end: '2026-02-27' };
-	assert.deepEqual(historyPeriod(at('1'), current, echoed, semesters), {
-		text: '2025-09-02 ~ 2026-02-27',
-		shown: { start: '2025-09-02', end: '2026-02-27' }
+	for (const list of [undefined, semesters]) {
+		assert.deepEqual(historyPeriod(at('current'), current, list), {
+			text: '2026-09-01 ~ 2026-10-27',
+			shown: current
+		});
+		assert.deepEqual(historyPeriod(at('all'), current, list), {
+			text: '전체 기간',
+			shown: current
+		});
+		assert.deepEqual(historyPeriod(at('custom', '2025-01-01', ''), current, list), {
+			text: '2025-01-01 ~',
+			shown: { start: '2025-01-01', end: '' }
+		});
+	}
+});
+
+test('historyPeriod takes a 학기’s dates from the 학기 list, by the backend’s rule', () => {
+	const current = { start: '2026-09-01', end: '2026-10-27' };
+	const at = (period) => ({ period, start: '', end: '' });
+	const semesters = [
+		{ id: 1, year: 2025, semester_num: 2 },
+		{ id: 3, year: 2025, semester_num: 1 },
+		{ id: 7, year: 2027, semester_num: 2 }
+	];
+	// 2학기는 9/1 ~ 다음 해 2월 말일, 1학기는 3/1 ~ 8/31.
+	assert.deepEqual(historyPeriod(at('1'), current, semesters), {
+		text: '2025-09-01 ~ 2026-02-28',
+		shown: { start: '2025-09-01', end: '2026-02-28' }
 	});
-	// 목록에 없는 학기나 목록이 없으면 전처럼 비어 있다.
+	assert.deepEqual(historyPeriod(at('3'), current, semesters), {
+		text: '2025-03-01 ~ 2025-08-31',
+		shown: { start: '2025-03-01', end: '2025-08-31' }
+	});
+	// 다음 해가 윤년이면 2/29 까지.
+	assert.deepEqual(historyPeriod(at('7'), current, semesters), {
+		text: '2027-09-01 ~ 2028-02-29',
+		shown: { start: '2027-09-01', end: '2028-02-29' }
+	});
+	// 목록에 없는 학기, 빈 목록, 목록이 없으면(못 받았으면) 문구가 비고 범위는 이번 학기다.
 	const blank = { text: '', shown: current };
-	assert.deepEqual(historyPeriod(at('99'), current, null, semesters), blank);
-	assert.deepEqual(historyPeriod(at('1'), current, null, []), blank);
+	assert.deepEqual(historyPeriod(at('99'), current, semesters), blank);
+	assert.deepEqual(historyPeriod(at('1'), current, []), blank);
 	assert.deepEqual(historyPeriod(at('1'), current, null), blank);
-	// 다른 기간에서는 학기 목록을 쓰지 않는다.
-	assert.deepEqual(historyPeriod(at('all'), current, null, semesters), {
-		text: '전체 기간',
-		shown: current
-	});
-	assert.deepEqual(historyPeriod(at('custom', '2025-01-01', ''), current, null, semesters), {
-		text: '2025-01-01 ~',
-		shown: { start: '2025-01-01', end: '' }
-	});
+	assert.deepEqual(historyPeriod(at('1'), current), blank);
 });
 
 test('workHistoryHref opens the plays of one work, all time or in one 학기', () => {

@@ -265,24 +265,15 @@ export function historyFileTags(filter, names = {}) {
 	];
 }
 
-// 학기의 날짜 범위는 백엔드만 알고 plays/ 는 돌려주지 않으므로, 그 학기로 거른 stats/summary 의
-// filters 에서 읽는다. 그 요청의 쿼리. 학기가 아니면 null.
-/** @param {string} period */
-export function semesterRangeParams(period) {
-	if (period === CURRENT || period === ALL || period === CUSTOM) return null;
-	return new URLSearchParams({ semester_id: period });
-}
-
-// 머리말의 기간 문구(text)와 직접 지정을 고를 때 입력란에 채울 범위(shown). 학기는 받은
-// filters 가 그 학기의 것이면 그 날짜를, 그 전(또는 받지 못하면)에는 학기 목록의 연도·학기로
-// 짐작한 날짜를 보인다. 둘 다 없으면 문구가 비고 범위는 이번 학기다.
+// 머리말의 기간 문구(text)와 직접 지정을 고를 때 입력란에 채울 범위(shown). 학기는 학기 목록의
+// 연도·학기로 정한 날짜(백엔드가 semester_id 에 적용하는 규칙과 같다)를 보인다. 그 학기가 목록에
+// 없으면(목록을 못 받았으면) 문구가 비고 범위는 이번 학기다.
 /**
  * @param {Pick<HistoryFilter, 'period' | 'start' | 'end'>} filter
  * @param {{ start: string, end: string }} current
- * @param {{ semester_id?: string, start?: string, end?: string } | null | undefined} semesterFilters
- * @param {{ id: number, year: number, semester_num: number }[] | null} [semesters]
+ * @param {{ id: number, year: number, semester_num: number }[] | null} [semesters] /api/semester
  */
-export function historyPeriod(filter, current, semesterFilters, semesters = null) {
+export function historyPeriod(filter, current, semesters = null) {
 	const { period } = filter;
 	if (period === CURRENT) return { text: periodRangeText(current), shown: current };
 	if (period === ALL) return { text: '전체 기간', shown: current };
@@ -290,12 +281,8 @@ export function historyPeriod(filter, current, semesterFilters, semesters = null
 		const custom = { start: filter.start, end: filter.end };
 		return { text: periodRangeText(custom), shown: custom };
 	}
-	const f = semesterFilters;
-	if (!f || f.semester_id !== period || !(f.start || f.end)) {
-		const guess = semesterRangeOf(period, semesters);
-		return guess ? { text: periodRangeText(guess), shown: guess } : { text: '', shown: current };
-	}
-	return { text: periodRangeText(f), shown: { start: f.start ?? '', end: f.end ?? '' } };
+	const range = semesterRangeOf(period, semesters);
+	return range ? { text: periodRangeText(range), shown: range } : { text: '', shown: current };
 }
 
 // 이미 받은 행 뒤에 다음 쪽을 붙인다. 그 사이에 새 선곡이 들어와 쪽이 밀리면 같은 선곡이 다시
