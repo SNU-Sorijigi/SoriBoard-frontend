@@ -9,6 +9,7 @@ import { competitionRanks, formatCount } from './statTable.js';
 import { periodTitle } from './statTitle.js';
 import { spansSemesters } from './statBucket.js';
 import { firstsTable } from './semesterReport.js';
+import { tableCsv } from './csvTable.js';
 
 const ID = /^[1-9]\d*$/;
 const UNKNOWN_ERA = '미상';
@@ -316,29 +317,16 @@ export function composerFirstsTable(firsts, composer) {
 	return firstsTable({ items }, '곡');
 }
 
-// 곡 표의 CSV(csvTable.js): 곡, 횟수, 처음, 마지막. 순위는 빼고(차트 카드의 CSV 처럼) 횟수는 숫자 그대로,
-// 날짜는 YYYY-MM-DD, 없으면 빈칸. previous 를 주면 지난 학기(숫자, 알 수 없으면 빈칸, 이 학기에 처음
-// 튼 곡은 '첫 선곡')도 둔다(표와 같다).
+// 곡 표의 CSV: 표로 보기에 보이는 그대로(csvTable.js 의 tableCsv), 통계의 차트 카드·drill-down 패널의 CSV 처럼.
+// 순위(동점은 같은 순위)도 두고, 수치 칸의 천 단위 쉼표만 빼며(1,234 → 1234), 없는 날짜나 알 수 없는
+// 지난 학기 횟수는 '—', 이 학기에 처음 튼 곡은 '첫 선곡' 그대로다.
 /**
  * @param {{ filters?: { start?: string }, items: { id: number, name: string, count: number,
  *   composer_id?: number | null, first_played?: string | null, last_played?: string | null }[] }} works
  * @param {{ id: number, name: string } | null} composer
  * @param {{ items: { id: number, count: number }[] } | null} [previous]
- * @returns {{ headers: string[], rows: unknown[][] }}
+ * @returns {{ headers: string[], rows: string[][] }}
  */
 export function composerWorksCsv(works, composer, previous = null) {
-	const headers = ['곡', '횟수', '처음', '마지막'];
-	const start = works.filters?.start;
-	return {
-		headers: previous ? [...headers, '지난 학기'] : headers,
-		rows: works.items.map((item) => {
-			const row = [
-				composer ? composerWorkName(item, composer) : item.name,
-				item.count,
-				item.first_played ?? '',
-				item.last_played ?? ''
-			];
-			return previous ? [...row, previousWorkValue(previous, item, start) ?? ''] : row;
-		})
-	};
+	return tableCsv(composerWorksTable(works, composer, previous));
 }

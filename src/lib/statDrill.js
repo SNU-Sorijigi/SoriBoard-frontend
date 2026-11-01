@@ -61,7 +61,7 @@ export function workLabel(item, target) {
 }
 
 // 지난 학기 칸: 그 곡을 앞 학기에 튼 횟수(이름이 아니라 id 로 맞춘다). 앞 학기 목록에 없으면 0.
-// 단, 앞 학기 목록이 WORKS_LIMIT 에서 잘렸으면 없는 곡의 횟수는 알 수 없다(null: 표는 '—', CSV 는 빈칸).
+// 단, 앞 학기 목록이 WORKS_LIMIT 에서 잘렸으면 없는 곡의 횟수는 알 수 없다(null: 표와 CSV 는 '—').
 /**
  * @param {{ items: { id: number, count: number }[] }} previous
  * @param {number} id
