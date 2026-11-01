@@ -147,3 +147,19 @@ test('bar tooltips add each bar’s note under its name and count, 1위 on the t
 	assert.ok(html.includes('<i class="m"></i>'), html);
 	assert.ok(!html.includes('<1>'), html);
 });
+
+test('bar names are cut at 160 px, or at the nameWidth given (많이 튼 곡: 220)', () => {
+	const plain = horizontalBarOption(bars, '많이 튼 작곡가', '2026-1학기 · 전체');
+	assert.equal(plain.yAxis.axisLabel.width, 160);
+	assert.equal(plain.yAxis.axisLabel.overflow, 'truncate');
+	const wide = horizontalBarOption(bars, '많이 튼 곡', '2026-1학기 · 전체', null, 220);
+	assert.equal(wide.yAxis.axisLabel.width, 220);
+	assert.equal(wide.yAxis.axisLabel.overflow, 'truncate');
+	assert.equal('formatter' in wide.tooltip, false);
+	const notes = ['지난 학기 3위', '', '지난 학기 첫 선곡'];
+	const noted = horizontalBarOption(bars, '많이 튼 곡', '2026-1학기 · 전체', notes, 220);
+	assert.equal(noted.yAxis.axisLabel.width, 220);
+	assert.equal(noted.yAxis.axisLabel.overflow, 'truncate');
+	assert.deepEqual(tooltipLines(noted, 2), ['브람스 &#60;1&#62;', '1,234', '지난 학기 3위']);
+	assert.deepEqual(tooltipLines(noted, 1), ['바흐', '5']);
+});

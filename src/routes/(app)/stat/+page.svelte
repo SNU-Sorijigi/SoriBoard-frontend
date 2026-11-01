@@ -554,8 +554,10 @@
 			subtitleFor(orchestras),
 			rankNotes(orchestraTable)
 		);
+	// 같은 작곡가의 곡이 같은 이름으로 잘리지 않게 이름 칸을 220px로 넓힌다.
 	$: worksOpt =
-		works && horizontalBarOption(works, '많이 튼 곡', subtitleFor(works), rankNotes(worksTable));
+		works &&
+		horizontalBarOption(works, '많이 튼 곡', subtitleFor(works), rankNotes(worksTable), 220);
 	$: timelineTitle = `${timelineBucketName(timelineBucket)} 선곡 추이`;
 	$: timelineData = timeline && timelineView(timeline, endDate);
 	$: timelineOpt = timelineData && timelineOption(timelineData, timelineTitle, viewLabel);

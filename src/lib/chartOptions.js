@@ -103,7 +103,14 @@ function barTooltip(notes) {
 
 // 가로 막대 (top-N): composers / works / conductors / orchestras 공용.
 // notes(1위부터, 막대마다 한 줄 또는 '')를 주면 툴팁에 덧붙인다(지난 학기 순위). 없으면 기본 툴팁.
-export function horizontalBarOption({ labels, values }, title, subtitle, notes = null) {
+// 이름은 nameWidth px(기본 160)에서 잘린다. 곡 이름(`작곡가 - 곡`)은 더 넓어야 한다.
+export function horizontalBarOption(
+	{ labels, values },
+	title,
+	subtitle,
+	notes = null,
+	nameWidth = 160
+) {
 	// ECharts category 축은 아래에서 위로 그려지므로 역순으로 넣어 1위가 맨 위로.
 	const cats = [...labels].reverse();
 	const vals = [...values].reverse();
@@ -123,7 +130,13 @@ export function horizontalBarOption({ labels, values }, title, subtitle, notes =
 			data: cats,
 			triggerEvent: true, // 이름을 눌러도 그 막대를 누른 것으로(drill-down)
 			axisLine: AXIS_LINE,
-			axisLabel: { fontFamily: FONT, color: TEXT, fontSize: 12, width: 160, overflow: 'truncate' }
+			axisLabel: {
+				fontFamily: FONT,
+				color: TEXT,
+				fontSize: 12,
+				width: nameWidth,
+				overflow: 'truncate'
+			}
 		},
 		series: [
 			{
