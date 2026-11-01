@@ -37,6 +37,12 @@
 		ongoingText
 	} from '$lib/semesterReport.js';
 	import { catalogHref } from '$lib/composerCatalog.js';
+	import {
+		DEFAULT_KIND,
+		catalogViewHref,
+		composerVariants,
+		duplicatesSearch
+	} from '$lib/catalogSpelling.js';
 	import { hasPeriodStart, firstsSubtitle, firstsEmptyText } from '$lib/statFirsts.js';
 	import {
 		readComposerId,
@@ -58,7 +64,8 @@
 		composerWorksCsv,
 		composerFirstsTable,
 		composerIsWholeRecord,
-		composerWholeDates
+		composerWholeDates,
+		composerHref
 	} from '$lib/composerStats.js';
 
 	// 작곡가 한 명의 기록, 고른 기간·지기만(기본값은 전체 기간·전체 지기). 카드는 따로 불러오고,
@@ -218,6 +225,22 @@
 		loadComposer(composerId, generation);
 	}
 
+	// 표기 정리의 묶음(catalog/duplicates/, 전체 기간·전체 지기): 모든 작곡가에 같으므로 처음 한 번만
+	// 부르고 둔다(다른 작곡가로 옮겨 가거나 기간·지기를 바꿔도 다시 부르지 않는다). 못 받으면 줄을 두지 않는다.
+	let duplicates = null;
+	let duplicatesAsked = false;
+	async function loadDuplicates() {
+		duplicatesAsked = true;
+		try {
+			const res = await fetch(`/api/catalog/duplicates${duplicatesSearch('composer')}`);
+			if (!res.ok) throw new Error(`catalog/duplicates ${res.status}`);
+			duplicates = await res.json();
+		} catch (e) {
+			console.error('표기만 다른 이름 로딩 실패', e);
+		}
+	}
+	$: variants = composerVariants(duplicates, composerId);
+
 	function loadAll() {
 		const id = readComposerId($page.params.id);
 		const gen = ++generation;
@@ -225,6 +248,7 @@
 		notFound = !id;
 		composerError = '';
 		if (id) loadComposer(id, gen);
+		if (id && !duplicatesAsked) loadDuplicates();
 		loadCards();
 	}
 	// 처음 열 때와, 같은 페이지에서 다른 작곡가로 옮겨 갈 때: 기간·지기도 URL에서 다시 읽는다.
@@ -633,6 +657,17 @@
 				진행 중인 학기입니다. 지난 학기({semesterLabel(previousTarget)}) 수치는 학기 전체입니다.
 			</p>
 		{/if}
+		<!-- 표기만 다른 이름(표기 정리의 묶음): 그 선곡은 이 페이지에 들지 않으므로, 기간·지기와 상관없이 알린다.
+		     이름은 띄어쓰기가 달라도 보이도록 그대로 두고, 그 작곡가 페이지를 같은 기간·지기로 연다 -->
+		{#if variants.length}
+			<p class="kpi-note variants-note">
+				표기만 다른 이름: {#each variants as row, i (row.id)}{i ? ', ' : ''}‘<a
+						class="page-link variant"
+						href={composerHref(row.id, filter)}>{row.name}</a
+					>’ 선곡 {count(row.count)}회{/each} (전체 기간). 이 페이지의 수치에는 들지 않습니다. ·
+				<a class="page-link" href={catalogViewHref('', DEFAULT_KIND)}>표기 정리</a>
+			</p>
+		{/if}
 
 		{#if summary && summary.total_plays === 0}
 			<div class="empty-hint">
@@ -900,6 +935,10 @@
 	}
 	.kpi-note {
 		color: var(--gray-gray-600, #7c7c7c);
+	}
+	/* 표기만 다른 이름: 띄어쓰기가 다른 표기도 그대로 보이도록(표기 정리와 같다) */
+	.page-link.variant {
+		white-space: pre-wrap;
 	}
 	/* 카드(ChartCard)의 단추와 같은 모양 */
 	.tool-btn {

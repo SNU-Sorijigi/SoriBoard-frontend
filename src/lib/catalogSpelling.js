@@ -112,3 +112,21 @@ export function spellingSummary(groups) {
 	const rows = groups.reduce((sum, group) => sum + group.rows.length, 0);
 	return `${groups.length.toLocaleString()}묶음 · 표기 ${rows.toLocaleString()}개`;
 }
+
+// 작곡가 페이지의 '표기만 다른 이름': 응답(catalog/duplicates/?kind=composer)에서 그 작곡가가 든 묶음의
+// 다른 표기들(백엔드의 순서 그대로, 가장 많이 튼 것부터). 경로의 id 는 문자열이고 응답의 id 는 수라
+// 문자열로 견준다. 응답이 없거나 틀렸거나, 묶음에 없거나 혼자면 [].
+/**
+ * @param {{ groups?: SpellingGroup[] | null } | null | undefined} response
+ * @param {number | string | null | undefined} composerId
+ * @returns {SpellingRow[]}
+ */
+export function composerVariants(response, composerId) {
+	const groups = response?.groups;
+	if (composerId == null || !Array.isArray(groups)) return [];
+	const id = String(composerId);
+	const group = groups.find(
+		(g) => Array.isArray(g?.rows) && g.rows.some((row) => String(row?.id) === id)
+	);
+	return group ? group.rows.filter((row) => String(row?.id) !== id) : [];
+}

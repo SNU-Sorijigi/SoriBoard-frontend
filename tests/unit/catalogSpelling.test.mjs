@@ -8,7 +8,8 @@ import {
 	duplicatesSearch,
 	rowLinks,
 	groupHeading,
-	spellingSummary
+	spellingSummary,
+	composerVariants
 } from '../../src/lib/catalogSpelling.js';
 import { readHistoryQuery } from '../../src/lib/playHistory.js';
 import { readCatalogQuery } from '../../src/lib/composerCatalog.js';
@@ -138,4 +139,61 @@ test('every kind has a label and an empty text', () => {
 	for (const spec of SPELLING_KINDS) {
 		assert.ok(spec.label && spec.empty.endsWith('없습니다'));
 	}
+});
+
+const variantsResponse = {
+	kind: 'composer',
+	groups: [
+		{
+			key: 'jsbach',
+			count: 45,
+			rows: [
+				{ id: 5, name: 'J. S. Bach', count: 40 },
+				{ id: 2, name: 'J.S. Bach', count: 3 },
+				{ id: 9, name: 'Bach, J.S.', count: 2 }
+			]
+		},
+		{
+			key: '바흐',
+			count: 1,
+			rows: [
+				{ id: 7, name: '바흐', count: 1 },
+				{ id: 8, name: '바 흐', count: 0 }
+			]
+		}
+	]
+};
+
+test("a composer's other spellings: its group without it, in the response's order", () => {
+	assert.deepEqual(
+		composerVariants(variantsResponse, 2).map((row) => row.id),
+		[5, 9]
+	);
+	assert.deepEqual(composerVariants(variantsResponse, 5), [
+		{ id: 2, name: 'J.S. Bach', count: 3 },
+		{ id: 9, name: 'Bach, J.S.', count: 2 }
+	]);
+	assert.deepEqual(composerVariants(variantsResponse, 8), [{ id: 7, name: '바흐', count: 1 }]);
+});
+
+test("the page's id is a string, the backend's a number", () => {
+	assert.deepEqual(
+		composerVariants(variantsResponse, '2').map((row) => row.id),
+		[5, 9]
+	);
+	assert.deepEqual(composerVariants(variantsResponse, '02'), []);
+});
+
+test('no group, no answer or a malformed one gives no spellings', () => {
+	assert.deepEqual(composerVariants(variantsResponse, 3), []);
+	assert.deepEqual(composerVariants(variantsResponse, null), []);
+	for (const response of [null, undefined, {}, { groups: null }, { groups: {} }]) {
+		assert.deepEqual(composerVariants(response, 2), []);
+	}
+	assert.deepEqual(composerVariants({ groups: [null, { key: 'x' }, { rows: null }] }, 2), []);
+});
+
+test('a group with only that composer gives no spellings', () => {
+	const alone = { groups: [{ key: 'a', count: 3, rows: [{ id: 2, name: 'A', count: 3 }] }] };
+	assert.deepEqual(composerVariants(alone, 2), []);
 });
