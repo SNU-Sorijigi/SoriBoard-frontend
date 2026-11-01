@@ -43,7 +43,7 @@ test('the still-running bucket is drawn on two lines, (진행 중) under its dat
 	}
 });
 
-test('time charts always name their newest bucket, and the bar chart leaves room for it', () => {
+test('time charts always name their newest bucket, and the bar chart keeps every name inside', () => {
 	const bar = countBarOption({ labels, values: [3, 1, 4, 1] }, '월별 선곡 수', '전체');
 	for (const option of [
 		timelineOption({ labels, values: [3, 1, 4, 1] }, '학기별 선곡 추이', '전체'),
@@ -52,8 +52,11 @@ test('time charts always name their newest bucket, and the bar chart leaves room
 	]) {
 		assert.equal(option.xAxis.axisLabel.showMaxLabel, true);
 	}
-	// 막대 밑 가운데에 놓이는 마지막 이름이 캔버스 밖으로 나가지 않도록
-	assert.ok(bar.grid.right >= 28, `grid.right ${bar.grid.right}`);
+	// 막대 밑 가운데에 놓이는 첫·마지막 이름이 캔버스 밖으로 나가지 않도록: 어림(containLabel)이 아니라
+	// 그려진 축 이름을 모두 재는 outerBounds
+	assert.equal(bar.grid.outerBoundsMode, 'same');
+	assert.equal(bar.grid.outerBoundsContain, 'axisLabel');
+	assert.equal('containLabel' in bar.grid, false);
 });
 
 test('diversity legend sits below the subtitle, and the plot below the legend', () => {

@@ -189,8 +189,17 @@ export function countBarOption({ labels, values }, title, subtitle) {
 	return {
 		title: titleBlock(title, subtitle),
 		textStyle: BASE_TEXT_STYLE,
-		// right 28: 막대 밑 가운데에 늘 그리는 마지막 이름(LAST_NAME_SHOWN)이 캔버스 밖으로 나가지 않게
-		grid: { left: 8, right: 28, top: subtitle ? 70 : 56, bottom: 24, containLabel: true },
+		// 축 이름은 막대 밑 가운데에 놓인다. containLabel 은 견본 이름으로 크기를 어림해, 막대가 가는 긴 주별
+		// 차트에서 첫 이름('2024-03-04')과 늘 그리는 마지막 이름이 캔버스 밖으로 잘렸다. outerBounds 는 그려진
+		// 이름을 모두 재서 그만큼만 그리드를 줄인다.
+		grid: {
+			left: 8,
+			right: 16,
+			top: subtitle ? 70 : 56,
+			bottom: 24,
+			outerBoundsMode: 'same',
+			outerBoundsContain: 'axisLabel'
+		},
 		tooltip: { trigger: 'axis', axisPointer: BAND_POINTER, ...TOOLTIP_BOX },
 		xAxis: {
 			type: 'category',
