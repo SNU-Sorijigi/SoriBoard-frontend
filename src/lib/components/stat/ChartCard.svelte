@@ -172,7 +172,9 @@
 		left: 12px;
 		z-index: 2;
 	}
-	.view-toggle.active {
+	/* 눌린 상태는 포인터가 올라가 있어도 유지한다(hover 규칙보다 우선). */
+	.view-toggle.active,
+	.view-toggle.active:hover:not(:disabled) {
 		background: var(--action-bg);
 		color: var(--action-fg);
 	}
