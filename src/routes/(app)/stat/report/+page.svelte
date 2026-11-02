@@ -15,6 +15,7 @@
 		bucketHistoryLinks
 	} from '$lib/playHistory.js';
 	import { DRILL_CARDS } from '$lib/statDrill.js';
+	import { loadStatusText } from '$lib/statCards.js';
 	import { pageTitle } from '$lib/statTitle.js';
 	import { downloadCsvTable, tableCsv } from '$lib/csvTable.js';
 	import { downloadName } from '$lib/statFileName.js';
@@ -472,6 +473,35 @@
 		['conductors', '지휘자'],
 		['orchestras', '오케스트라']
 	];
+
+	// 선곡이 없는 학기에 카드 대신 보이는 말. 화면 낭독기의 로드 상태도 같은 말을 한다.
+	$: emptyText = upcoming ? '아직 시작하지 않은 학기입니다.' : '이 학기에는 선곡이 없습니다.';
+	// 로드 상태에 이름을 대는 카드(페이지 순서). 한 요청이 여러 카드를 그린다: 다양성 응답은
+	// 장르별 분포·선곡 다양성·월별 선곡이 함께 쓰고, 셋 다 제 오류와 다시 시도를 띄운다.
+	const cardNames = [
+		['summary', '요약'],
+		['composers', '많이 튼 작곡가'],
+		['soloists', '많이 튼 독주자'],
+		['works', '많이 튼 곡'],
+		['conductors', '많이 튼 지휘자'],
+		['orchestras', '많이 튼 오케스트라'],
+		['eras', '시대별 분포'],
+		['diversity', '장르별 분포'],
+		['diversity', '선곡 다양성'],
+		['diversity', '월별 선곡'],
+		['firstComposers', '처음 튼 작곡가'],
+		['firstWorks', '처음 튼 곡']
+	];
+	// 화면 낭독기에 알릴 로드 상태(통계와 같다): 학기 목록이 실패하면 그 말을, 학기를 고르기 전과
+	// 카드를 불러오는 동안은 비우고, 다 끝나면 실패한 카드의 이름이나 다 불러왔음을, 선곡이 없는
+	// 학기면 빈 결산의 말을 한다.
+	$: loadStatus = semestersError
+		? semestersError
+		: !semester || CARD_KEYS.some((k) => loading[k])
+			? ''
+			: empty
+				? emptyText
+				: loadStatusText(loading, errors, cardNames);
 </script>
 
 <svelte:head>
@@ -479,6 +509,7 @@
 </svelte:head>
 
 <div class="report-page">
+	<p class="sr-only" role="status">{loadStatus}</p>
 	<header class="page-header">
 		<div class="title-group">
 			<h1>학기 결산</h1>
@@ -586,15 +617,11 @@
 		{#if empty}
 			<!-- 인쇄에서는 문장만 남고 단추는 숨는다(.tool-btn) -->
 			<div class="empty-hint">
-				{#if upcoming}
-					아직 시작하지 않은 학기입니다.
-					{#if started}
-						<button class="tool-btn" on:click={showStarted}>
-							{semesterLabel(started)} 결산 보기
-						</button>
-					{/if}
-				{:else}
-					이 학기에는 선곡이 없습니다.
+				{emptyText}
+				{#if upcoming && started}
+					<button class="tool-btn" on:click={showStarted}>
+						{semesterLabel(started)} 결산 보기
+					</button>
 				{/if}
 			</div>
 		{:else}
@@ -821,6 +848,15 @@
 		padding: 24px 32px;
 		width: 100%;
 		box-sizing: border-box;
+	}
+	/* 화면 낭독기만 읽는 줄(통계와 같다) */
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
 	}
 	.page-header {
 		display: flex;
