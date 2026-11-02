@@ -137,6 +137,9 @@
 	}
 
 	$: yearError = editingId === null ? '' : birthYearError(draft.birthYear, thisYear);
+	// 목록 상자의 아래 끝에서 고치면 칸 밑에 새로 생긴 오류 줄이 상자 밖에 가리므로, 보이는 곳으로 스크롤한다.
+	/** @param {HTMLElement} node */
+	const reveal = (node) => node.scrollIntoView({ block: 'nearest' });
 
 	// 저장하는 동안에는 다른 줄을 열 수 없고(수정 단추가 꺼진다) Escape 도 듣지 않는다.
 	// 그래서 답은 늘 저장한 그 줄에 닿는다. 검색으로 그 줄이 닫혔다면 결과를 상태 줄에 알린다.
@@ -256,118 +259,123 @@
 			{:else if loaded && composers.length === 0}
 				<div class="placeholder">{q ? `'${q}'에 맞는 작곡가가 없습니다` : '작곡가가 없습니다'}</div>
 			{:else if loaded}
-				<table aria-label="작곡가 목록" class:stale={loading}>
-					<thead>
-						<tr>
-							<th scope="col">작곡가</th>
-							<th scope="col" class="era">시대</th>
-							<th scope="col" class="year">출생 연도</th>
-							<th scope="col" class="num">선곡 수</th>
-							<th scope="col" class="actions"><span class="sr-only">수정</span></th>
-						</tr>
-					</thead>
-					<tbody>
-						{#each composers as composer (composer.id)}
-							{@const cell = eraCell(composer)}
-							<tr class:editing={editingId === composer.id}>
-								<th scope="row">
-									<a href={composerHref(composer.id)} title="이 작곡가 페이지 열기"
-										>{composer.name}</a
-									>
-								</th>
-								{#if editingId === composer.id}
-									<td>
-										<select
-											bind:value={draft.era}
-											aria-label={`${composer.name} 시대`}
-											on:keydown={(e) => onEditKeydown(e, composer)}
+				<!-- 긴 목록은 이 상자 안에서 스크롤해 머리줄이 남는다. 키보드로도 스크롤하게 포커스를 준다(DataTable 과 같다). -->
+				<!-- svelte-ignore a11y-no-noninteractive-tabindex -->
+				<div class="list-scroll" role="region" aria-label="작곡가 목록 표" tabindex="0">
+					<table aria-label="작곡가 목록" class:stale={loading}>
+						<thead>
+							<tr>
+								<th scope="col">작곡가</th>
+								<th scope="col" class="era">시대</th>
+								<th scope="col" class="year">출생 연도</th>
+								<th scope="col" class="num">선곡 수</th>
+								<th scope="col" class="actions"><span class="sr-only">수정</span></th>
+							</tr>
+						</thead>
+						<tbody>
+							{#each composers as composer (composer.id)}
+								{@const cell = eraCell(composer)}
+								<tr class:editing={editingId === composer.id}>
+									<th scope="row">
+										<a href={composerHref(composer.id)} title="이 작곡가 페이지 열기"
+											>{composer.name}</a
 										>
-											<option value="">출생 연도로</option>
-											{#each ERAS as era}
-												<option value={era}>{era}</option>
-											{/each}
-										</select>
-									</td>
-									<td>
-										<input
-											bind:this={yearInput}
-											bind:value={draft.birthYear}
-											inputmode="numeric"
-											maxlength="4"
-											placeholder="없음"
-											aria-label={`${composer.name} 출생 연도`}
-											aria-invalid={Boolean(yearError)}
-											aria-describedby={yearError ? 'year-error' : undefined}
-											on:keydown={(e) => onEditKeydown(e, composer)}
-										/>
-										{#if yearError}
-											<div id="year-error" class="field-error">{yearError}</div>
-										{/if}
-									</td>
-									<td class="num">
-										{#if composer.num_time_music > 0}
-											<a
-												class="count"
-												href={targetHistoryHref('composer_id', composer.id)}
-												title="선곡 기록에서 보기"
-												aria-label={`${composer.name} 선곡 ${composer.num_time_music.toLocaleString()} 곡 선곡 기록에서 보기`}
-												>{composer.num_time_music.toLocaleString()}</a
+									</th>
+									{#if editingId === composer.id}
+										<td>
+											<select
+												bind:value={draft.era}
+												aria-label={`${composer.name} 시대`}
+												on:keydown={(e) => onEditKeydown(e, composer)}
 											>
-										{:else}
-											{composer.num_time_music.toLocaleString()}
-										{/if}
-									</td>
-									<td class="actions">
-										<div class="buttons">
+												<option value="">출생 연도로</option>
+												{#each ERAS as era}
+													<option value={era}>{era}</option>
+												{/each}
+											</select>
+										</td>
+										<td>
+											<input
+												bind:this={yearInput}
+												bind:value={draft.birthYear}
+												inputmode="numeric"
+												maxlength="4"
+												placeholder="없음"
+												aria-label={`${composer.name} 출생 연도`}
+												aria-invalid={Boolean(yearError)}
+												aria-describedby={yearError ? 'year-error' : undefined}
+												on:keydown={(e) => onEditKeydown(e, composer)}
+											/>
+											{#if yearError}
+												<div id="year-error" class="field-error" use:reveal>{yearError}</div>
+											{/if}
+										</td>
+										<td class="num">
+											{#if composer.num_time_music > 0}
+												<a
+													class="count"
+													href={targetHistoryHref('composer_id', composer.id)}
+													title="선곡 기록에서 보기"
+													aria-label={`${composer.name} 선곡 ${composer.num_time_music.toLocaleString()} 곡 선곡 기록에서 보기`}
+													>{composer.num_time_music.toLocaleString()}</a
+												>
+											{:else}
+												{composer.num_time_music.toLocaleString()}
+											{/if}
+										</td>
+										<td class="actions">
+											<div class="buttons">
+												<button
+													class="tool-btn"
+													bind:this={saveButton}
+													on:click={() => save(composer)}
+													disabled={saving || Boolean(yearError)}
+												>
+													{saving ? '저장 중…' : '저장'}
+												</button>
+												<button class="tool-btn" on:click={stopEdit} disabled={saving}>취소</button>
+											</div>
+											{#if saveError}
+												<div class="field-error" role="alert" use:reveal>{saveError}</div>
+											{/if}
+										</td>
+									{:else}
+										<td class:unknown={cell.era === UNKNOWN_ERA}>
+											{cell.era}
+											{#if cell.note}<span class="era-note">{cell.note}</span>{/if}
+										</td>
+										<td class:unknown={composer.birth_year == null}>{composer.birth_year ?? '—'}</td
+										>
+										<td class="num">
+											{#if composer.num_time_music > 0}
+												<a
+													class="count"
+													href={targetHistoryHref('composer_id', composer.id)}
+													title="선곡 기록에서 보기"
+													aria-label={`${composer.name} 선곡 ${composer.num_time_music.toLocaleString()} 곡 선곡 기록에서 보기`}
+													>{composer.num_time_music.toLocaleString()}</a
+												>
+											{:else}
+												{composer.num_time_music.toLocaleString()}
+											{/if}
+										</td>
+										<td class="actions">
 											<button
 												class="tool-btn"
-												bind:this={saveButton}
-												on:click={() => save(composer)}
-												disabled={saving || Boolean(yearError)}
+												bind:this={editButtons[composer.id]}
+												on:click={() => startEdit(composer)}
+												disabled={saving}
+												aria-label={`${composer.name} 수정`}
 											>
-												{saving ? '저장 중…' : '저장'}
+												수정
 											</button>
-											<button class="tool-btn" on:click={stopEdit} disabled={saving}>취소</button>
-										</div>
-										{#if saveError}
-											<div class="field-error" role="alert">{saveError}</div>
-										{/if}
-									</td>
-								{:else}
-									<td class:unknown={cell.era === UNKNOWN_ERA}>
-										{cell.era}
-										{#if cell.note}<span class="era-note">{cell.note}</span>{/if}
-									</td>
-									<td class:unknown={composer.birth_year == null}>{composer.birth_year ?? '—'}</td>
-									<td class="num">
-										{#if composer.num_time_music > 0}
-											<a
-												class="count"
-												href={targetHistoryHref('composer_id', composer.id)}
-												title="선곡 기록에서 보기"
-												aria-label={`${composer.name} 선곡 ${composer.num_time_music.toLocaleString()} 곡 선곡 기록에서 보기`}
-												>{composer.num_time_music.toLocaleString()}</a
-											>
-										{:else}
-											{composer.num_time_music.toLocaleString()}
-										{/if}
-									</td>
-									<td class="actions">
-										<button
-											class="tool-btn"
-											bind:this={editButtons[composer.id]}
-											on:click={() => startEdit(composer)}
-											disabled={saving}
-											aria-label={`${composer.name} 수정`}
-										>
-											수정
-										</button>
-									</td>
-								{/if}
-							</tr>
-						{/each}
-					</tbody>
-				</table>
+										</td>
+									{/if}
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				</div>
 			{/if}
 		</section>
 	{/if}
@@ -506,6 +514,11 @@
 		box-shadow: 4px 4px 5px 0px rgba(0, 0, 0, 0.08);
 		padding: 12px;
 	}
+	/* 레이아웃의 main 은 스크롤하지 않는 스크롤 상자라 sticky 머리줄이 붙지 못하므로, 표에 제 스크롤 상자를 준다 */
+	.list-scroll {
+		max-height: calc(100vh - 200px);
+		overflow: auto;
+	}
 	.placeholder {
 		display: flex;
 		align-items: center;
@@ -618,5 +631,12 @@
 		overflow: hidden;
 		clip: rect(0 0 0 0);
 		white-space: nowrap;
+	}
+	/* 인쇄에는 모든 작곡가를 싣는다(한 화면만큼 자르지 않는다) */
+	@media print {
+		:global(.list-scroll) {
+			max-height: none !important;
+			overflow: visible !important;
+		}
 	}
 </style>

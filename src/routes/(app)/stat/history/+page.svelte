@@ -443,10 +443,14 @@
 
 	<section class="card" aria-label="선곡 목록" tabindex="-1" bind:this={listCard}>
 		{#if rows.length > 0}
-			<PlayTable
-				{rows}
-				composerPeriod={{ period, start: customStart, end: customEnd, userId, includeMentees }}
-			/>
+			<!-- 긴 목록은 이 상자 안에서 스크롤해 머리줄이 남는다. 키보드로도 스크롤하게 포커스를 준다(DataTable 과 같다). -->
+			<!-- svelte-ignore a11y-no-noninteractive-tabindex -->
+			<div class="list-scroll" role="region" aria-label="선곡 목록 표" tabindex="0">
+				<PlayTable
+					{rows}
+					composerPeriod={{ period, start: customStart, end: customEnd, userId, includeMentees }}
+				/>
+			</div>
 		{:else if loading}
 			<div class="placeholder">불러오는 중...</div>
 		{:else if error}
@@ -624,6 +628,11 @@
 		box-shadow: 4px 4px 5px 0px rgba(0, 0, 0, 0.08);
 		padding: 12px;
 	}
+	/* 레이아웃의 main 은 스크롤하지 않는 스크롤 상자라 sticky 머리줄이 붙지 못하므로, 표에 제 스크롤 상자를 준다 */
+	.list-scroll {
+		max-height: calc(100vh - 200px);
+		overflow: auto;
+	}
 	.placeholder {
 		display: flex;
 		align-items: center;
@@ -646,5 +655,12 @@
 		margin-top: 16px;
 		font-family: var(--small-medium-font-family, 'Noto Sans KR', sans-serif);
 		font-size: var(--small-medium-font-size, 13px);
+	}
+	/* 인쇄에는 불러온 행을 모두 싣는다(한 화면만큼 자르지 않는다) */
+	@media print {
+		:global(.list-scroll) {
+			max-height: none !important;
+			overflow: visible !important;
+		}
 	}
 </style>
