@@ -224,6 +224,19 @@ test('loadStatusText: failed cards in page order, a shared name once', () => {
 	);
 });
 
+test('loadStatusText: one request drawing several cards names each of them (학기 결산)', () => {
+	const cards = [
+		['eras', '시대별 분포'],
+		['diversity', '장르별 분포'],
+		['diversity', '선곡 다양성']
+	];
+	assert.equal(
+		loadStatusText({ eras: false, diversity: false }, { diversity: '불러오지 못했습니다' }, cards),
+		`카드 2개를 불러오지 못했습니다: 장르별 분포, 선곡 다양성. ${AGAIN}`
+	);
+	assert.equal(loadStatusText({ eras: false, diversity: true }, {}, cards), '');
+});
+
 test('loadStatusText: an error on an unlisted card is ignored', () => {
 	assert.equal(
 		loadStatusText(settled, { drill: '불러오지 못했습니다' }, CARDS),
