@@ -44,7 +44,7 @@
 		duplicatesSearch
 	} from '$lib/catalogSpelling.js';
 	import { hasPeriodStart, firstsSubtitle, firstsEmptyText } from '$lib/statFirsts.js';
-	import { readTableView, writeTableView } from '$lib/statQuery.js';
+	import { readTableView, writeTableView, tableViewHref } from '$lib/statQuery.js';
 	import {
 		readComposerId,
 		readComposerPeriod,
@@ -535,7 +535,7 @@
 				<span class="facts">{periodText}</span>
 				{#if ongoing}<span class="facts">{ongoing}</span>{/if}
 			{/if}
-			<a class="page-link" href={composerStatHref(filter)}>통계</a>
+			<a class="page-link" href={tableViewHref(composerStatHref(filter), allTables)}>통계</a>
 			{#if composerId && !notFound}
 				<a class="page-link" href={historyLink}>선곡 기록</a>
 			{/if}
@@ -701,7 +701,7 @@
 			<p class="kpi-note variants-note">
 				표기만 다른 이름: {#each variants as row, i (row.id)}{i ? ', ' : ''}‘<a
 						class="page-link variant"
-						href={composerHref(row.id, filter)}>{row.name}</a
+						href={tableViewHref(composerHref(row.id, filter), allTables)}>{row.name}</a
 					>’ 선곡 {count(row.count)}회{/each} (전체 기간). 이 페이지의 수치에는 들지 않습니다. ·
 				<a class="page-link" href={catalogViewHref('', DEFAULT_KIND)}>표기 정리</a>
 			</p>

@@ -15,7 +15,13 @@
 		countBarOption,
 		diversityLineOption
 	} from '$lib/chartOptions.js';
-	import { readStatQuery, statQueryHref, readTableView, writeTableView } from '$lib/statQuery.js';
+	import {
+		readStatQuery,
+		statQueryHref,
+		readTableView,
+		writeTableView,
+		tableViewHref
+	} from '$lib/statQuery.js';
 	import { createLatestRequests } from '$lib/latestRequest.js';
 	import {
 		requestGroups,
@@ -692,13 +698,16 @@
 	$: firstWorks = data.firstWorks;
 	$: firstComposerLinks = firstComposers
 		? firstComposers.items.map((item) =>
-				composerHref(item.id, {
-					period,
-					start: customStart,
-					end: customEnd,
-					userId: scope === 'individual' ? userId : null,
-					includeMentees
-				})
+				tableViewHref(
+					composerHref(item.id, {
+						period,
+						start: customStart,
+						end: customEnd,
+						userId: scope === 'individual' ? userId : null,
+						includeMentees
+					}),
+					allTables
+				)
 			)
 		: [];
 	$: firstWorkLinks = firstWorks
@@ -1050,13 +1059,16 @@
 					historyLink={drillHistoryLink}
 					workLink={drillWorkLink}
 					composerLink={drill.card === 'composers'
-						? composerHref(drill.id, {
-								period,
-								start: customStart,
-								end: customEnd,
-								userId: scope === 'individual' ? userId : null,
-								includeMentees
-							})
+						? tableViewHref(
+								composerHref(drill.id, {
+									period,
+									start: customStart,
+									end: customEnd,
+									userId: scope === 'individual' ? userId : null,
+									includeMentees
+								}),
+								allTables
+							)
 						: ''}
 					on:close={closeDrill}
 				/>

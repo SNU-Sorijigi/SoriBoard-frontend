@@ -5,8 +5,11 @@ import {
 	statQueryHref,
 	knownUser,
 	readTableView,
-	writeTableView
+	writeTableView,
+	tableViewHref
 } from '../../src/lib/statQuery.js';
+import { composerHref, composerStatHref } from '../../src/lib/composerStats.js';
+import { statHref } from '../../src/lib/playHistory.js';
 
 const read = (search) => readStatQuery(new URLSearchParams(search));
 const href = (url, state) => statQueryHref(new URL(url, 'http://localhost'), state);
@@ -148,4 +151,54 @@ test('모든 차트 표로 보기 writes view=table, removes it when off, and ke
 	assert.equal(params.toString(), 'semester_id=3&scope=individual&user_id=12&drill=composers%3A5');
 	writeTableView(params, false);
 	assert.equal(params.has('view'), false);
+});
+
+test('a link with 모든 차트 표로 보기 off is left exactly as it is', () => {
+	for (const href of [
+		'/stat/composer/5',
+		'/stat/composer/5?semester_id=3&user_id=12&include_mentees=true',
+		'/stat?period=all'
+	]) {
+		assert.equal(tableViewHref(href, false), href);
+	}
+});
+
+test('a link with 모든 차트 표로 보기 on carries view=table and keeps its other keys', () => {
+	assert.equal(tableViewHref('/stat/composer/5', true), '/stat/composer/5?view=table');
+	assert.equal(tableViewHref('/stat', true), '/stat?view=table');
+	assert.equal(
+		tableViewHref('/stat/composer/5?semester_id=3&user_id=12', true),
+		'/stat/composer/5?semester_id=3&user_id=12&view=table'
+	);
+	assert.equal(tableViewHref('/stat?view=table&period=all', true), '/stat?view=table&period=all');
+	assert.equal(tableViewHref('/stat?view=chart', true), '/stat?view=table');
+	assert.equal(tableViewHref('/stat?period=all#kpi', true), '/stat?period=all&view=table#kpi');
+	const url = new URL(tableViewHref('/stat/composer/5?semester_id=3', true), 'http://localhost');
+	assert.deepEqual(url.searchParams.getAll('view'), ['table']);
+	assert.equal(readTableView(url.searchParams), true);
+});
+
+test('the 작곡가 page and 통계 links keep their 기간 and 지기 through the view', () => {
+	const filter = { period: '7', userId: '12', includeMentees: true };
+	const range = { period: 'custom', start: '2025-10-01', end: '2025-11-30' };
+	for (const href of [
+		composerHref(5, filter),
+		composerHref(5, range),
+		composerStatHref(filter),
+		composerStatHref(),
+		statHref({ period: 'current', userId: '12', includeMentees: false })
+	]) {
+		assert.equal(tableViewHref(href, false), href);
+		const [path, search = ''] = href.split('?');
+		const on = tableViewHref(href, true);
+		assert.equal(on, `${path}?${search ? `${search}&` : ''}view=table`);
+	}
+	assert.equal(
+		tableViewHref(composerHref(5, filter), true),
+		'/stat/composer/5?semester_id=7&user_id=12&include_mentees=true&view=table'
+	);
+	assert.equal(
+		tableViewHref(composerStatHref(filter), true),
+		'/stat?semester_id=7&scope=individual&user_id=12&include_mentees=true&view=table'
+	);
 });

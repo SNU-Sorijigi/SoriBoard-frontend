@@ -59,3 +59,15 @@ export function writeTableView(params, on) {
 	if (on) params.set('view', 'table');
 	else params.delete('view');
 }
+
+// 모든 차트 표로 보기를 켠 페이지의 통계·작곡가 링크는 view=table 을 이어 간다.
+/**
+ * @param {string} href 경로와 쿼리(예: /stat/composer/5?semester_id=3)
+ * @param {boolean} on
+ */
+export function tableViewHref(href, on) {
+	if (!on) return href;
+	const url = new URL(href, 'http://localhost');
+	writeTableView(url.searchParams, true);
+	return url.pathname + url.search + url.hash;
+}
