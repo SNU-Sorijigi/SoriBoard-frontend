@@ -15,7 +15,7 @@
 		countBarOption,
 		diversityLineOption
 	} from '$lib/chartOptions.js';
-	import { readStatQuery, statQueryHref } from '$lib/statQuery.js';
+	import { readStatQuery, statQueryHref, readTableView, writeTableView } from '$lib/statQuery.js';
 	import { createLatestRequests } from '$lib/latestRequest.js';
 	import {
 		requestGroups,
@@ -84,6 +84,8 @@
 	let scope = initial.scope;
 	let userId = initial.userId;
 	let includeMentees = initial.includeMentees;
+	// 모든 차트 표로 보기(view=table): 누르면 모든 차트 카드가 표를 보인다. 카드의 '표로 보기'는 그 카드만 바꾼다.
+	let allTables = readTableView($page.url.searchParams);
 	let period = readStatPeriod($page.url.searchParams); // 'current' | 'all' | 'custom' | 학기 id
 	// 직접 지정 범위(YYYY-MM-DD, 빈 값 = 그쪽이 열림).
 	let { start: customStart, end: customEnd } =
@@ -97,6 +99,7 @@
 		writeStatPeriod(url.searchParams, period, { start: customStart, end: customEnd });
 		writeDiversityBucket(url.searchParams, diversityBucket);
 		writeDrillQuery(url.searchParams, drill ?? linkedDrill);
+		writeTableView(url.searchParams, allTables);
 		goto(statQueryHref(url, { scope, userId, includeMentees }), {
 			replaceState: true,
 			keepFocus: true,
@@ -892,9 +895,26 @@
 			</p>
 		{/if}
 
+		<!-- 키보드·화면 낭독기로 모든 차트를 한 번에 표로 읽는다(카드마다 '표로 보기'를 누르지 않고) -->
+		<div class="view-row">
+			<button
+				class="tool-btn"
+				class:active={allTables}
+				aria-pressed={allTables}
+				on:click={() => {
+					allTables = !allTables;
+					syncUrl();
+				}}
+				title="모든 차트의 수치를 표로 보기"
+			>
+				모든 차트 표로 보기
+			</button>
+		</div>
+
 		<!-- 차트 그리드 -->
 		<div class="chart-grid">
 			<ChartCard
+				showTable={allTables}
 				title="많이 튼 작곡가"
 				option={composerOpt}
 				data={composers}
@@ -910,6 +930,7 @@
 				csvHeaders={['작곡가', '횟수']}
 			/>
 			<ChartCard
+				showTable={allTables}
 				title="많이 튼 독주자"
 				option={soloistOpt}
 				data={soloists}
@@ -925,6 +946,7 @@
 				csvHeaders={['연주자', '횟수']}
 			/>
 			<ChartCard
+				showTable={allTables}
 				title="많이 튼 지휘자"
 				option={conductorOpt}
 				data={conductors}
@@ -940,6 +962,7 @@
 				csvHeaders={['지휘자', '횟수']}
 			/>
 			<ChartCard
+				showTable={allTables}
 				title="많이 튼 오케스트라"
 				option={orchestraOpt}
 				data={orchestras}
@@ -955,6 +978,7 @@
 				csvHeaders={['오케스트라', '횟수']}
 			/>
 			<ChartCard
+				showTable={allTables}
 				title="시대별 분포"
 				option={eraOpt}
 				data={eras}
@@ -969,6 +993,7 @@
 				csvHeaders={['시대', '횟수']}
 			/>
 			<ChartCard
+				showTable={allTables}
 				title="장르별 분포"
 				option={genreOpt}
 				data={genres}
@@ -981,6 +1006,7 @@
 				csvHeaders={['장르', '횟수']}
 			/>
 			<ChartCard
+				showTable={allTables}
 				title={timelineTitle}
 				option={timelineOpt}
 				data={timelineData}
@@ -993,6 +1019,7 @@
 				csvHeaders={['기간', '횟수']}
 			/>
 			<ChartCard
+				showTable={allTables}
 				title="많이 튼 곡"
 				option={worksOpt}
 				data={works}
@@ -1102,6 +1129,7 @@
 
 		<div class="chart-grid">
 			<ChartCard
+				showTable={allTables}
 				title={`${bucketLabel} 선곡 수`}
 				option={countOpt}
 				data={countData}
@@ -1114,6 +1142,7 @@
 				csvHeaders={['기간', '선곡수']}
 			/>
 			<ChartCard
+				showTable={allTables}
 				title={`${bucketLabel} 다양성 추이`}
 				option={diversityOpt}
 				data={diversityCsvData}
@@ -1299,6 +1328,16 @@
 	}
 	.tool-btn:hover {
 		background: var(--secondary-secondary-200, #fdf1e4);
+	}
+	/* 카드의 '표로 보기'가 눌린 모양과 같다 */
+	.tool-btn.active {
+		background: var(--action-bg);
+		color: var(--action-fg);
+	}
+	.view-row {
+		display: flex;
+		justify-content: flex-end;
+		margin: -8px 0 8px;
 	}
 	.drill-hint {
 		margin: 8px 0 0;

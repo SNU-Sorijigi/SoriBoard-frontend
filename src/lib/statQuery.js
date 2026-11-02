@@ -43,3 +43,19 @@ export function knownUser(userId, users) {
 	if (userId == null || !Array.isArray(users)) return userId;
 	return users.some((u) => String(u.id) === String(userId)) ? userId : null;
 }
+
+// 통계의 '모든 차트 표로 보기'는 URL의 view=table 에 둔다(링크로 표만 보는 통계를 연다).
+// 기본값(차트)은 URL에 남기지 않고, table 이 아닌 값은 차트로 읽는다.
+/** @param {URLSearchParams} params */
+export function readTableView(params) {
+	return params.get('view') === 'table';
+}
+
+/**
+ * @param {URLSearchParams} params
+ * @param {boolean} on
+ */
+export function writeTableView(params, on) {
+	if (on) params.set('view', 'table');
+	else params.delete('view');
+}

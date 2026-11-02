@@ -1,6 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readStatQuery, statQueryHref, knownUser } from '../../src/lib/statQuery.js';
+import {
+	readStatQuery,
+	statQueryHref,
+	knownUser,
+	readTableView,
+	writeTableView
+} from '../../src/lib/statQuery.js';
 
 const read = (search) => readStatQuery(new URLSearchParams(search));
 const href = (url, state) => statQueryHref(new URL(url, 'http://localhost'), state);
@@ -115,4 +121,31 @@ test('no 지기, or no 지기 list, is left as it is', () => {
 	assert.equal(knownUser(null, [{ id: 1 }]), null);
 	assert.equal(knownUser('12', null), '12');
 	assert.equal(knownUser('12', { message: 'Error' }), '12');
+});
+
+const tableView = (search) => readTableView(new URLSearchParams(search));
+
+test('모든 차트 표로 보기 is read only from view=table', () => {
+	assert.equal(tableView('view=table'), true);
+	assert.equal(tableView('semester_id=3&view=table'), true);
+	assert.equal(tableView(''), false);
+	assert.equal(tableView('view=chart'), false);
+	assert.equal(tableView('view=TABLE'), false);
+	assert.equal(tableView('view='), false);
+});
+
+test('모든 차트 표로 보기 writes view=table, removes it when off, and keeps the other keys', () => {
+	const params = new URLSearchParams('semester_id=3&scope=individual&user_id=12&drill=composers:5');
+	writeTableView(params, true);
+	assert.equal(params.get('view'), 'table');
+	assert.equal(params.get('semester_id'), '3');
+	assert.equal(params.get('scope'), 'individual');
+	assert.equal(params.get('drill'), 'composers:5');
+	writeTableView(params, true);
+	assert.deepEqual(params.getAll('view'), ['table']);
+	writeTableView(params, false);
+	assert.equal(params.has('view'), false);
+	assert.equal(params.toString(), 'semester_id=3&scope=individual&user_id=12&drill=composers%3A5');
+	writeTableView(params, false);
+	assert.equal(params.has('view'), false);
 });
