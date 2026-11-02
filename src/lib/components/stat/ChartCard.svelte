@@ -142,6 +142,7 @@
 		display: flex;
 		flex-direction: column;
 		position: relative;
+		container-type: inline-size;
 	}
 	.toolbar {
 		display: flex;
@@ -188,6 +189,14 @@
 	.chart-area {
 		flex: 1;
 		min-height: 340px;
+	}
+	/* 좁은 카드에서는 가운데 제목이 위 단추(표로 보기 · PNG · CSV 저장)에 가리므로 차트·표를 단추 줄 아래로 내린다.
+	   폭: 2 × (저장 단추 149 + 간격 8) + 가장 긴 제목('많이 튼 오케스트라' 135) ≈ 449px, 다른 글꼴 여유로 500px.
+	   높이: 단추 줄 24px + 4px 에서 표 제목의 위 여백 2px 를 뺀 26px. */
+	@container (width < 500px) {
+		.chart-area {
+			padding-top: 26px;
+		}
 	}
 	/* 차트 크기 계산(height: 100%)이 그대로 이어지도록 상자를 만들지 않는다. */
 	.chart-view {
