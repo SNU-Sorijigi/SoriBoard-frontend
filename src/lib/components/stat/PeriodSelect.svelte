@@ -5,10 +5,11 @@
 		ALL,
 		CUSTOM,
 		sortSemesters,
-		semesterLabel,
 		knownPeriod,
-		rangeError
+		rangeError,
+		currentSemesterRange
 	} from '$lib/statPeriod.js';
+	import { semesterOptionLabel } from '$lib/semesterReport.js';
 
 	export let period = CURRENT; // 'current' | 'all' | 'custom' | 학기 id
 	// 직접 지정의 적용된 범위(YYYY-MM-DD, 빈 값 = 그쪽이 열림).
@@ -18,6 +19,8 @@
 	export let shownRange = { start: '', end: '' };
 
 	const dispatch = createEventDispatcher();
+	// 아직 시작하지 않은 학기에 '(시작 전)'을 붙일 때의 오늘(페이지를 연 날).
+	const today = currentSemesterRange().end;
 	const errorId = 'period-range-error';
 	const listErrorId = 'period-list-error';
 	// 불러온 학기 목록(최신순). 페이지가 bind 해 시계열 카드의 학기 링크에 쓴다.
@@ -97,7 +100,7 @@
 	>
 		<option value={CURRENT}>이번 학기</option>
 		{#each semesters as semester}
-			<option value={String(semester.id)}>{semesterLabel(semester)}</option>
+			<option value={String(semester.id)}>{semesterOptionLabel(semester, today)}</option>
 		{/each}
 		<option value={ALL}>전체 기간</option>
 		<option value={CUSTOM}>직접 지정</option>

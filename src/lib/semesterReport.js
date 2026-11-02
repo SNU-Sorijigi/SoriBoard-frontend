@@ -9,7 +9,7 @@ import {
 	competitionRanks,
 	seriesTable
 } from './statTable.js';
-import { periodRangeText } from './statPeriod.js';
+import { periodRangeText, semesterLabel } from './statPeriod.js';
 import { bucketRange, timelineView, semesterOf } from './statBucket.js';
 import { genreDistribution } from './statCards.js';
 
@@ -97,6 +97,17 @@ export function ongoingText(range, today) {
 export function upcomingText(range, today) {
 	if (!range?.start || !today) return '';
 	return today < range.start ? `시작 전 · ${range.start}부터` : '';
+}
+
+// 학기 목록(통계의 기간, 학기 결산의 학기)의 글자: 아직 시작하지 않은 학기면 '2027-1학기 (시작 전)'.
+/**
+ * @param {{ year: number, semester_num: number }} semester
+ * @param {string} today YYYY-MM-DD
+ */
+export function semesterOptionLabel(semester, today) {
+	const range = bucketRange('semester', `${semester.year}-${semester.semester_num}`);
+	const label = semesterLabel(semester);
+	return upcomingText(range, today) ? `${label} (시작 전)` : label;
 }
 
 // 시대·장르처럼 지난 학기와 견주는 카드의 응답 한 쌍. 두 요청은 함께 보낸다.

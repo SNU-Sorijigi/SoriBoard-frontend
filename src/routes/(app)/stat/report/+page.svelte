@@ -33,6 +33,7 @@
 		reportRange,
 		ongoingText,
 		upcomingText,
+		semesterOptionLabel,
 		kpiChangeText,
 		evennessChangeText,
 		genrePair,
@@ -484,7 +485,7 @@
 				disabled={!semester}
 			>
 				{#each semesters as s}
-					<option value={String(s.id)}>{semesterLabel(s)}</option>
+					<option value={String(s.id)}>{semesterOptionLabel(s, today)}</option>
 				{/each}
 			</select>
 			<button class="print-btn" on:click={() => window.print()} disabled={!semester}> 인쇄 </button>

@@ -19,6 +19,7 @@ import {
 	reportRange,
 	ongoingText,
 	upcomingText,
+	semesterOptionLabel,
 	genrePair,
 	monthlyTable
 } from '../../src/lib/semesterReport.js';
@@ -547,6 +548,21 @@ test('upcomingText says 시작 전 only before the first day of the range', () =
 	assert.equal(upcomingText({ end: '2027-08-31' }, '2026-11-02'), '');
 	assert.equal(upcomingText(spring, ''), '');
 	assert.equal(upcomingText({ start: '2027-03-01' }, '2026-11-02'), '시작 전 · 2027-03-01부터');
+});
+
+test('semesterOptionLabel marks a 학기 not yet begun with (시작 전)', () => {
+	const spring = { year: 2027, semester_num: 1 };
+	assert.equal(semesterOptionLabel(spring, '2026-11-02'), '2027-1학기 (시작 전)');
+	assert.equal(semesterOptionLabel(spring, '2027-02-28'), '2027-1학기 (시작 전)');
+	assert.equal(semesterOptionLabel(spring, '2027-03-01'), '2027-1학기');
+	const autumn = { year: 2026, semester_num: 2 };
+	assert.equal(semesterOptionLabel(autumn, '2026-08-31'), '2026-2학기 (시작 전)');
+	assert.equal(semesterOptionLabel(autumn, '2026-09-01'), '2026-2학기');
+	assert.equal(semesterOptionLabel(autumn, '2026-11-02'), '2026-2학기');
+	// A past 학기, no today, or a 학기 the range rule does not know: the bare label.
+	assert.equal(semesterOptionLabel({ year: 2025, semester_num: 2 }, '2026-11-02'), '2025-2학기');
+	assert.equal(semesterOptionLabel(spring, ''), '2027-1학기');
+	assert.equal(semesterOptionLabel({ year: 2027, semester_num: 3 }, '2026-11-02'), '2027-3학기');
 });
 
 // 다양성 응답(stats/diversity?bucket=month)의 모양: summary.genre 와 응답의 total_plays.
