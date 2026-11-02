@@ -1,7 +1,7 @@
 <script>
 	import { onMount, createEventDispatcher } from 'svelte';
 	import DataTable from './DataTable.svelte';
-	import { drillSubtitle, drillWorksTable } from '$lib/statDrill.js';
+	import { drillStatusText, drillSubtitle, drillWorksTable } from '$lib/statDrill.js';
 	import { closeOnEscape } from '$lib/escapeKey.js';
 	import { downloadCsvTable, tableCsv } from '$lib/csvTable.js';
 	import { todayStamp } from '$lib/csv.js';
@@ -61,6 +61,8 @@
 	$: subtitle = drillSubtitle(target, scopeLabel, works, previous);
 	$: table = items.length > 0 && drillWorksTable(works, target, previous);
 	$: links = workLink ? items.map(workLink) : [];
+	// 화면 낭독기에 알리는 로드 상태. 줄은 처음부터(불러오는 중이라 빈 채로) 있어야 뒤의 문장이 읽힌다.
+	$: statusText = drillStatusText(target.name, { loading, error, works, previousError });
 </script>
 
 <!-- 포커스가 패널 안에 있으면 Escape 도 닫기와 같다. -->
@@ -72,6 +74,7 @@
 	use:closeOnEscape={() => dispatch('close')}
 	style:--actions-width={`${actionsWidth}px`}
 >
+	<p class="sr-only" role="status">{statusText}</p>
 	<div class="actions" bind:offsetWidth={actionsWidth}>
 		{#if composerLink}
 			<a class="history-link" href={composerLink}>작곡가 페이지</a>
@@ -220,5 +223,14 @@
 	}
 	.previous-error .tool-btn {
 		margin-left: 8px;
+	}
+	/* 통계 페이지의 .sr-only 와 같다: 보이지 않고 화면 낭독기만 읽는다. */
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
 	}
 </style>
