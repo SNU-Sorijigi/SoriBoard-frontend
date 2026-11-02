@@ -90,3 +90,17 @@ export function withPreviousFailure(status, label) {
 	if (!status || !label) return status;
 	return `${status} 지난 학기(${label})와 견준 수치를 불러오지 못했습니다. 지난 학기 수치 다시 시도로 다시 부를 수 있습니다.`;
 }
+
+// 로드 상태 앞(lead)·뒤(tail)에 화면에만 보이던 실패 줄을 그 줄과 단추의 말로 붙인다: 상태가 비었으면(불러오는 중) 그대로 둔다.
+/**
+ * @param {string} status loadStatusText 등의 로드 상태
+ * @param {{ lead?: any[], tail?: any[] }} lines 실패한 줄마다 [줄의 말, 단추 이름], 실패하지 않았으면 거짓 값(건너뛴다)
+ * @returns {string}
+ */
+export function withFailedLines(status, { lead = [], tail = [] } = {}) {
+	if (!status) return status;
+	/** @param {any[]} items */
+	const sentences = (items) =>
+		items.filter(Boolean).map(([text, button]) => `${text} ${button}로 다시 부를 수 있습니다.`);
+	return [...sentences(lead), status, ...sentences(tail)].join(' ');
+}

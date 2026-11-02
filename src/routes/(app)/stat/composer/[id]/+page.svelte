@@ -46,7 +46,7 @@
 	} from '$lib/catalogSpelling.js';
 	import { hasPeriodStart, firstsSubtitle, firstsEmptyText } from '$lib/statFirsts.js';
 	import { readTableView, writeTableView, tableViewHref } from '$lib/statQuery.js';
-	import { loadStatusText, withPreviousFailure } from '$lib/statCards.js';
+	import { loadStatusText, withPreviousFailure, withFailedLines } from '$lib/statCards.js';
 	import {
 		readComposerId,
 		readComposerPeriod,
@@ -543,14 +543,23 @@
 		['genres', '장르별 분포'],
 		['firstWorks', '처음 튼 곡']
 	];
-	// 지난 학기 수치가 실패했다는 말은 KPI 칸 아래 줄과 같은 조건으로 붙인다.
-	$: loadStatus = withPreviousFailure(
-		!composerId || notFound || (!composer && !composerError) || CARD_KEYS.some((k) => loading[k])
-			? ''
-			: summary?.total_plays === 0
-				? emptyText
-				: loadStatusText(loading, errors, cardNames),
-		previousFailed.length ? semesterLabel(previousTarget) : ''
+	// 지난 학기 수치가 실패했다는 말은 KPI 칸 아래 줄과 같은 조건으로 붙인다. 작곡가 정보(KPI 칸 위)와
+	// 전체 기록(그 아래)이 실패했다는 말도 화면의 줄과 같은 조건으로, 페이지 순서대로 앞뒤에 붙인다.
+	$: loadStatus = withFailedLines(
+		withPreviousFailure(
+			!composerId || notFound || (!composer && !composerError) || CARD_KEYS.some((k) => loading[k])
+				? ''
+				: summary?.total_plays === 0
+					? emptyText
+					: loadStatusText(loading, errors, cardNames),
+			previousFailed.length ? semesterLabel(previousTarget) : ''
+		),
+		{
+			lead: [composerError && [composerError, '작곡가 정보 다시 시도']],
+			tail: [
+				wholeError && ['전체 기록의 처음·마지막 날을 불러오지 못했습니다.', '전체 기록 다시 시도']
+			]
+		}
 	);
 </script>
 

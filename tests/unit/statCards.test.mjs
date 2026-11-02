@@ -8,7 +8,8 @@ import {
 	retryKeys,
 	previousRetryRequests,
 	loadStatusText,
-	withPreviousFailure
+	withPreviousFailure,
+	withFailedLines
 } from '../../src/lib/statCards.js';
 
 test('the genre card is drawn from the diversity answer', () => {
@@ -276,5 +277,60 @@ test('withPreviousFailure: failed cards first, then the 지난 학기 sentence',
 	assert.equal(
 		withPreviousFailure(cards, '2025-2학기'),
 		`카드 1개를 불러오지 못했습니다: 많이 튼 곡. ${AGAIN} ${PREVIOUS}`
+	);
+});
+
+const ALL_LOADED = '모든 카드를 불러왔습니다.';
+const COMPOSER_LINE = ['작곡가 정보를 불러오지 못했습니다.', '작곡가 정보 다시 시도'];
+const WHOLE_LINE = ['전체 기록의 처음·마지막 날을 불러오지 못했습니다.', '전체 기록 다시 시도'];
+const COMPOSER_SENTENCE =
+	'작곡가 정보를 불러오지 못했습니다. 작곡가 정보 다시 시도로 다시 부를 수 있습니다.';
+const WHOLE_SENTENCE =
+	'전체 기록의 처음·마지막 날을 불러오지 못했습니다. 전체 기록 다시 시도로 다시 부를 수 있습니다.';
+
+test('withFailedLines: an empty status stays empty even with failed lines', () => {
+	assert.equal(withFailedLines('', { lead: [COMPOSER_LINE], tail: [WHOLE_LINE] }), '');
+});
+
+test('withFailedLines: no failed lines leave the status as it is', () => {
+	assert.equal(withFailedLines(ALL_LOADED, {}), ALL_LOADED);
+	assert.equal(withFailedLines(ALL_LOADED), ALL_LOADED);
+	assert.equal(withFailedLines(ALL_LOADED, { lead: [false, ''], tail: [null] }), ALL_LOADED);
+});
+
+test('withFailedLines: a lead line goes before the status', () => {
+	assert.equal(
+		withFailedLines(ALL_LOADED, { lead: [COMPOSER_LINE] }),
+		`${COMPOSER_SENTENCE} ${ALL_LOADED}`
+	);
+});
+
+test('withFailedLines: a tail line goes after the status and any 지난 학기 sentence', () => {
+	assert.equal(
+		withFailedLines(withPreviousFailure(ALL_LOADED, '2025-2학기'), { tail: [WHOLE_LINE] }),
+		`${ALL_LOADED} ${PREVIOUS} ${WHOLE_SENTENCE}`
+	);
+});
+
+test('withFailedLines: several lines keep their order, falsy ones are skipped', () => {
+	assert.equal(
+		withFailedLines('상태.', {
+			lead: [['가.', '가 다시 시도'], false, ['나.', '나 다시 시도']],
+			tail: [
+				['다.', '다 다시 시도'],
+				['라.', '라 다시 시도']
+			]
+		}),
+		'가. 가 다시 시도로 다시 부를 수 있습니다. 나. 나 다시 시도로 다시 부를 수 있습니다. 상태. ' +
+			'다. 다 다시 시도로 다시 부를 수 있습니다. 라. 라 다시 시도로 다시 부를 수 있습니다.'
+	);
+});
+
+test('withFailedLines: 작곡가 정보 and 전체 기록 both failed around loaded cards', () => {
+	assert.equal(
+		withFailedLines(ALL_LOADED, { lead: [COMPOSER_LINE], tail: [WHOLE_LINE] }),
+		'작곡가 정보를 불러오지 못했습니다. 작곡가 정보 다시 시도로 다시 부를 수 있습니다. ' +
+			'모든 카드를 불러왔습니다. ' +
+			'전체 기록의 처음·마지막 날을 불러오지 못했습니다. 전체 기록 다시 시도로 다시 부를 수 있습니다.'
 	);
 });
