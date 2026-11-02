@@ -29,6 +29,8 @@
 	}
 
 	$: canExport = Boolean(table) && !loading && !error && !emptyText;
+	// 빈 카드는 한 줄뿐이므로 표의 높이를 지키지 않는다(불러오는 중·실패는 표가 올 자리라 그대로).
+	$: compact = !loading && !error && (Boolean(emptyText) || !table);
 
 	function exportCsv() {
 		if (!canExport || !table) return;
@@ -50,10 +52,10 @@
 		</button>
 	</div>
 
-	<div class="table-area">
+	<div class="table-area" class:compact>
 		{#if loading || error || emptyText || !table}
 			<!-- 제목은 표가 보이므로, 표가 없으면 어느 카드인지 여기서 밝힌다(ChartCard 와 같다). -->
-			<div class="placeholder" class:error={!loading && error}>
+			<div class="placeholder" class:error={!loading && error} class:compact>
 				{!loading && !error && emptyText ? emptyText : placeholderText(title, { loading, error })}
 				{#if !loading && error && retry}
 					<button class="tool-btn" on:click={onRetry} aria-label={`${title} 다시 시도`}>
@@ -112,6 +114,11 @@
 		flex: 1;
 		min-height: 340px;
 	}
+	.table-area.compact {
+		min-height: 0;
+		display: flex;
+		flex-direction: column;
+	}
 	.placeholder {
 		display: flex;
 		flex-direction: column;
@@ -124,6 +131,12 @@
 		color: var(--gray-gray-500, #9f9f9f);
 		font-family: var(--medium-font-family, 'Noto Sans KR', sans-serif);
 		font-size: var(--medium-font-size, 16px);
+	}
+	/* 학기 결산의 빈 줄과 같은 120px. 옆 카드에 맞춰 늘어나면 그 높이를 채운다. */
+	.placeholder.compact {
+		height: auto;
+		min-height: 120px;
+		flex: 1;
 	}
 	.placeholder.error {
 		color: var(--secondary-secondary-800, #95560d);
