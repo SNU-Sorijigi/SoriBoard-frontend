@@ -82,7 +82,11 @@
 		</select>
 	</label>
 	<p class="result-count" aria-live="polite">
-		{#if spec && !loading && !error}{spec.label} · {spellingSummary(groups)}{/if}
+		{#if spec && !loading && !error}{spec.label} · {spellingSummary(groups)}{:else if error}
+			<!-- 실패는 화면 낭독기에만 알린다(보이는 줄은 비운다). -->
+			<span class="sr-only"
+				>표기 정리를 불러오지 못했습니다. 표기 정리 다시 시도로 다시 부를 수 있습니다.</span
+			>{/if}
 	</p>
 </div>
 
@@ -310,5 +314,14 @@
 		text-align: right;
 		color: var(--gray-gray-500, #9f9f9f);
 		font-variant-numeric: tabular-nums;
+	}
+	/* 통계 페이지의 .sr-only 와 같다: 보이지 않고 화면 낭독기만 읽는다. */
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
 	}
 </style>

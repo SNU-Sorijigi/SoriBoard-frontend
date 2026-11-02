@@ -424,6 +424,10 @@
 			{#if count !== null}
 				총 {count.toLocaleString()}곡{#if q}&nbsp;· '{q}' 검색{/if}
 			{/if}
+			<!-- 목록이 실패하면 화면 낭독기에만 알린다('더 보기'의 실패는 그 '다시 시도'가 말한다). -->
+			{#if error && rows.length === 0}<span class="sr-only"
+					>선곡 목록을 불러오지 못했습니다. 선곡 목록 다시 시도로 다시 부를 수 있습니다.</span
+				>{/if}
 		</p>
 		<div class="export">
 			<span class="more-error" aria-live="polite">{exportError}</span>
@@ -479,8 +483,13 @@
 	{#if rows.length > 0}
 		<div class="more" bind:this={moreBar}>
 			{#if error}
-				<span class="more-error">더 불러오지 못했습니다.</span>
-				<button class="tool-btn" on:click={loadMore}>다시 시도</button>
+				<span class="more-error" id="more-error">더 불러오지 못했습니다.</span>
+				<button
+					class="tool-btn"
+					on:click={loadMore}
+					aria-label="더 보기 다시 시도"
+					aria-describedby="more-error">다시 시도</button
+				>
 			{:else if hasMore}
 				<button class="tool-btn" on:click={loadMore} disabled={loading}>
 					{loading ? '불러오는 중...' : '더 보기'}
@@ -662,5 +671,14 @@
 			max-height: none !important;
 			overflow: visible !important;
 		}
+	}
+	/* 통계 페이지의 .sr-only 와 같다: 보이지 않고 화면 낭독기만 읽는다. */
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
 	}
 </style>
