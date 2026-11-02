@@ -46,6 +46,7 @@
 	} from '$lib/catalogSpelling.js';
 	import { hasPeriodStart, firstsSubtitle, firstsEmptyText } from '$lib/statFirsts.js';
 	import { readTableView, writeTableView, tableViewHref } from '$lib/statQuery.js';
+	import { loadStatusText } from '$lib/statCards.js';
 	import {
 		readComposerId,
 		readComposerPeriod,
@@ -527,6 +528,27 @@
 	$: historyLink = composerHistoryHref(composerId, [], filter);
 	// 신청곡 숫자는 그중 신청곡만 연다.
 	$: requestedLink = composerRequestedHref(composerId, filter);
+	// 기간에 이 작곡가의 선곡이 없을 때 카드 대신 보이는 말. 화면 낭독기의 로드 상태도 같은 말을 한다.
+	$: emptyText = `${period === ALL ? '아직' : '이 기간에는'} ${userId ? '이 지기가 ' : ''}이 작곡가의 곡을 튼 적이 없습니다.`;
+	// 화면 낭독기에 알릴 로드 상태(통계와 같다): 작곡가 정보나 카드를 불러오는 동안과 작곡가를 찾을 수 없을 때는
+	// 비우고, 다 끝나면 실패한 카드의 이름(페이지 순서)이나 다 불러왔음을, 선곡이 없는 기간이면 그 말을 한다.
+	// 처음 튼 곡을 묻지 않으면 loading·errors 가 없어 이름에 들지 않는다.
+	$: cardNames = [
+		['summary', '요약'],
+		['timeline', timelineTitle],
+		['works', '많이 튼 곡'],
+		['soloists', '많이 튼 독주자'],
+		['conductors', '많이 튼 지휘자'],
+		['orchestras', '많이 튼 오케스트라'],
+		['genres', '장르별 분포'],
+		['firstWorks', '처음 튼 곡']
+	];
+	$: loadStatus =
+		!composerId || notFound || (!composer && !composerError) || CARD_KEYS.some((k) => loading[k])
+			? ''
+			: summary?.total_plays === 0
+				? emptyText
+				: loadStatusText(loading, errors, cardNames);
 </script>
 
 <svelte:head>
@@ -534,6 +556,7 @@
 </svelte:head>
 
 <div class="composer-page">
+	<p class="sr-only" role="status">{loadStatus}</p>
 	<header class="page-header">
 		<div class="title-group">
 			<h1 tabindex="-1" bind:this={heading}>{title}</h1>
@@ -720,9 +743,9 @@
 		{#if summary && summary.total_plays === 0}
 			<div class="empty-hint">
 				{#if period === ALL}
-					아직 {userId ? '이 지기가 ' : ''}이 작곡가의 곡을 튼 적이 없습니다.
+					{emptyText}
 				{:else}
-					이 기간에는 {userId ? '이 지기가 ' : ''}이 작곡가의 곡을 튼 적이 없습니다.
+					{emptyText}
 					{#if !composerIsWholeRecord({ period, start: customStart, end: customEnd })}
 						<button
 							class="tool-btn"
@@ -890,6 +913,15 @@
 		padding: 24px 32px;
 		width: 100%;
 		box-sizing: border-box;
+	}
+	/* 화면 낭독기만 읽는 줄(통계와 같다) */
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
 	}
 	/* 이름이 길거나 직접 지정을 열어 한 줄에 다 들어가지 않으면 컨트롤을 다음 줄 오른쪽에 둔다. */
 	.page-header {
