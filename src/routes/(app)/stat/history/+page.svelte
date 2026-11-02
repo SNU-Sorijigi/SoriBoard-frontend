@@ -5,7 +5,7 @@
 	import PeriodSelect from '$lib/components/stat/PeriodSelect.svelte';
 	import MemberSelect from '$lib/components/stat/MemberSelect.svelte';
 	import PlayTable from '$lib/components/stat/PlayTable.svelte';
-	import { currentSemesterRange } from '$lib/statPeriod.js';
+	import { ALL, currentSemesterRange } from '$lib/statPeriod.js';
 	import { composerHref } from '$lib/composerStats.js';
 	import { downloadCsvTable } from '$lib/csvTable.js';
 	import { todayStamp } from '$lib/csv.js';
@@ -223,6 +223,12 @@
 		period = e.detail;
 		apply();
 	};
+	// 빈 목록에서 기간만 전체 기간으로 넓힌다. 기간 select 로 고른 것과 같다(버튼이 사라지므로 포커스는 목록 카드로).
+	function widenPeriod(e) {
+		if (document.activeElement === e.currentTarget) listCard?.focus();
+		period = ALL;
+		apply();
+	}
 	function onMemberChange(e) {
 		userId = e.detail.userId;
 		includeMentees = e.detail.includeMentees;
@@ -451,7 +457,18 @@
 				>
 			</div>
 		{:else if count === 0}
-			<div class="placeholder">조건에 맞는 선곡이 없습니다</div>
+			{#if period !== ALL}
+				<div class="placeholder">
+					이 기간에는 조건에 맞는 선곡이 없습니다
+					<button
+						class="tool-btn"
+						on:click={widenPeriod}
+						title="기간만 전체 기간으로 바꿔 다시 찾기">전체 기간에서 찾기</button
+					>
+				</div>
+			{:else}
+				<div class="placeholder">조건에 맞는 선곡이 없습니다</div>
+			{/if}
 		{/if}
 	</section>
 
