@@ -20,6 +20,7 @@ import {
 	ongoingText,
 	upcomingText,
 	semesterOptionLabel,
+	semesterUpcoming,
 	genrePair,
 	monthlyTable
 } from '../../src/lib/semesterReport.js';
@@ -548,6 +549,23 @@ test('upcomingText says 시작 전 only before the first day of the range', () =
 	assert.equal(upcomingText({ end: '2027-08-31' }, '2026-11-02'), '');
 	assert.equal(upcomingText(spring, ''), '');
 	assert.equal(upcomingText({ start: '2027-03-01' }, '2026-11-02'), '시작 전 · 2027-03-01부터');
+});
+
+test('semesterUpcoming is true only before the first day of the 학기', () => {
+	const spring = { year: 2027, semester_num: 1 };
+	assert.equal(semesterUpcoming(spring, '2026-11-03'), true);
+	assert.equal(semesterUpcoming(spring, '2027-02-28'), true);
+	assert.equal(semesterUpcoming(spring, '2027-03-01'), false);
+	assert.equal(semesterUpcoming(spring, '2027-05-01'), false);
+	const autumn = { year: 2026, semester_num: 2 };
+	assert.equal(semesterUpcoming(autumn, '2026-08-31'), true);
+	assert.equal(semesterUpcoming(autumn, '2026-09-01'), false);
+	assert.equal(semesterUpcoming({ year: 2025, semester_num: 2 }, '2026-11-03'), false);
+	// No today, or a 학기 the range rule does not know: not upcoming.
+	assert.equal(semesterUpcoming(spring, ''), false);
+	assert.equal(semesterUpcoming(spring, null), false);
+	assert.equal(semesterUpcoming(spring, undefined), false);
+	assert.equal(semesterUpcoming({ year: 2027, semester_num: 3 }, '2026-11-03'), false);
 });
 
 test('semesterOptionLabel marks a 학기 not yet begun with (시작 전)', () => {

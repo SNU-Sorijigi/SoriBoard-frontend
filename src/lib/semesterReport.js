@@ -99,15 +99,24 @@ export function upcomingText(range, today) {
 	return today < range.start ? `시작 전 · ${range.start}부터` : '';
 }
 
+// 아직 시작하지 않은 학기인가: 오늘이 학기의 첫날(백엔드의 semester_id 와 같은 규칙) 전이다. today 가 없으면 false.
+/**
+ * @param {{ year: number, semester_num: number }} semester
+ * @param {string | null | undefined} today YYYY-MM-DD
+ */
+export function semesterUpcoming(semester, today) {
+	const range = bucketRange('semester', `${semester.year}-${semester.semester_num}`);
+	return !!upcomingText(range, today ?? '');
+}
+
 // 학기 목록(통계의 기간, 학기 결산의 학기)의 글자: 아직 시작하지 않은 학기면 '2027-1학기 (시작 전)'.
 /**
  * @param {{ year: number, semester_num: number }} semester
  * @param {string} today YYYY-MM-DD
  */
 export function semesterOptionLabel(semester, today) {
-	const range = bucketRange('semester', `${semester.year}-${semester.semester_num}`);
 	const label = semesterLabel(semester);
-	return upcomingText(range, today) ? `${label} (시작 전)` : label;
+	return semesterUpcoming(semester, today) ? `${label} (시작 전)` : label;
 }
 
 // 시대·장르처럼 지난 학기와 견주는 카드의 응답 한 쌍. 두 요청은 함께 보낸다.
