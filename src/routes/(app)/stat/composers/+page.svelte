@@ -263,7 +263,9 @@
 					>
 				</div>
 			{:else if loaded && composers.length === 0}
-				<div class="placeholder">{q ? `'${q}'에 맞는 작곡가가 없습니다` : '작곡가가 없습니다'}</div>
+				<div class="placeholder" class:stale={loading}>
+					{shownQ ? `'${shownQ}'에 맞는 작곡가가 없습니다` : '작곡가가 없습니다'}
+				</div>
 			{:else if loaded}
 				<!-- 긴 목록은 이 상자 안에서 스크롤해 머리줄이 남는다. 키보드로도 스크롤하게 포커스를 준다(DataTable 과 같다). -->
 				<!-- svelte-ignore a11y-no-noninteractive-tabindex -->
@@ -549,7 +551,8 @@
 		font-size: var(--small-medium-font-size, 13px);
 		color: var(--gray-gray-950, #1a1a1a);
 	}
-	table.stale {
+	table.stale,
+	.placeholder.stale {
 		opacity: 0.6;
 	}
 	th,
