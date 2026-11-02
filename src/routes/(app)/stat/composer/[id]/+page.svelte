@@ -44,6 +44,7 @@
 		duplicatesSearch
 	} from '$lib/catalogSpelling.js';
 	import { hasPeriodStart, firstsSubtitle, firstsEmptyText } from '$lib/statFirsts.js';
+	import { readTableView, writeTableView } from '$lib/statQuery.js';
 	import {
 		readComposerId,
 		readComposerPeriod,
@@ -76,6 +77,8 @@
 	// 기간과 지기는 URL에도 둔다(composerStats.js). 처음 열 때와 다른 작곡가로 옮겨 갈 때 URL에서 읽는다.
 	let { period, start: customStart, end: customEnd } = readComposerPeriod($page.url.searchParams);
 	let { userId, includeMentees } = readComposerMember($page.url.searchParams);
+	// 모든 차트 표로 보기(view=table, 통계와 같다): 누르면 모든 차트 카드가 표를 보인다. 카드의 '표로 보기'는 그 카드만 바꾼다.
+	let allTables = readTableView($page.url.searchParams);
 	$: filter = { period, start: customStart, end: customEnd, userId, includeMentees };
 	// 이번 학기 = 가장 최근 학기의 시작일부터 오늘까지(통계와 같다).
 	const current = currentSemesterRange();
@@ -260,8 +263,17 @@
 		}
 		({ period, start: customStart, end: customEnd } = readComposerPeriod($page.url.searchParams));
 		({ userId, includeMentees } = readComposerMember($page.url.searchParams));
+		allTables = readTableView($page.url.searchParams);
 		loadAll();
 	});
+
+	// 표로 보기도 URL에 둔다. 다시 불러오지 않는다(같은 작곡가의 goto 는 afterNavigate 가 건너뛴다).
+	function toggleAllTables() {
+		allTables = !allTables;
+		const url = new URL($page.url);
+		writeTableView(url.searchParams, allTables);
+		goto(url, { replaceState: true, keepFocus: true, noScroll: true });
+	}
 
 	// 기간이 바뀌면 URL을 바꾼다. 히스토리를 쌓지 않고, 포커스·스크롤도 그대로 둔다.
 	function onPeriodChange() {
@@ -702,8 +714,21 @@
 					: `이 기간에는 ${userId ? '이 지기가 ' : ''}이 작곡가의 곡을 튼 적이 없습니다.`}
 			</div>
 		{:else}
+			<!-- 키보드·화면 낭독기로 모든 차트를 한 번에 표로 읽는다(카드마다 '표로 보기'를 누르지 않고, 통계와 같다) -->
+			<div class="view-row">
+				<button
+					class="tool-btn"
+					class:active={allTables}
+					aria-pressed={allTables}
+					on:click={toggleAllTables}
+					title="모든 차트의 수치를 표로 보기"
+				>
+					모든 차트 표로 보기
+				</button>
+			</div>
 			<div class="chart-grid">
 				<ChartCard
+					showTable={allTables}
 					title={timelineTitle}
 					option={timelineOpt}
 					data={timelineData}
@@ -752,6 +777,7 @@
 					{/if}
 				</section>
 				<ChartCard
+					showTable={allTables}
 					title="많이 튼 독주자"
 					option={soloistOpt}
 					data={soloists}
@@ -766,6 +792,7 @@
 					csvHeaders={['연주자', '횟수']}
 				/>
 				<ChartCard
+					showTable={allTables}
 					title="많이 튼 지휘자"
 					option={conductorOpt}
 					data={conductors}
@@ -780,6 +807,7 @@
 					csvHeaders={['지휘자', '횟수']}
 				/>
 				<ChartCard
+					showTable={allTables}
 					title="많이 튼 오케스트라"
 					option={orchestraOpt}
 					data={orchestras}
@@ -795,6 +823,7 @@
 				/>
 				<!-- 장르는 링크가 없다(통계와 같다) -->
 				<ChartCard
+					showTable={allTables}
 					title="장르별 분포"
 					option={genreOpt}
 					data={genres}
@@ -988,6 +1017,17 @@
 	}
 	.kpi-error .tool-btn {
 		margin-left: 8px;
+	}
+	/* 카드의 '표로 보기'가 눌린 모양과 같다. 위의 :hover 규칙보다 세게, 마우스를 올려도 눌린 색을 지킨다 */
+	.tool-btn.active,
+	.tool-btn.active:hover:not(:disabled) {
+		background: var(--action-bg);
+		color: var(--action-fg);
+	}
+	.view-row {
+		display: flex;
+		justify-content: flex-end;
+		margin: -8px 0 8px;
 	}
 	.chart-grid {
 		display: grid;
