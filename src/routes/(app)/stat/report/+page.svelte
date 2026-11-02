@@ -34,6 +34,7 @@
 		ongoingText,
 		upcomingText,
 		semesterOptionLabel,
+		semesterUpcoming,
 		kpiChangeText,
 		evennessChangeText,
 		genrePair,
@@ -190,7 +191,9 @@
 
 	function choose(next) {
 		semester = next;
-		previous = previousSemester(next, semesters);
+		// 시작 전인 학기는 견줄 것이 없다: 지난 학기를 부르지 않고 KPI 아래 비교 줄도 두지 않는다.
+		// today 는 아래에서 정한다(choose 는 onMount 뒤에만 불린다).
+		previous = semesterUpcoming(next, today) ? null : previousSemester(next, semesters);
 		loadAll();
 	}
 
@@ -234,11 +237,16 @@
 		semesterSelect?.focus();
 	}
 
+	// 학기를 보이고 URL 의 semester_id 를 바꾼다(학기 select 와 '… 결산 보기' 단추).
+	function show(next) {
+		goto(reportHref(next.id), { replaceState: true, keepFocus: true, noScroll: true });
+		choose(next);
+	}
+
 	function onSelect(e) {
 		const next = semesters.find((s) => String(s.id) === e.currentTarget.value);
 		if (!next || next === semester) return;
-		goto(reportHref(next.id), { replaceState: true, keepFocus: true, noScroll: true });
-		choose(next);
+		show(next);
 	}
 
 	$: label = semester ? semesterLabel(semester) : '';
@@ -254,6 +262,17 @@
 	const total = (envelope) => (envelope ? `총 ${envelope.total_plays.toLocaleString()}곡` : '');
 	const count = (v) => (v == null ? '—' : formatCount(v));
 	$: empty = summary && summary.total_plays === 0;
+	// 시작 전인 학기의 빈 결산에 두는 '2026-2학기 결산 보기': 가장 최근의 시작한 학기(목록의 학기가
+	// 모두 시작 전이면 단추가 없다). 단추는 사라지므로 포커스는 먼저 학기 select 로 옮긴다.
+	const startedOf = (list) => {
+		const s = pickSemester(null, list, today);
+		return s && !semesterUpcoming(s, today) ? s : null;
+	};
+	$: started = semester && semesterUpcoming(semester, today) ? startedOf(semesters) : null;
+	function showStarted() {
+		semesterSelect?.focus();
+		show(started);
+	}
 
 	// 순위 표(상위 10). 작곡가 이름은 이 학기를 고른 작곡가 페이지로, 독주자·지휘자·오케스트라·곡
 	// 이름은 이 학기에 그 대상·곡을 튼 선곡 기록으로 간다.
@@ -565,7 +584,19 @@
 		{/if}
 
 		{#if empty}
-			<div class="empty-hint">이 학기에는 선곡이 없습니다.</div>
+			<!-- 인쇄에서는 문장만 남고 단추는 숨는다(.tool-btn) -->
+			<div class="empty-hint">
+				{#if upcoming}
+					아직 시작하지 않은 학기입니다.
+					{#if started}
+						<button class="tool-btn" on:click={showStarted}>
+							{semesterLabel(started)} 결산 보기
+						</button>
+					{/if}
+				{:else}
+					이 학기에는 선곡이 없습니다.
+				{/if}
+			</div>
 		{:else}
 			<div class="grid">
 				{#each topCards as card}
