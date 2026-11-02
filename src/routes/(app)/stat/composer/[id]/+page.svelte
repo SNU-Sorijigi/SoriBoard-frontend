@@ -34,7 +34,8 @@
 		rankChangeTable,
 		rankNotes,
 		mixTable,
-		ongoingText
+		ongoingText,
+		upcomingText
 	} from '$lib/semesterReport.js';
 	import { catalogHref } from '$lib/composerCatalog.js';
 	import {
@@ -408,8 +409,10 @@
 	$: title = composer ? composer.name : composerError ? `작곡가 #${composerId}` : '작곡가';
 	// 머리말 기간: 백엔드가 돌려준 범위. 아직 없으면 보낼 범위로 짐작한다(학기는 학기 목록의 연도·학기로).
 	$: semesterRange = semesterRangeOf(period, semesters);
-	// 고른 학기가 아직 진행 중이면 '진행 중 · 2026-11-01까지'(학기 결산과 같다). current.end 는 처음 연 날이다.
+	// 고른 학기가 아직 진행 중이면 '진행 중 · 2026-11-01까지', 시작 전이면 '시작 전 · 2027-03-01부터'
+	// (학기 결산과 같다). current.end 는 처음 연 날이다.
 	$: ongoing = ongoingText(semesterRange, current.end);
+	$: upcoming = upcomingText(semesterRange, current.end);
 	$: periodText = appliedFilters
 		? periodRangeText(appliedFilters)
 		: period === CURRENT
@@ -540,6 +543,7 @@
 			{#if composerId && !notFound}
 				<span class="facts">{periodText}</span>
 				{#if ongoing}<span class="facts">{ongoing}</span>{/if}
+				{#if upcoming}<span class="facts">{upcoming}</span>{/if}
 			{/if}
 			<a class="page-link" href={tableViewHref(composerStatHref(filter), allTables)}>통계</a>
 			{#if composerId && !notFound}

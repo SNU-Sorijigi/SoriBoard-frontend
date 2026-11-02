@@ -32,6 +32,7 @@
 		reportRangeText,
 		reportRange,
 		ongoingText,
+		upcomingText,
 		kpiChangeText,
 		evennessChangeText,
 		genrePair,
@@ -245,8 +246,10 @@
 	$: rangeText = reportRangeText(summary, semester);
 	// 오늘(브라우저의 날짜, 이번 학기와 같은 규칙)이 학기 안이면 아직 끝나지 않은 학기다: 머리말에
 	// '진행 중 · 오늘까지'를, KPI 아래에 지난 학기 수치는 학기 전체라는 문장을 둔다. 페이지를 열 때 한 번 정한다.
+	// 오늘이 학기의 시작일 전이면 머리말에 '시작 전 · 시작일부터'를 둔다.
 	const today = currentSemesterRange().end;
 	$: ongoing = ongoingText(reportRange(summary, semester), today);
+	$: upcoming = upcomingText(reportRange(summary, semester), today);
 	const total = (envelope) => (envelope ? `총 ${envelope.total_plays.toLocaleString()}곡` : '');
 	const count = (v) => (v == null ? '—' : formatCount(v));
 	$: empty = summary && summary.total_plays === 0;
@@ -463,6 +466,7 @@
 				<span class="semester">{label}</span>
 				<span class="range">{rangeText}</span>
 				{#if ongoing}<span class="range">{ongoing}</span>{/if}
+				{#if upcoming}<span class="range">{upcoming}</span>{/if}
 			{/if}
 		</div>
 		<div class="controls">

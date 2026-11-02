@@ -89,6 +89,16 @@ export function ongoingText(range, today) {
 	return range.start <= today && today <= range.end ? `진행 중 · ${today}까지` : '';
 }
 
+// 아직 시작하지 않은 학기(오늘 < 시작일)면 머리말에 '시작 전 · 2027-03-01부터'. 아니면 ''.
+/**
+ * @param {{ start?: string, end?: string } | null | undefined} range
+ * @param {string} today YYYY-MM-DD
+ */
+export function upcomingText(range, today) {
+	if (!range?.start || !today) return '';
+	return today < range.start ? `시작 전 · ${range.start}부터` : '';
+}
+
 // 시대·장르처럼 지난 학기와 견주는 카드의 응답 한 쌍. 두 요청은 함께 보낸다.
 // 이 학기가 실패하면 카드가 실패하고, 지난 학기만 실패하면 이 학기만으로 그린다(previousError).
 // loadBefore 가 없으면(지난 학기 없음) previous 는 null 이다.

@@ -18,6 +18,7 @@ import {
 	reportRangeText,
 	reportRange,
 	ongoingText,
+	upcomingText,
 	genrePair,
 	monthlyTable
 } from '../../src/lib/semesterReport.js';
@@ -525,6 +526,27 @@ test('ongoingText says 진행 중 only from the first to the last day of the ran
 	assert.equal(ongoingText({ start: '2026-09-01' }, '2026-11-01'), '');
 	assert.equal(ongoingText({ end: '2027-02-28' }, '2026-11-01'), '');
 	assert.equal(ongoingText({ start: '2026-09-01', end: '' }, '2026-11-01'), '');
+});
+
+test('upcomingText says 시작 전 only before the first day of the range', () => {
+	const spring = { start: '2027-03-01', end: '2027-08-31' };
+	assert.equal(upcomingText(spring, '2027-02-28'), '시작 전 · 2027-03-01부터');
+	assert.equal(upcomingText(spring, '2026-11-02'), '시작 전 · 2027-03-01부터');
+	// Started (from the first day), or over.
+	assert.equal(upcomingText(spring, '2027-03-01'), '');
+	assert.equal(upcomingText(spring, '2027-05-01'), '');
+	assert.equal(upcomingText(spring, '2027-09-01'), '');
+	// Never together with 진행 중.
+	const days = ['2026-11-02', '2027-02-28', '2027-03-01', '2027-05-01', '2027-08-31', '2027-09-01'];
+	for (const day of days) {
+		assert.ok(!(upcomingText(spring, day) && ongoingText(spring, day)), day);
+	}
+	// No range, no start, or no today; the end is not needed.
+	assert.equal(upcomingText(null, '2026-11-02'), '');
+	assert.equal(upcomingText(undefined, '2026-11-02'), '');
+	assert.equal(upcomingText({ end: '2027-08-31' }, '2026-11-02'), '');
+	assert.equal(upcomingText(spring, ''), '');
+	assert.equal(upcomingText({ start: '2027-03-01' }, '2026-11-02'), '시작 전 · 2027-03-01부터');
 });
 
 // 다양성 응답(stats/diversity?bucket=month)의 모양: summary.genre 와 응답의 total_plays.
