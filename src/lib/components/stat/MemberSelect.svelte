@@ -1,6 +1,7 @@
 <script>
 	import { onMount, createEventDispatcher } from 'svelte';
 	import { knownUser } from '$lib/statQuery.js';
+	import { memberGroups } from '$lib/memberGroups.js';
 
 	export let userId = null;
 	export let includeMentees = false;
@@ -54,6 +55,8 @@
 			button.closest('.member-select')?.querySelector('select')?.focus();
 	}
 
+	// 현역과 OB 가 다 있으면 두 묶음(optgroup)으로, 한쪽뿐이면 예전처럼 한 줄로 늘어놓는다.
+	$: groups = memberGroups(users);
 	$: userName = users.find((user) => String(user.id) === String(userId))?.name ?? '';
 
 	function onUserChange(e) {
@@ -77,9 +80,19 @@
 		aria-describedby={listError ? errorId : undefined}
 	>
 		<option value="">{emptyLabel}</option>
-		{#each users as user}
-			<option value={String(user.id)}>{user.name} {user.major} {user.year_id}</option>
-		{/each}
+		{#if groups.length > 1}
+			{#each groups as group}
+				<optgroup label={group.label}>
+					{#each group.users as user}
+						<option value={String(user.id)}>{user.name} {user.major} {user.year_id}</option>
+					{/each}
+				</optgroup>
+			{/each}
+		{:else}
+			{#each users as user}
+				<option value={String(user.id)}>{user.name} {user.major} {user.year_id}</option>
+			{/each}
+		{/if}
 	</select>
 	<label class="mentee" class:off={!userId} title={menteeTitle}>
 		<input
