@@ -39,12 +39,27 @@ test('reportHref links a 학기 id, anything else to the newest 학기', () => {
 	}
 });
 
-test('pickSemester finds the URL 학기 or falls back to the newest', () => {
+test('pickSemester finds the URL 학기 or falls back to the newest started one', () => {
 	assert.equal(pickSemester('4', sorted), sorted[1]);
 	assert.equal(pickSemester(null, sorted), sorted[0]);
 	assert.equal(pickSemester('99', sorted), sorted[0]);
 	assert.equal(pickSemester('abc', sorted), sorted[0]);
 	assert.equal(pickSemester('4', []), null);
+	// 다음 학기(2027-1)를 미리 만들어 두면: 링크가 없으면 오늘의 학기까지 중 가장 최근 학기
+	const ahead = [
+		{ id: 7, year: 2027, semester_num: 1 },
+		{ id: 2, year: 2026, semester_num: 2 },
+		{ id: 4, year: 2026, semester_num: 1 }
+	];
+	assert.equal(pickSemester(null, ahead, '2027-02-20'), ahead[1]);
+	assert.equal(pickSemester(null, ahead, '2026-11-02'), ahead[1]);
+	assert.equal(pickSemester(null, ahead, '2027-03-02'), ahead[0]);
+	assert.equal(pickSemester('99', ahead, '2027-02-20'), ahead[1]);
+	assert.equal(pickSemester('7', ahead, '2027-02-20'), ahead[0]);
+	// 모두 앞으로의 학기면 가장 최근 학기
+	const future = [{ id: 7, year: 2027, semester_num: 1 }];
+	assert.equal(pickSemester(null, future, '2026-11-02'), future[0]);
+	assert.equal(pickSemester(null, [], '2026-11-02'), null);
 });
 
 test('previousSemester is the next one in year/semester order', () => {

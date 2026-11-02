@@ -38,7 +38,7 @@
 		monthlyTable
 	} from '$lib/semesterReport.js';
 
-	// 한 학기의 결산(클럽 전체). 학기는 URL(semester_id)에 두고, 없으면 가장 최근 학기다.
+	// 한 학기의 결산(클럽 전체). 학기는 URL(semester_id)에 두고, 없으면 가장 최근의 시작한 학기다.
 	// 카드는 따로 불러오고, 실패하면 그 카드에만 오류를 띄운다.
 	const initialId = $page.url.searchParams.get('semester_id');
 
@@ -202,9 +202,10 @@
 			semestersError = '학기 목록을 불러오지 못했습니다.';
 		}
 		semestersLoaded = true;
-		const picked = pickSemester(initialId, semesters);
+		// today 는 아래에서 정한다(onMount 에서 부르므로 이미 있다).
+		const picked = pickSemester(initialId, semesters, today);
 		if (!picked) return;
-		// 링크의 학기가 목록에 없으면 가장 최근 학기를 보이고, URL 에서 그 id 를 뺀다.
+		// 링크의 학기가 목록에 없으면 가장 최근의 시작한 학기를 보이고, URL 에서 그 id 를 뺀다.
 		if (initialId != null && String(picked.id) !== initialId) {
 			goto(reportHref(null), { replaceState: true, keepFocus: true, noScroll: true });
 		}

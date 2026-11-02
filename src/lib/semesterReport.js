@@ -10,26 +10,39 @@ import {
 	seriesTable
 } from './statTable.js';
 import { periodRangeText } from './statPeriod.js';
-import { bucketRange, timelineView } from './statBucket.js';
+import { bucketRange, timelineView, semesterOf } from './statBucket.js';
 import { genreDistribution } from './statCards.js';
 
 const ID = /^[1-9]\d*$/;
 
-// 결산 링크. 학기 id 가 아니면(통계의 이번 학기·전체 기간·직접 지정) 가장 최근 학기의 결산.
+// 결산 링크. 학기 id 가 아니면(통계의 이번 학기·전체 기간·직접 지정) 가장 최근의 시작한 학기의 결산.
 /** @param {string | number | null | undefined} id */
 export function reportHref(id) {
 	return ID.test(String(id ?? '')) ? `/stat/report?semester_id=${id}` : '/stat/report';
 }
 
-// URL 의 semester_id 에 맞는 학기. 없거나 목록에 없으면 가장 최근 학기(목록은 sortSemesters 순).
+// URL 의 semester_id 에 맞는 학기. 없거나 목록에 없으면 가장 최근의 시작한 학기(오늘의 학기,
+// semesterOf, 보다 늦지 않은 학기 중 첫째. 목록은 sortSemesters 순). 다음 학기를 미리 만들어 두어도
+// 통계의 이번 학기와 같은 학기를 연다. 모두 앞으로의 학기이거나 today 가 없으면 가장 최근 학기.
 /**
- * @template {{ id: number }} S
+ * @template {{ id: number, year: number, semester_num: number }} S
  * @param {string | null} raw
  * @param {S[]} sorted
+ * @param {string} [today] YYYY-MM-DD
  * @returns {S | null}
  */
-export function pickSemester(raw, sorted) {
-	return sorted.find((s) => String(s.id) === raw) ?? sorted[0] ?? null;
+export function pickSemester(raw, sorted, today = '') {
+	const linked = sorted.find((s) => String(s.id) === raw);
+	if (linked) return linked;
+	if (today) {
+		/** @param {{ year: number, semester_num: number }} s */
+		const order = (s) => s.year * 10 + s.semester_num;
+		const [year, semester_num] = semesterOf(today).split('-').map(Number);
+		const limit = order({ year, semester_num });
+		const started = sorted.find((s) => order(s) <= limit);
+		if (started) return started;
+	}
+	return sorted[0] ?? null;
 }
 
 // 바로 앞 학기(연도·학기 순으로 다음 칸). 없으면 null.
