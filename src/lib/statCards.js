@@ -65,3 +65,17 @@ export function genreDistribution(diversity) {
 // summary 는 버킷과 무관하므로 주별/월별만 바꾸면 칸은 그대로 둔다(다시 부르는 카드가 아니다).
 /** @param {any} diversity */
 export const diversityTiles = (diversity) => diversity.summary;
+
+// 화면 낭독기에 알릴 로드 상태: 카드를 불러오는 동안은 비우고, 다 끝나면 실패한 카드의 이름(페이지 순서, 한 번씩)이나 다 불러왔음을 말한다.
+/**
+ * @param {Record<string, boolean>} loading
+ * @param {Record<string, string>} errors
+ * @param {[string, string][]} cards [카드, 이름] (페이지 순서)
+ * @returns {string}
+ */
+export function loadStatusText(loading, errors, cards) {
+	if (cards.some(([key]) => loading[key])) return '';
+	const names = [...new Set(cards.filter(([key]) => errors[key]).map(([, name]) => name))];
+	if (!names.length) return '모든 카드를 불러왔습니다.';
+	return `카드 ${names.length.toLocaleString()}개를 불러오지 못했습니다: ${names.join(', ')}. 각 카드의 다시 시도로 다시 부를 수 있습니다.`;
+}

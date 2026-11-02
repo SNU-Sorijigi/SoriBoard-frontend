@@ -6,7 +6,8 @@ import {
 	diversityTiles,
 	DERIVED_CARDS,
 	retryKeys,
-	previousRetryRequests
+	previousRetryRequests,
+	loadStatusText
 } from '../../src/lib/statCards.js';
 
 test('the genre card is drawn from the diversity answer', () => {
@@ -163,4 +164,77 @@ test("previousRetryRequests: a card never re-asks another card's previous reques
 test('previousRetryRequests: nothing failed, nothing re-asked', () => {
 	assert.deepEqual(previousRetryRequests(['diversity', 'genres', 'eras'], []), []);
 	assert.deepEqual(previousRetryRequests([], ['diversity']), []);
+});
+
+// 페이지 순서의 [카드, 이름]. 선곡 다양성의 칸과 다양성 차트는 같은 이름으로 읽는다.
+const CARDS = [
+	['summary', '요약'],
+	['eras', '시대별 분포'],
+	['genres', '장르별 분포'],
+	['works', '많이 튼 곡'],
+	['diversityTiles', '선곡 다양성'],
+	['diversity', '선곡 다양성']
+];
+const settled = {
+	summary: false,
+	eras: false,
+	genres: false,
+	works: false,
+	diversityTiles: false,
+	diversity: false
+};
+const AGAIN = '각 카드의 다시 시도로 다시 부를 수 있습니다.';
+
+test('loadStatusText: silent while any card is loading', () => {
+	assert.equal(loadStatusText({ ...settled, works: true }, {}, CARDS), '');
+	assert.equal(
+		loadStatusText({ ...settled, works: true }, { eras: '불러오지 못했습니다' }, CARDS),
+		''
+	);
+});
+
+test('loadStatusText: every card loaded', () => {
+	assert.equal(loadStatusText(settled, {}, CARDS), '모든 카드를 불러왔습니다.');
+	assert.equal(
+		loadStatusText(settled, { eras: '', works: '' }, CARDS),
+		'모든 카드를 불러왔습니다.'
+	);
+});
+
+test('loadStatusText: one failed card is named', () => {
+	assert.equal(
+		loadStatusText(settled, { works: '불러오지 못했습니다' }, CARDS),
+		`카드 1개를 불러오지 못했습니다: 많이 튼 곡. ${AGAIN}`
+	);
+});
+
+test('loadStatusText: failed cards in page order, a shared name once', () => {
+	const errors = {
+		diversity: '불러오지 못했습니다',
+		diversityTiles: '불러오지 못했습니다',
+		genres: '불러오지 못했습니다'
+	};
+	assert.equal(
+		loadStatusText(settled, errors, CARDS),
+		`카드 2개를 불러오지 못했습니다: 장르별 분포, 선곡 다양성. ${AGAIN}`
+	);
+	assert.equal(
+		loadStatusText(settled, { works: 'x', summary: 'x', eras: 'x' }, CARDS),
+		`카드 3개를 불러오지 못했습니다: 요약, 시대별 분포, 많이 튼 곡. ${AGAIN}`
+	);
+});
+
+test('loadStatusText: an error on an unlisted card is ignored', () => {
+	assert.equal(
+		loadStatusText(settled, { drill: '불러오지 못했습니다' }, CARDS),
+		'모든 카드를 불러왔습니다.'
+	);
+});
+
+test('loadStatusText: a card missing from loading counts as settled', () => {
+	assert.equal(loadStatusText({ summary: false }, {}, CARDS), '모든 카드를 불러왔습니다.');
+	assert.equal(
+		loadStatusText({}, { eras: '불러오지 못했습니다' }, CARDS),
+		`카드 1개를 불러오지 못했습니다: 시대별 분포. ${AGAIN}`
+	);
 });

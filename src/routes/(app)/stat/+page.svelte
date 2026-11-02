@@ -28,7 +28,8 @@
 		retryKeys,
 		previousRetryRequests,
 		genreDistribution,
-		diversityTiles
+		diversityTiles,
+		loadStatusText
 	} from '$lib/statCards.js';
 	import {
 		chooseTimelineBucket,
@@ -587,6 +588,25 @@
 		works &&
 		horizontalBarOption(works, '많이 튼 곡', subtitleFor(works), rankNotes(worksTable), 220);
 	$: timelineTitle = `${timelineBucketName(timelineBucket)} 선곡 추이`;
+	// 화면 낭독기에 알리는 로드 상태(statCards.js)가 읽는 카드 이름, 페이지 순서. 선곡 다양성은 그 절의 제목이다.
+	$: cardNames = [
+		['summary', '요약'],
+		['composers', '많이 튼 작곡가'],
+		['soloists', '많이 튼 독주자'],
+		['conductors', '많이 튼 지휘자'],
+		['orchestras', '많이 튼 오케스트라'],
+		['eras', '시대별 분포'],
+		['genres', '장르별 분포'],
+		['timeline', timelineTitle],
+		['works', '많이 튼 곡'],
+		['diversityTiles', '선곡 다양성'],
+		['diversity', '선곡 다양성'],
+		['firstComposers', '처음 튼 작곡가'],
+		['firstWorks', '처음 튼 곡']
+	];
+	// 개인 범위인데 지기 미선택이면 카드를 부르지 않으므로(load) 알릴 것도 없다.
+	$: loadStatus =
+		scope === 'individual' && !userId ? '' : loadStatusText(loading, errors, cardNames);
 	$: timelineData = timeline && timelineView(timeline, endDate);
 	$: timelineOpt = timelineData && timelineOption(timelineData, timelineTitle, viewLabel);
 	$: eraOpt = eras && eraPieOption(eras, '시대별 분포', subtitleFor(eras));
@@ -735,6 +755,8 @@
 </svelte:head>
 
 <div class="stat-page">
+	<!-- 화면 낭독기에만: 카드를 다 불러왔는지, 어느 카드가 실패했는지(불러오는 동안은 비어 있다) -->
+	<p class="sr-only" role="status">{loadStatus}</p>
 	<header class="page-header">
 		<div class="title-group">
 			<h1>통계</h1>
@@ -1218,6 +1240,15 @@
 		padding: 24px 32px;
 		width: 100%;
 		box-sizing: border-box;
+	}
+	/* 화면 낭독기만 읽는 줄(작곡가 정리와 같다) */
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
 	}
 	/* 직접 지정을 열어 한 줄에 다 들어가지 않으면 컨트롤을 다음 줄 오른쪽에 둔다. */
 	.page-header {
