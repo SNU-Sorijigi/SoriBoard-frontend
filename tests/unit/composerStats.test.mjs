@@ -13,6 +13,7 @@ import {
 	composerStatHref,
 	composerWorkHref,
 	composerHistoryHref,
+	composerRequestedHref,
 	composerRankLinks,
 	composerSemesterLinks,
 	composerFacts,
@@ -517,6 +518,51 @@ test('links carry a 학기 or 직접 지정 period, and keep today’s URLs with
 	assert.equal(composerStatHref({ period: 'current' }), '/stat');
 	assert.equal(composerStatHref(SEMESTER), '/stat?semester_id=7');
 	assert.equal(composerStatHref(RANGE), '/stat?start=2025-10-01&end=2025-11-30');
+});
+
+test('the 신청곡 tile opens this composer’s 신청곡만, in the same 기간 and 지기', () => {
+	const read = (href) => readHistoryQuery(new URL(href, 'http://x').searchParams);
+	const composer = [{ param: 'composer_id', id: '7' }];
+
+	const whole = composerRequestedHref(7);
+	assert.equal(whole, '/stat/history?period=all&requested=true&composer_id=7');
+	assert.equal(read(whole).period, 'all');
+	assert.equal(read(whole).userId, null);
+	assert.equal(read(whole).requested, 'true');
+	assert.deepEqual(read(whole).targets, composer);
+
+	const member = { period: '7', userId: '12', includeMentees: true };
+	const semester = composerRequestedHref(7, member);
+	assert.equal(
+		semester,
+		'/stat/history?semester_id=7&user_id=12&include_mentees=true&requested=true&composer_id=7'
+	);
+	assert.equal(read(semester).period, '7');
+	assert.equal(read(semester).userId, '12');
+	assert.equal(read(semester).includeMentees, true);
+	assert.equal(read(semester).requested, 'true');
+	assert.deepEqual(read(semester).targets, composer);
+
+	const range = composerRequestedHref(7, RANGE);
+	assert.equal(range, '/stat/history?start=2025-10-01&end=2025-11-30&requested=true&composer_id=7');
+	assert.deepEqual(
+		[read(range).period, read(range).start, read(range).end],
+		['custom', '2025-10-01', '2025-11-30']
+	);
+	assert.equal(read(range).requested, 'true');
+	assert.deepEqual(read(range).targets, composer);
+
+	// 이번 학기는 선곡 기록의 기본값이라 기간 키를 남기지 않는다(composerHistoryHref 와 같다).
+	const current = composerRequestedHref(7, { period: 'current' });
+	assert.equal(current, '/stat/history?requested=true&composer_id=7');
+	assert.equal(read(current).period, 'current');
+	assert.equal(read(current).requested, 'true');
+
+	// 같은 목록에서 신청곡만 더 거른 것이다.
+	for (const filter of [undefined, member, RANGE, SEMESTER]) {
+		const plain = read(composerHistoryHref(7, [], filter));
+		assert.deepEqual(read(composerRequestedHref(7, filter)), { ...plain, requested: 'true' });
+	}
 });
 
 test('학기별 선곡 links clip to the period the answer applied', () => {

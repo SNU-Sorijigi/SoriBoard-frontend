@@ -56,6 +56,7 @@
 		composerStatHref,
 		composerWorkHref,
 		composerHistoryHref,
+		composerRequestedHref,
 		composerRankLinks,
 		composerSemesterLinks,
 		composerFacts,
@@ -283,7 +284,7 @@
 	// 못 받으면 날짜로 연다.
 	let semesters = [];
 
-	// 기간이 목록의 학기면 총 선곡·타임·곡 칸 아래에 바로 앞 학기와 견준 줄을 둔다(통계와 같다).
+	// 기간이 목록의 학기면 총 선곡·타임·신청곡·곡 칸 아래에 바로 앞 학기와 견준 줄을 둔다(통계와 같다).
 	// 앞 학기의 요약은 같은 작곡가·지기·견습 포함으로 카드와 함께 부르고, 실패하면 줄이 없다.
 	// 많이 튼 독주자·지휘자·오케스트라 표에는 앞 학기 같은 길이의 목록에서의 순위를 붙인다(통계와 같다).
 	// 많이 튼 곡 표에는 앞 학기에 튼 횟수를 붙인다(같은 WORKS_LIMIT 의 목록).
@@ -379,7 +380,7 @@
 	$: if (previousId !== previousAsked) loadPreviousSummary();
 	// 칸마다 { diff: '+3', before: '지난 학기 9' }. 앞 학기가 없거나 아직 없으면 null.
 	$: changes = Object.fromEntries(
-		['total_plays', 'sessions', 'works'].map((key) => {
+		['total_plays', 'sessions', 'requested', 'works'].map((key) => {
 			const text = kpiChangeText(summary?.[key], previousSummary?.[key]);
 			const [diff, before] = text.split(' · ');
 			return [key, text ? { diff, before } : null];
@@ -503,6 +504,8 @@
 	$: wholeDates = composerWholeDates(filter, wholeSummary);
 	// 머리글의 선곡 기록 링크와 총 선곡 숫자는 같은 목록(이 작곡가, 같은 기간·지기)을 연다.
 	$: historyLink = composerHistoryHref(composerId, [], filter);
+	// 신청곡 숫자는 그중 신청곡만 연다.
+	$: requestedLink = composerRequestedHref(composerId, filter);
 </script>
 
 <svelte:head>
@@ -597,6 +600,29 @@
 					<div class="kpi-change">
 						<span>{changes.sessions.diff} ·</span>
 						<span>{changes.sessions.before}</span>
+					</div>
+				{/if}
+			</div>
+			<div class="kpi">
+				<!-- 신청곡 숫자는 그 신청곡의 선곡 기록을 연다. requested 가 없는 예전 백엔드에서는 '—' -->
+				<div class="kpi-value">
+					{#if summary?.requested > 0}
+						<a
+							class="kpi-link"
+							href={requestedLink}
+							title="선곡 기록에서 보기"
+							aria-label="신청곡 {count(summary.requested)} 곡 선곡 기록에서 보기"
+							>{count(summary.requested)}</a
+						>
+					{:else}
+						{count(summary?.requested)}
+					{/if}
+				</div>
+				<div class="kpi-label">신청곡</div>
+				{#if changes.requested}
+					<div class="kpi-change">
+						<span>{changes.requested.diff} ·</span>
+						<span>{changes.requested.before}</span>
 					</div>
 				{/if}
 			</div>
@@ -878,7 +904,7 @@
 	}
 	.kpi-row {
 		display: grid;
-		grid-template-columns: repeat(5, 1fr);
+		grid-template-columns: repeat(6, 1fr);
 		gap: 12px;
 		margin-bottom: 20px;
 	}

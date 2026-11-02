@@ -161,6 +161,15 @@ export function composerHistoryHref(id, extra = [], filter = WHOLE) {
 	return historyHref(composerHistoryFilter(id, extra, filter));
 }
 
+// 이 작곡가의 신청곡만 연 선곡 기록(같은 기간·지기). 신청곡 칸의 숫자가 연다(통계와 같다).
+/**
+ * @param {number | string} id
+ * @param {ComposerPeriod} [filter]
+ */
+export function composerRequestedHref(id, filter = WHOLE) {
+	return historyHref({ ...composerHistoryFilter(id, [], filter), requested: 'true' });
+}
+
 // 곡 하나의 선곡 기록(같은 기간·지기). 곡의 작곡가는 하나뿐이므로 곡만 거른다.
 /**
  * @param {number | string} musicId
