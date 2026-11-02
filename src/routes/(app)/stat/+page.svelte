@@ -1348,7 +1348,8 @@
 	}
 	.chart-grid {
 		display: grid;
-		grid-template-columns: repeat(2, 1fr);
+		/* 캔버스 폭이 칸의 최소 폭이 되지 않게: 창을 줄이면 카드도 줄어든다 */
+		grid-template-columns: repeat(2, minmax(0, 1fr));
 		gap: 16px;
 	}
 	.section-head {
