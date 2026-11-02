@@ -228,6 +228,12 @@
 		composerError = '';
 		loadComposer(composerId, generation);
 	}
+	// 빈 기간에서 기간만 전체 기간으로 넓힌다. 기간 select 로 고른 것과 같다(단추가 사라지므로 포커스는 h1 으로)
+	function widenPeriod(e) {
+		if (document.activeElement === e.currentTarget) heading?.focus();
+		period = ALL;
+		onPeriodChange();
+	}
 
 	// 표기 정리의 묶음(catalog/duplicates/, 전체 기간·전체 지기): 모든 작곡가에 같으므로 처음 한 번만
 	// 부르고 둔다(다른 작곡가로 옮겨 가거나 기간·지기를 바꿔도 다시 부르지 않는다). 못 받으면 줄을 두지 않는다.
@@ -709,9 +715,18 @@
 
 		{#if summary && summary.total_plays === 0}
 			<div class="empty-hint">
-				{period === ALL
-					? `아직 ${userId ? '이 지기가 ' : ''}이 작곡가의 곡을 튼 적이 없습니다.`
-					: `이 기간에는 ${userId ? '이 지기가 ' : ''}이 작곡가의 곡을 튼 적이 없습니다.`}
+				{#if period === ALL}
+					아직 {userId ? '이 지기가 ' : ''}이 작곡가의 곡을 튼 적이 없습니다.
+				{:else}
+					이 기간에는 {userId ? '이 지기가 ' : ''}이 작곡가의 곡을 튼 적이 없습니다.
+					{#if !composerIsWholeRecord({ period, start: customStart, end: customEnd })}
+						<button
+							class="tool-btn"
+							on:click={widenPeriod}
+							title="기간만 전체 기간으로 바꿔 다시 보기">전체 기간에서 보기</button
+						>
+					{/if}
+				{/if}
 			</div>
 		{:else}
 			<!-- 키보드·화면 낭독기로 모든 차트를 한 번에 표로 읽는다(카드마다 '표로 보기'를 누르지 않고, 통계와 같다) -->
@@ -930,6 +945,9 @@
 		color: var(--gray-gray-500, #9f9f9f);
 		font-family: var(--medium-font-family, 'Noto Sans KR', sans-serif);
 		font-size: var(--medium-font-size, 16px);
+	}
+	.empty-hint .tool-btn {
+		margin-left: 12px;
 	}
 	.kpi-row {
 		display: grid;
