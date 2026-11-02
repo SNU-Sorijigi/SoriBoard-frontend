@@ -79,3 +79,14 @@ export function loadStatusText(loading, errors, cards) {
 	if (!names.length) return '모든 카드를 불러왔습니다.';
 	return `카드 ${names.length.toLocaleString()}개를 불러오지 못했습니다: ${names.join(', ')}. 각 카드의 다시 시도로 다시 부를 수 있습니다.`;
 }
+
+// 로드 상태 뒤에 지난 학기 수치가 실패했다는 말(KPI 칸 아래 줄과 같은 말)을 붙인다: 상태가 비었거나(불러오는 중) 지난 학기 이름이 없으면 그대로 둔다.
+/**
+ * @param {string} status loadStatusText 등의 로드 상태
+ * @param {string} label 실패한 지난 학기의 이름(예: '2025-2학기'), 실패하지 않았으면 ''
+ * @returns {string}
+ */
+export function withPreviousFailure(status, label) {
+	if (!status || !label) return status;
+	return `${status} 지난 학기(${label})와 견준 수치를 불러오지 못했습니다. 지난 학기 수치 다시 시도로 다시 부를 수 있습니다.`;
+}

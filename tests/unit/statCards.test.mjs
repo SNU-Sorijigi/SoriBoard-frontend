@@ -7,7 +7,8 @@ import {
 	DERIVED_CARDS,
 	retryKeys,
 	previousRetryRequests,
-	loadStatusText
+	loadStatusText,
+	withPreviousFailure
 } from '../../src/lib/statCards.js';
 
 test('the genre card is drawn from the diversity answer', () => {
@@ -249,5 +250,31 @@ test('loadStatusText: a card missing from loading counts as settled', () => {
 	assert.equal(
 		loadStatusText({}, { eras: '불러오지 못했습니다' }, CARDS),
 		`카드 1개를 불러오지 못했습니다: 시대별 분포. ${AGAIN}`
+	);
+});
+
+const PREVIOUS =
+	'지난 학기(2025-2학기)와 견준 수치를 불러오지 못했습니다. 지난 학기 수치 다시 시도로 다시 부를 수 있습니다.';
+
+test('withPreviousFailure: an empty status stays empty (cards still loading)', () => {
+	assert.equal(withPreviousFailure('', '2025-2학기'), '');
+});
+
+test('withPreviousFailure: no failed 지난 학기 leaves the status as it is', () => {
+	assert.equal(withPreviousFailure('모든 카드를 불러왔습니다.', ''), '모든 카드를 불러왔습니다.');
+});
+
+test('withPreviousFailure: the success sentence, then the 지난 학기 sentence', () => {
+	assert.equal(
+		withPreviousFailure('모든 카드를 불러왔습니다.', '2025-2학기'),
+		`모든 카드를 불러왔습니다. ${PREVIOUS}`
+	);
+});
+
+test('withPreviousFailure: failed cards first, then the 지난 학기 sentence', () => {
+	const cards = loadStatusText(settled, { works: '불러오지 못했습니다' }, CARDS);
+	assert.equal(
+		withPreviousFailure(cards, '2025-2학기'),
+		`카드 1개를 불러오지 못했습니다: 많이 튼 곡. ${AGAIN} ${PREVIOUS}`
 	);
 });
