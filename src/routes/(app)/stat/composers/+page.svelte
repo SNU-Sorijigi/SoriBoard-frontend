@@ -45,6 +45,7 @@
 	/** @type {import('$lib/composerCatalog.js').CatalogComposer[]} */
 	let composers = [];
 	let loaded = false;
+	let shownQ = ''; // 보이는 목록이 답한 검색어(결과 줄은 검색 중에도, 실패해도 이것으로 쓴다)
 	let loading = false;
 	let error = '';
 	// 가장 최근 검색의 응답만 반영한다.
@@ -62,6 +63,7 @@
 			if (id !== requestId) return;
 			composers = unknownFirst(result);
 			loaded = true;
+			shownQ = q;
 		} catch (e) {
 			if (id !== requestId) return;
 			console.error('작곡가 목록 로딩 실패', e);
@@ -238,9 +240,13 @@
 				<button type="submit">검색</button>
 			</form>
 			<p class="result-count" aria-live="polite">
-				{#if loaded}
-					작곡가 {composers.length.toLocaleString()}명 · 시대 미상 {unknown.toLocaleString()}명{#if q}&nbsp;·
-						'{q}' 검색{/if}
+				{#if loaded && !error}
+					작곡가 {composers.length.toLocaleString()}명 · 시대 미상 {unknown.toLocaleString()}명{#if shownQ}&nbsp;·
+						'{shownQ}' 검색{/if}
+				{:else if error}
+					<span class="sr-only"
+						>작곡가 목록을 불러오지 못했습니다. 작곡가 목록 다시 시도로 다시 부를 수 있습니다.</span
+					>
 				{/if}
 			</p>
 		</div>
