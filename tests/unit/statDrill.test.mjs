@@ -11,6 +11,7 @@ import {
 	previousWorkValue,
 	drillWorksTable,
 	drillSubtitle,
+	drillStatusText,
 	readDrillQuery,
 	writeDrillQuery,
 	drillItemIndex
@@ -485,4 +486,74 @@ test('drillSubtitle: 대상 · 범위 · 총 N곡, with 지난 학기 N곡 right
 			drillSubtitle(target, scope, works(34, 3), previous),
 			`작곡가 · 2025-2학기 · 전체 · 총 34곡${dates}`
 		);
+});
+
+test('drillStatusText is empty while the panel loads', () => {
+	const works = { items: [{ id: 1 }] };
+	assert.equal(drillStatusText('브람스', { loading: true, error: '', works: null }), '');
+	// a retry keeps the old answer until it settles: still empty
+	assert.equal(drillStatusText('브람스', { loading: true, error: '', works }), '');
+});
+
+test('drillStatusText names the panel that failed and its 다시 시도', () => {
+	assert.equal(
+		drillStatusText('브람스', { loading: false, error: '불러오지 못했습니다', works: null }),
+		'브람스의 곡을 불러오지 못했습니다. 다시 시도로 다시 부를 수 있습니다.'
+	);
+});
+
+test("drillStatusText counts the table's rows once loaded", () => {
+	const works = (n) => ({
+		total_plays: n * 3,
+		items: Array.from({ length: n }, (_, i) => ({ id: i }))
+	});
+	assert.equal(
+		drillStatusText('브람스', { loading: false, error: '', works: works(12) }),
+		'브람스의 곡 12개를 불러왔습니다.'
+	);
+	assert.equal(
+		drillStatusText('가상 관현악단 01', { works: works(1) }),
+		'가상 관현악단 01의 곡 1개를 불러왔습니다.'
+	);
+	assert.equal(
+		drillStatusText('브람스', { works: works(1200) }),
+		`브람스의 곡 ${(1200).toLocaleString()}개를 불러왔습니다.`
+	);
+});
+
+test('drillStatusText says when the period has no plays', () => {
+	assert.equal(
+		drillStatusText('브람스', { loading: false, error: '', works: { total_plays: 0, items: [] } }),
+		'브람스의 곡: 이 기간에는 선곡이 없습니다.'
+	);
+});
+
+test('drillStatusText adds the failed 지난 학기 under a loaded table only', () => {
+	const works = { items: [{ id: 1 }, { id: 2 }] };
+	const previousError = '2026-1학기';
+	assert.equal(
+		drillStatusText('브람스', { loading: false, error: '', works, previousError }),
+		'브람스의 곡 2개를 불러왔습니다. 지난 학기(2026-1학기) 횟수를 불러오지 못했습니다.'
+	);
+	// the 지난 학기 note shows only under a table (DrillPanel.svelte)
+	assert.equal(drillStatusText('브람스', { loading: true, works, previousError }), '');
+	assert.equal(
+		drillStatusText('브람스', { error: '불러오지 못했습니다', works: null, previousError }),
+		'브람스의 곡을 불러오지 못했습니다. 다시 시도로 다시 부를 수 있습니다.'
+	);
+	assert.equal(
+		drillStatusText('브람스', { works: { items: [] }, previousError }),
+		'브람스의 곡: 이 기간에는 선곡이 없습니다.'
+	);
+	// 다시 시도 on the note clears previousError: the clause goes
+	assert.equal(
+		drillStatusText('브람스', { works, previousError: '' }),
+		'브람스의 곡 2개를 불러왔습니다.'
+	);
+});
+
+test('drillStatusText is empty with no answer, no load and no error', () => {
+	// 개인 범위에 지기를 고르지 않으면 패널은 부르지 않는다.
+	assert.equal(drillStatusText('브람스', { loading: false, error: '', works: null }), '');
+	assert.equal(drillStatusText('브람스', { works: null, previousError: '2026-1학기' }), '');
 });

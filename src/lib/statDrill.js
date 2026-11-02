@@ -111,6 +111,27 @@ export function drillSubtitle(target, scopeLabel, works, previous = null) {
 	);
 }
 
+// 화면 낭독기에 알리는 패널의 로드 상태(role="status"): 불러오는 중이면 빈 줄, 다 오면 곡 수·없음·실패를
+// 한 문장으로. 지난 학기 횟수를 못 불렀으면(previousError: 그 학기 이름) 표가 있을 때만 덧붙인다(그 알림이
+// 표 아래에만 보인다). works 가 없고 불러오는 중도 실패도 아니면(개인 범위에 지기 미선택) 빈 줄.
+// 제목 '…의 곡'은 늘 '곡'으로 끝나므로 조사는 '을'이다.
+/**
+ * @param {string} name
+ * @param {{ loading?: boolean, error?: string, works?: { items: unknown[] } | null, previousError?: string }} state
+ */
+export function drillStatusText(name, { loading, error, works, previousError }) {
+	const title = `${name}의 곡`;
+	if (loading) return '';
+	if (error) return `${title}을 불러오지 못했습니다. 다시 시도로 다시 부를 수 있습니다.`;
+	if (!works) return '';
+	const count = works.items.length;
+	if (count === 0) return `${title}: 이 기간에는 선곡이 없습니다.`;
+	return (
+		`${title} ${count.toLocaleString()}개를 불러왔습니다.` +
+		(previousError ? ` 지난 학기(${previousError}) 횟수를 불러오지 못했습니다.` : '')
+	);
+}
+
 // 패널의 표: 순위, 곡, 횟수, 처음, 마지막(작곡가 페이지의 곡 표와 같다). 날짜는 기간·대상과 상관없이
 // 그 곡의 전체 선곡 기준(stats/works 의 first_played·last_played), 없으면 '—'.
 // 앞 학기의 같은 대상·범위의 목록(previous)을 주면 마지막에 지난 학기 칸을 둔다(previousWorkValue:
