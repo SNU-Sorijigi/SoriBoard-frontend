@@ -46,7 +46,7 @@
 	} from '$lib/catalogSpelling.js';
 	import { hasPeriodStart, firstsSubtitle, firstsEmptyText } from '$lib/statFirsts.js';
 	import { readTableView, writeTableView, tableViewHref } from '$lib/statQuery.js';
-	import { loadStatusText } from '$lib/statCards.js';
+	import { loadStatusText, withPreviousFailure } from '$lib/statCards.js';
 	import {
 		readComposerId,
 		readComposerPeriod,
@@ -543,12 +543,15 @@
 		['genres', '장르별 분포'],
 		['firstWorks', '처음 튼 곡']
 	];
-	$: loadStatus =
+	// 지난 학기 수치가 실패했다는 말은 KPI 칸 아래 줄과 같은 조건으로 붙인다.
+	$: loadStatus = withPreviousFailure(
 		!composerId || notFound || (!composer && !composerError) || CARD_KEYS.some((k) => loading[k])
 			? ''
 			: summary?.total_plays === 0
 				? emptyText
-				: loadStatusText(loading, errors, cardNames);
+				: loadStatusText(loading, errors, cardNames),
+		previousFailed.length ? semesterLabel(previousTarget) : ''
+	);
 </script>
 
 <svelte:head>

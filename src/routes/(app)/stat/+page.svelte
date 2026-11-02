@@ -29,7 +29,8 @@
 		previousRetryRequests,
 		genreDistribution,
 		diversityTiles,
-		loadStatusText
+		loadStatusText,
+		withPreviousFailure
 	} from '$lib/statCards.js';
 	import {
 		chooseTimelineBucket,
@@ -605,8 +606,11 @@
 		['firstWorks', '처음 튼 곡']
 	];
 	// 개인 범위인데 지기 미선택이면 카드를 부르지 않으므로(load) 알릴 것도 없다.
-	$: loadStatus =
-		scope === 'individual' && !userId ? '' : loadStatusText(loading, errors, cardNames);
+	// 지난 학기 수치가 실패했다는 말은 KPI 칸 아래 줄과 같은 조건으로 붙인다.
+	$: loadStatus = withPreviousFailure(
+		scope === 'individual' && !userId ? '' : loadStatusText(loading, errors, cardNames),
+		previousFailed.length && !errors.summary ? semesterLabel(previousTarget) : ''
+	);
 	$: timelineData = timeline && timelineView(timeline, endDate);
 	$: timelineOpt = timelineData && timelineOption(timelineData, timelineTitle, viewLabel);
 	$: eraOpt = eras && eraPieOption(eras, '시대별 분포', subtitleFor(eras));

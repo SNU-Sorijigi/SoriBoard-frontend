@@ -15,7 +15,7 @@
 		bucketHistoryLinks
 	} from '$lib/playHistory.js';
 	import { DRILL_CARDS } from '$lib/statDrill.js';
-	import { loadStatusText } from '$lib/statCards.js';
+	import { loadStatusText, withPreviousFailure } from '$lib/statCards.js';
 	import { pageTitle } from '$lib/statTitle.js';
 	import { downloadCsvTable, tableCsv } from '$lib/csvTable.js';
 	import { downloadName } from '$lib/statFileName.js';
@@ -494,14 +494,17 @@
 	];
 	// 화면 낭독기에 알릴 로드 상태(통계와 같다): 학기 목록이 실패하면 그 말을, 학기를 고르기 전과
 	// 카드를 불러오는 동안은 비우고, 다 끝나면 실패한 카드의 이름이나 다 불러왔음을, 선곡이 없는
-	// 학기면 빈 결산의 말을 한다.
-	$: loadStatus = semestersError
-		? semestersError
-		: !semester || CARD_KEYS.some((k) => loading[k])
-			? ''
-			: empty
-				? emptyText
-				: loadStatusText(loading, errors, cardNames);
+	// 학기면 빈 결산의 말을 한다. 지난 학기 수치가 실패했다는 말은 KPI 칸 아래 줄과 같은 조건으로 붙인다.
+	$: loadStatus = withPreviousFailure(
+		semestersError
+			? semestersError
+			: !semester || CARD_KEYS.some((k) => loading[k])
+				? ''
+				: empty
+					? emptyText
+					: loadStatusText(loading, errors, cardNames),
+		previousFailed.length ? previousLabel : ''
+	);
 </script>
 
 <svelte:head>
