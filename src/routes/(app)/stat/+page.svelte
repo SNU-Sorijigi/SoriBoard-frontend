@@ -47,7 +47,9 @@
 		seriesTable,
 		formatEvenness,
 		groupEvenness,
-		unknownEraNote
+		unknownEraNote,
+		topOf,
+		rankCapNote
 	} from '$lib/statTable.js';
 	import { tableCsv } from '$lib/csvTable.js';
 	import {
@@ -56,7 +58,8 @@
 		drillParams,
 		readDrillQuery,
 		writeDrillQuery,
-		drillItemIndex
+		drillItemIndex,
+		WORKS_LIMIT
 	} from '$lib/statDrill.js';
 	import {
 		CURRENT,
@@ -160,20 +163,21 @@
 		return res.json();
 	}
 
-	// 순위 카드의 목록 길이. 앞 학기의 목록도 같은 길이로 부른다('12위 밖').
+	// 순위 카드의 차트 길이. 앞 학기의 목록도 같은 길이로 부른다('12위 밖').
+	// 이번 기간은 표로 보기·CSV에 모두 싣도록 백엔드의 상한(WORKS_LIMIT, 100)까지 부른다.
 	const LIMITS = { composers: 12, soloists: 12, conductors: 10, orchestras: 10, works: 10 };
 	// 카드는 따로 불러오고, 실패하면 그 카드에만 오류를 띄운다. 요청 하나가 여러 카드를 그릴 수 있다:
 	// 장르별 분포와 선곡 다양성의 칸은 따로 부르지 않고 다양성 응답으로 그린다(statCards.js).
 	const cardRequests = {
 		summary: () => getJson('summary'),
-		composers: () => getJson('composers', { limit: LIMITS.composers }),
-		soloists: () => getJson('soloists', { limit: LIMITS.soloists }),
-		conductors: () => getJson('conductors', { limit: LIMITS.conductors }),
-		orchestras: () => getJson('orchestras', { limit: LIMITS.orchestras }),
+		composers: () => getJson('composers', { limit: WORKS_LIMIT }),
+		soloists: () => getJson('soloists', { limit: WORKS_LIMIT }),
+		conductors: () => getJson('conductors', { limit: WORKS_LIMIT }),
+		orchestras: () => getJson('orchestras', { limit: WORKS_LIMIT }),
 		timeline: () => getJson('timeline', { bucket: timelineBucket }),
 		eras: () => getJson('eras'),
 		diversity: () => getJson('diversity', { bucket: diversityBucket }),
-		works: () => getJson('works', { limit: LIMITS.works }),
+		works: () => getJson('works', { limit: WORKS_LIMIT }),
 		// 시작이 없는 기간이면 firsts 는 지금까지 튼 모든 것을 주므로 부르지 않는다(null, statFirsts.js).
 		firstComposers: () => (hasFirsts() ? getJson('firsts', { kind: 'composer' }) : null),
 		firstWorks: () => (hasFirsts() ? getJson('firsts', { kind: 'work' }) : null)
@@ -469,9 +473,12 @@
 		if (index >= 0) openDrill(card, index);
 		else syncUrl();
 	}
-	// 막대는 1위가 맨 위에 오도록 뒤집혀 그려진다.
+	// 막대는 1위가 맨 위에 오도록 뒤집혀 그려진다. 차트는 응답의 앞 LIMITS[card]개만 그린다.
 	const openBar = (card, e) =>
-		openDrill(card, barItemIndex(e.detail.dataIndex, data[card]?.labels?.length ?? 0));
+		openDrill(
+			card,
+			barItemIndex(e.detail.dataIndex, Math.min(data[card]?.labels?.length ?? 0, LIMITS[card]))
+		);
 	async function closeDrill() {
 		requests.begin(['drill', 'previousDrill']); // 진행 중인 응답은 버린다.
 		drill = null;
@@ -557,37 +564,49 @@
 	$: subtitleFor = (envelope) =>
 		envelope ? `${viewLabel} · 총 ${envelope.total_plays.toLocaleString()}곡` : '';
 
+	// 순위 차트는 상위 LIMITS 개만 그린다(표로 보기·CSV는 응답 전체).
 	$: composerOpt =
 		composers &&
 		horizontalBarOption(
-			composers,
+			topOf(composers, LIMITS.composers),
 			'많이 튼 작곡가',
 			subtitleFor(composers),
-			rankNotes(composerTable)
+			rankNotes(composerTable)?.slice(0, LIMITS.composers)
 		);
 	$: soloistOpt =
 		soloists &&
-		horizontalBarOption(soloists, '많이 튼 독주자', subtitleFor(soloists), rankNotes(soloistTable));
+		horizontalBarOption(
+			topOf(soloists, LIMITS.soloists),
+			'많이 튼 독주자',
+			subtitleFor(soloists),
+			rankNotes(soloistTable)?.slice(0, LIMITS.soloists)
+		);
 	$: conductorOpt =
 		conductors &&
 		horizontalBarOption(
-			conductors,
+			topOf(conductors, LIMITS.conductors),
 			'많이 튼 지휘자',
 			subtitleFor(conductors),
-			rankNotes(conductorTable)
+			rankNotes(conductorTable)?.slice(0, LIMITS.conductors)
 		);
 	$: orchestraOpt =
 		orchestras &&
 		horizontalBarOption(
-			orchestras,
+			topOf(orchestras, LIMITS.orchestras),
 			'많이 튼 오케스트라',
 			subtitleFor(orchestras),
-			rankNotes(orchestraTable)
+			rankNotes(orchestraTable)?.slice(0, LIMITS.orchestras)
 		);
 	// 같은 작곡가의 곡이 같은 이름으로 잘리지 않게 이름 칸을 220px로 넓힌다.
 	$: worksOpt =
 		works &&
-		horizontalBarOption(works, '많이 튼 곡', subtitleFor(works), rankNotes(worksTable), 220);
+		horizontalBarOption(
+			topOf(works, LIMITS.works),
+			'많이 튼 곡',
+			subtitleFor(works),
+			rankNotes(worksTable)?.slice(0, LIMITS.works),
+			220
+		);
 	$: timelineTitle = `${timelineBucketName(timelineBucket)} 선곡 추이`;
 	// 화면 낭독기에 알리는 로드 상태(statCards.js)가 읽는 카드 이름, 페이지 순서. 선곡 다양성은 그 절의 제목이다.
 	$: cardNames = [
@@ -709,9 +728,10 @@
 				historyHref({ ...historyFilter, targets: [{ param: 'music_id', id: String(item.id) }] })
 			)
 		: [];
-	// 막대는 1위가 맨 위에 오도록 뒤집혀 그려진다.
+	// 막대는 1위가 맨 위에 오도록 뒤집혀 그려진다. 차트는 앞 LIMITS.works 곡만, 링크는 표의 모든 행.
 	function openWork(e) {
-		const href = worksLinks[barItemIndex(e.detail.dataIndex, worksLinks.length)];
+		const length = Math.min(worksLinks.length, LIMITS.works);
+		const href = worksLinks[barItemIndex(e.detail.dataIndex, length)];
 		if (href) goto(href);
 	}
 	// 처음 튼 작곡가·곡: 이름은 같은 기간·지기의 작곡가 페이지와, 그 곡의 선곡 기록을 연다.
@@ -950,6 +970,7 @@
 			<ChartCard
 				showTable={allTables}
 				title="많이 튼 작곡가"
+				note={rankCapNote(composers, WORKS_LIMIT)}
 				option={composerOpt}
 				data={composers}
 				loading={loading.composers}
@@ -966,6 +987,7 @@
 			<ChartCard
 				showTable={allTables}
 				title="많이 튼 독주자"
+				note={rankCapNote(soloists, WORKS_LIMIT)}
 				option={soloistOpt}
 				data={soloists}
 				loading={loading.soloists}
@@ -982,6 +1004,7 @@
 			<ChartCard
 				showTable={allTables}
 				title="많이 튼 지휘자"
+				note={rankCapNote(conductors, WORKS_LIMIT)}
 				option={conductorOpt}
 				data={conductors}
 				loading={loading.conductors}
@@ -998,6 +1021,7 @@
 			<ChartCard
 				showTable={allTables}
 				title="많이 튼 오케스트라"
+				note={rankCapNote(orchestras, WORKS_LIMIT)}
 				option={orchestraOpt}
 				data={orchestras}
 				loading={loading.orchestras}
@@ -1055,6 +1079,7 @@
 			<ChartCard
 				showTable={allTables}
 				title="많이 튼 곡"
+				note={rankCapNote(works, WORKS_LIMIT)}
 				option={worksOpt}
 				data={works}
 				loading={loading.works}

@@ -77,6 +77,32 @@ export function rankTable({ labels, values }, nameHeader) {
 	};
 }
 
+// 순위 응답(labels·values·items)의 앞 n개: 차트는 상위 n개만, 표로 보기·CSV는 응답 전체를 싣는다.
+/**
+ * @template {{ labels: string[], values: number[], items: unknown[] }} T
+ * @param {T | null | undefined} envelope
+ * @param {number} n
+ * @returns {T | null | undefined}
+ */
+export function topOf(envelope, n) {
+	if (!envelope) return envelope;
+	const { labels, values, items } = envelope;
+	return {
+		...envelope,
+		labels: labels.slice(0, n),
+		values: values.slice(0, n),
+		items: items.slice(0, n)
+	};
+}
+
+// 순위 표가 백엔드의 상한(cap)까지 찼으면, 그 뒤가 더 있을 수 있다고 카드 아래에 적는다.
+/**
+ * @param {{ items: unknown[] } | null | undefined} envelope
+ * @param {number} cap
+ */
+export const rankCapNote = (envelope, cap) =>
+	envelope && envelope.items.length >= cap ? `표로 보기·CSV는 상위 ${cap}위까지` : '';
+
 // 도넛(시대·장르): 이름, 횟수, 비율.
 /**
  * @param {{ labels: string[], values: number[] }} data

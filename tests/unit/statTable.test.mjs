@@ -13,7 +13,9 @@ import {
 	chartLabel,
 	tableRegionLabel,
 	placeholderText,
-	unknownEraNote
+	unknownEraNote,
+	topOf,
+	rankCapNote
 } from '../../src/lib/statTable.js';
 
 test('equal counts share a rank and the next rank skips', () => {
@@ -203,4 +205,34 @@ test('a card without a chart names itself, except while it loads', () => {
 		'월별 선곡 수 — 데이터가 없습니다'
 	);
 	assert.equal(placeholderText(''), '데이터가 없습니다');
+});
+
+// 지어낸 순위 응답: n명, 많은 순.
+const envelope = (n) => ({
+	labels: Array.from({ length: n }, (_, i) => `가상 작곡가 ${i + 1}`),
+	values: Array.from({ length: n }, (_, i) => 100 - i),
+	items: Array.from({ length: n }, (_, i) => ({ id: i + 1, name: `가상 작곡가 ${i + 1}` })),
+	total_plays: 396,
+	filters: { semester_id: 1 }
+});
+
+test('the chart takes the first n of a ranking, the rest of the answer stays as it is', () => {
+	const full = envelope(45);
+	const before = structuredClone(full);
+	const top = topOf(full, 12);
+	assert.deepEqual(top.labels, full.labels.slice(0, 12));
+	assert.deepEqual(top.values, full.values.slice(0, 12));
+	assert.deepEqual(top.items, full.items.slice(0, 12));
+	assert.equal(top.labels[11], '가상 작곡가 12');
+	assert.equal(top.total_plays, 396);
+	assert.deepEqual(top.filters, { semester_id: 1 });
+	assert.deepEqual(full, before);
+	assert.deepEqual(topOf(envelope(5), 12), envelope(5));
+	assert.equal(topOf(null, 12), null);
+});
+
+test('a ranking table says it stops at the cap only when it reaches it', () => {
+	assert.equal(rankCapNote(envelope(99), 100), '');
+	assert.equal(rankCapNote(envelope(100), 100), '표로 보기·CSV는 상위 100위까지');
+	assert.equal(rankCapNote(null, 100), '');
 });
