@@ -2,6 +2,8 @@
 // PATCH composers/<id>/ 의 본문 사이의 변환.
 // 시대는 백엔드가 era_override(아래 ERAS 중 하나일 때) 또는 출생 연도로 정한다(composers/ 의 era).
 
+import { formatShare } from './statTable.js';
+
 // 백엔드 era_for 의 라벨 순서(stats.py ERA_ORDER). era_override 로 고를 수 있는 값이다.
 export const ERAS = ['중세', '바로크', '고전', '낭만', '근현대', '미상'];
 export const UNKNOWN_ERA = '미상';
@@ -41,6 +43,25 @@ export function unknownFirst(composers) {
 
 /** @param {CatalogComposer[]} composers */
 export const unknownCount = (composers) => composers.filter((c) => c.era === UNKNOWN_ERA).length;
+
+// 개수 줄의 '작곡가 N명 · ' 다음 말: 시대 미상 작곡가 수와 그들의 선곡 수(선곡 수 칸의 합), 그리고
+// 목록 전체 선곡 수에 대한 비율(시대 미상 6명 (선곡 169곡, 31.3%)). 검색 결과의 비율은 오해를 낳으므로
+// 검색 중에는 곡 수만, 시대 미상이 없으면 괄호 없이, 전체 선곡이 0이면 비율 없이 쓴다.
+/**
+ * @param {CatalogComposer[]} composers
+ * @param {boolean} searched
+ */
+export function unknownSummary(composers, searched) {
+	const unknown = composers.filter((c) => c.era === UNKNOWN_ERA);
+	const head = `시대 미상 ${unknown.length.toLocaleString()}명`;
+	if (unknown.length === 0) return head;
+	const plays = (/** @type {CatalogComposer[]} */ list) =>
+		list.reduce((sum, c) => sum + (c.num_time_music || 0), 0);
+	const unknownPlays = plays(unknown);
+	const total = plays(composers);
+	const share = !searched && total > 0 ? `, ${formatShare((unknownPlays / total) * 100)}` : '';
+	return `${head} (선곡 ${unknownPlays.toLocaleString()}곡${share})`;
+}
 
 // era_override 가 시대를 정하는가(ERAS 밖의 자유 입력은 백엔드가 무시한다).
 /** @param {{ era_override?: string | null }} composer */

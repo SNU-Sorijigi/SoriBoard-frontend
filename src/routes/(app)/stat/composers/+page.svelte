@@ -11,7 +11,7 @@
 		catalogHref,
 		composersSearch,
 		unknownFirst,
-		unknownCount,
+		unknownSummary,
 		eraCell,
 		draftOf,
 		birthYearError,
@@ -193,7 +193,7 @@
 		}
 	}
 
-	$: unknown = unknownCount(composers);
+	$: unknownText = unknownSummary(composers, Boolean(shownQ));
 </script>
 
 <svelte:head>
@@ -241,8 +241,8 @@
 			</form>
 			<p class="result-count" aria-live="polite">
 				{#if loaded && !error}
-					작곡가 {composers.length.toLocaleString()}명 · 시대 미상 {unknown.toLocaleString()}명{#if shownQ}&nbsp;·
-						'{shownQ}' 검색{/if}
+					작곡가 {composers.length.toLocaleString()}명 · {unknownText}{#if shownQ}&nbsp;· '{shownQ}'
+						검색{/if}
 				{:else if error}
 					<span class="sr-only"
 						>작곡가 목록을 불러오지 못했습니다. 작곡가 목록 다시 시도로 다시 부를 수 있습니다.</span

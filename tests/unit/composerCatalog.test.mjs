@@ -7,6 +7,7 @@ import {
 	composersSearch,
 	unknownFirst,
 	unknownCount,
+	unknownSummary,
 	hasOverride,
 	eraCell,
 	draftOf,
@@ -49,6 +50,61 @@ test('시대 미상 comes first; each group keeps the backend order', () => {
 		[1, 2, 3, 4],
 		'input untouched'
 	);
+});
+
+// 18명, 많이 튼 순; 2·5·8·11·14·17번이 시대 미상(90+44+22+9+2+1 = 169곡, 전체 540곡).
+const PLAYS = [120, 90, 75, 60, 44, 40, 31, 22, 18, 12, 9, 7, 5, 3, 2, 1, 1, 0];
+const UNKNOWN_IDS = [2, 5, 8, 11, 14, 17];
+const measured = () =>
+	unknownFirst(
+		PLAYS.map((plays, i) =>
+			composer(i + 1, UNKNOWN_IDS.includes(i + 1) ? '미상' : '낭만', { num_time_music: plays })
+		)
+	);
+
+test('the 시대 미상 summary gives their plays and share of every listed play', () => {
+	const list = measured();
+	assert.equal(unknownSummary(list, false), '시대 미상 6명 (선곡 169곡, 31.3%)');
+	// 가장 많이 튼 미상 작곡가(90곡)를 낭만으로 저장하면 곧바로 줄어든다.
+	const saved = replaceComposer(list, { ...list[0], birth_year: 1810, era: '낭만' });
+	assert.equal(unknownSummary(saved, false), '시대 미상 5명 (선곡 79곡, 14.6%)');
+});
+
+test('the 시대 미상 summary leaves out the share while searching', () => {
+	assert.equal(unknownSummary(measured(), true), '시대 미상 6명 (선곡 169곡)');
+});
+
+test('the 시대 미상 summary has no parenthesis when no composer is 미상', () => {
+	const list = [composer(1, '낭만'), composer(2, '고전')];
+	assert.equal(unknownSummary(list, false), '시대 미상 0명');
+	assert.equal(unknownSummary(list, true), '시대 미상 0명');
+	assert.equal(unknownSummary([], false), '시대 미상 0명');
+});
+
+test('the 시대 미상 summary says 0곡 and 0.0% when the 미상 composers were never played', () => {
+	const list = [
+		composer(1, '낭만', { num_time_music: 5 }),
+		composer(2, '미상', { num_time_music: 0 }),
+		composer(3, '미상', { num_time_music: 0 })
+	];
+	assert.equal(unknownSummary(list, false), '시대 미상 2명 (선곡 0곡, 0.0%)');
+});
+
+test('the 시대 미상 summary has no share when no listed composer was played', () => {
+	const list = [
+		composer(1, '낭만', { num_time_music: 0 }),
+		composer(2, '미상', { num_time_music: 0 })
+	];
+	assert.equal(unknownSummary(list, false), '시대 미상 1명 (선곡 0곡)');
+});
+
+test('the 시대 미상 summary groups large counts', () => {
+	const list = [
+		composer(1, '미상', { num_time_music: 1234 }),
+		composer(2, '낭만', { num_time_music: 766 })
+	];
+	assert.equal(unknownSummary(list, false), '시대 미상 1명 (선곡 1,234곡, 61.7%)');
+	assert.equal(unknownSummary(list, true), '시대 미상 1명 (선곡 1,234곡)');
 });
 
 test('the era cell says when an override decides it, or is ignored', () => {
