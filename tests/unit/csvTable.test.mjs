@@ -98,13 +98,14 @@ test('tableCsv puts the ranks of a 많이 튼 table first, ties as the table sho
 		csv.rows.map((row) => row[0]),
 		['1', '2', '2', '4']
 	);
-	// 통계는 앞 학기가 있으면 지난 학기 열까지 저장한다: '1위', '12위 밖' 은 글자 그대로.
+	// 통계는 앞 학기가 있으면 지난 학기 열까지 저장한다: '1위', '없음' 은 글자 그대로.
+	// (앞 학기 목록이 2개로 limit 12 보다 짧으니 잘리지 않았다: 없는 둘은 그 학기에 틀지 않았다.)
 	const previous = { total_plays: 9, values: [6, 3], items: [{ id: 2 }, { id: 1 }] };
 	const saved = tableCsv(rankChangeTable(current, previous, '작곡가', 12));
 	assert.equal(
 		toCsvTable(saved.headers, saved.rows),
 		'순위,작곡가,횟수,지난 학기\n1,가상 작곡가 A,5,2위\n2,가상 작곡가 B,3,1위\n' +
-			'2,가상 작곡가 C,3,12위 밖\n4,가상 작곡가 D,1,12위 밖'
+			'2,가상 작곡가 C,3,없음\n4,가상 작곡가 D,1,없음'
 	);
 });
 

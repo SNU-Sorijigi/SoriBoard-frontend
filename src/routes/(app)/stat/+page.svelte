@@ -163,8 +163,8 @@
 		return res.json();
 	}
 
-	// 순위 카드의 차트 길이. 앞 학기의 목록도 같은 길이로 부른다('12위 밖').
-	// 이번 기간은 표로 보기·CSV에 모두 싣도록 백엔드의 상한(WORKS_LIMIT, 100)까지 부른다.
+	// 순위 카드의 차트 길이. 이번 기간은 표로 보기·CSV에 모두 싣도록 백엔드의 상한(WORKS_LIMIT, 100)까지
+	// 부르고, 앞 학기도 그만큼 불러 표의 지난 학기 칸에 상위 100 안의 순위를 그대로 적는다('23위').
 	const LIMITS = { composers: 12, soloists: 12, conductors: 10, orchestras: 10, works: 10 };
 	// 카드는 따로 불러오고, 실패하면 그 카드에만 오류를 띄운다. 요청 하나가 여러 카드를 그릴 수 있다:
 	// 장르별 분포와 선곡 다양성의 칸은 따로 부르지 않고 다양성 응답으로 그린다(statCards.js).
@@ -279,7 +279,7 @@
 	// 앞 학기의 요청이 하나라도 실패하면 KPI 칸 아래에 그 학기를 밝히고, 실패한 요청만 다시 부르게 한다.
 	// 시대·장르의 표도 앞 학기의 비율과 견준다(학기 결산의 mixTable). 실패하면 그 표만 지금과 같다.
 	// 선곡 다양성의 칸도 앞 학기의 다양성 응답과 견준다(summary 는 버킷과 무관하므로 월별로 부른다).
-	// 많이 튼 표에는 앞 학기 같은 길이의 목록에서의 순위를 붙인다(학기 결산의 rankChangeTable).
+	// 많이 튼 표에는 앞 학기 상위 100(WORKS_LIMIT)에서의 순위를 붙인다(학기 결산의 rankChangeTable).
 	// 처음 튼 작곡가·곡의 부제에는 앞 학기에 처음 튼 수를 붙인다(같은 firsts 를 kind 별로 부른다).
 	let previousSummary = null;
 	let previousEras = null;
@@ -322,11 +322,11 @@
 			apply: (result) => (previousFirstWorks = result)
 		},
 		...Object.fromEntries(
-			Object.entries(LIMITS).map(([key, limit]) => [
+			Object.keys(LIMITS).map((key) => [
 				key,
 				{
 					apply: (result) => (previousRanks = { ...previousRanks, [key]: result }),
-					extra: { limit }
+					extra: { limit: WORKS_LIMIT }
 				}
 			])
 		)
@@ -649,20 +649,17 @@
 			composers,
 			previousRanks.composers,
 			'작곡가',
-			LIMITS.composers,
+			WORKS_LIMIT,
 			firstIdSet(firstComposers)
 		);
 	$: soloistTable =
-		soloists && rankChangeTable(soloists, previousRanks.soloists, '연주자', LIMITS.soloists);
+		soloists && rankChangeTable(soloists, previousRanks.soloists, '연주자', WORKS_LIMIT);
 	$: conductorTable =
-		conductors &&
-		rankChangeTable(conductors, previousRanks.conductors, '지휘자', LIMITS.conductors);
+		conductors && rankChangeTable(conductors, previousRanks.conductors, '지휘자', WORKS_LIMIT);
 	$: orchestraTable =
-		orchestras &&
-		rankChangeTable(orchestras, previousRanks.orchestras, '오케스트라', LIMITS.orchestras);
+		orchestras && rankChangeTable(orchestras, previousRanks.orchestras, '오케스트라', WORKS_LIMIT);
 	$: worksTable =
-		works &&
-		rankChangeTable(works, previousRanks.works, '곡', LIMITS.works, firstIdSet(firstWorks));
+		works && rankChangeTable(works, previousRanks.works, '곡', WORKS_LIMIT, firstIdSet(firstWorks));
 
 	// 다양성: 버킷 라벨, 선곡 수 막대, 다양성(고른정도) 추이.
 	$: bucketLabel = diversityBucket === 'week' ? '주별' : '월별';

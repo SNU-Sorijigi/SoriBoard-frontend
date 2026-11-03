@@ -185,6 +185,9 @@ const ranking = (rows, total = rows.reduce((acc, [, , count]) => acc + count, 0)
 	values: rows.map(([, , count]) => count),
 	items: rows.map(([id, name, count]) => ({ id, name, count }))
 });
+// 지난 학기 목록을 limit 길이로 채우는 행(1회씩, id 는 from 부터): 목록이 limit 에서 잘린 경우.
+const filler = (n, from = 100) =>
+	Array.from({ length: n }, (_, k) => [from + k, `가상 작곡가 ${from + k}`, 1]);
 
 test('rankChangeTable without a previous 학기 is the plain rank table', () => {
 	const now = ranking([
@@ -229,7 +232,8 @@ test('rankChangeTable shows each row’s rank in the previous 학기, ties as �
 		['2', '바흐', '30', '2위'],
 		['2', '모차르트', '30', '2위'],
 		['4', '하이든', '12', '1위'],
-		['5', '슈만', '9', '10위 밖']
+		// 지난 학기 목록(5개)이 limit 10 보다 짧으니 잘리지 않았다: 슈만은 그 학기에 틀지 않았다.
+		['5', '슈만', '9', '없음']
 	]);
 });
 
@@ -248,11 +252,11 @@ test('rankChangeTable matches rows by id, not by name', () => {
 		rankChangeTable(now, before, '지휘자').rows.map((row) => row[3]),
 		['4위', '2위']
 	);
-	// 이름만 같은(id 가 다른) 대상은 지난 학기 상위 10 에 없는 것이다.
+	// 이름만 같은(id 가 다른) 대상은 지난 학기 목록에 없는 것이다(목록이 4개라 잘리지 않았으니 '없음').
 	const renamed = ranking([[99, '김지휘', 4]]);
 	assert.deepEqual(
 		rankChangeTable(renamed, before, '지휘자').rows.map((row) => row[3]),
-		['10위 밖']
+		['없음']
 	);
 });
 
@@ -274,14 +278,21 @@ test('rankChangeTable names the list’s length for a row missing from the previ
 		[1, '브람스', 42],
 		[2, '바흐', 30]
 	]);
-	const before = ranking([[2, '바흐', 7]]);
+	// 지난 학기 목록이 부른 길이(limit)만큼 왔으면 잘린 것이다: 없는 행은 'limit위 밖'.
+	const before12 = ranking([[2, '바흐', 7], ...filler(11)]);
 	assert.deepEqual(
-		rankChangeTable(now, before, '작곡가', 12).rows.map((row) => row[3]),
+		rankChangeTable(now, before12, '작곡가', 12).rows.map((row) => row[3]),
 		['12위 밖', '1위']
 	);
+	const before10 = ranking([[2, '바흐', 7], ...filler(9)]);
 	assert.deepEqual(
-		rankChangeTable(now, before, '작곡가').rows.map((row) => row[3]),
+		rankChangeTable(now, before10, '작곡가').rows.map((row) => row[3]),
 		['10위 밖', '1위']
+	);
+	// 더 짧으면 잘리지 않은 목록이다: 없는 행은 그 학기에 틀지 않았으니 '없음'.
+	assert.deepEqual(
+		rankChangeTable(now, before10, '작곡가', 12).rows.map((row) => row[3]),
+		['없음', '1위']
 	);
 	// 지난 학기에 선곡이 없으면 길이와 상관없이 '—'.
 	assert.deepEqual(
@@ -296,11 +307,14 @@ test('rankChangeTable reads 첫 선곡 for a row first played this 학기, not N
 		[4, '가상 작곡가 - 신곡', 7],
 		[6, '모차르트 - 레퀴엠', 5]
 	]);
-	const before = ranking([
+	const top = [
 		[9, '말러 - 교향곡 제5번', 8],
 		[8, '바흐 - 미사', 6],
 		[1, '브람스 - 교향곡 제1번', 4]
-	]);
+	];
+	// 지난 학기 목록은 limit 에서 잘렸다(10개, 12개).
+	const before = ranking([...top, ...filler(7)]);
+	const before12 = ranking([...top, ...filler(9)]);
 	const firsts = new Set([4]);
 	assert.deepEqual(rankChangeTable(now, before, '곡', 10, firsts).rows, [
 		['1', '브람스 - 교향곡 제1번', '12', '3위'],
@@ -308,7 +322,7 @@ test('rankChangeTable reads 첫 선곡 for a row first played this 학기, not N
 		['3', '모차르트 - 레퀴엠', '5', '10위 밖']
 	]);
 	assert.deepEqual(
-		rankChangeTable(now, before, '곡', 12, firsts).rows.map((row) => row[3]),
+		rankChangeTable(now, before12, '곡', 12, firsts).rows.map((row) => row[3]),
 		['3위', '첫 선곡', '12위 밖']
 	);
 	// 처음 튼 목록이 없으면(아직 오지 않았거나 실패) 지금처럼 'N위 밖'.
@@ -324,12 +338,18 @@ test('rankNotes reads the 지난 학기 column as the bar tooltip’s line, 1위
 		[4, '가상 작곡가', 7],
 		[6, '모차르트', 5]
 	]);
-	const before = ranking([
+	const top = [
 		[1, '브람스', 9],
 		[8, '바흐', 6]
-	]);
-	const table = rankChangeTable(now, before, '작곡가', 12, new Set([4]));
+	];
+	// 지난 학기 목록이 limit 12 에서 잘렸으면 '12위 밖', 잘리지 않았으면(2개) '없음'.
+	const table = rankChangeTable(now, ranking([...top, ...filler(10)]), '작곡가', 12, new Set([4]));
 	assert.deepEqual(rankNotes(table), ['지난 학기 1위', '지난 학기 첫 선곡', '지난 학기 12위 밖']);
+	assert.deepEqual(rankNotes(rankChangeTable(now, ranking(top), '작곡가', 12, new Set([4]))), [
+		'지난 학기 1위',
+		'지난 학기 첫 선곡',
+		'지난 학기 없음'
+	]);
 	// 지난 학기에 선곡이 없으면('—') 덧붙일 줄이 없다.
 	assert.deepEqual(rankNotes(rankChangeTable(now, ranking([], 0), '작곡가', 12)), ['', '', '']);
 	// 지난 학기 칸이 없으면(비교 없음) null: 툴팁은 그대로다.
@@ -358,6 +378,46 @@ test('rankChangeTable keeps a previous rank over 첫 선곡, and dashes for an e
 	assert.deepEqual(
 		rankChangeTable(now, null, '작곡가', 10, new Set([1, 4])),
 		rankTable(now, '작곡가')
+	);
+});
+
+test('rankChangeTable gives the true rank in a long previous list, 없음 when it was not cut', () => {
+	// 통계는 지난 학기도 WORKS_LIMIT(100)까지 부른다: 30명이 왔으면 그 학기의 작곡가 전부다.
+	const previous = ranking(
+		Array.from({ length: 30 }, (_, k) => [k + 1, `가상 작곡가 ${k + 1}`, 60 - k])
+	);
+	const now = ranking([
+		[25, '가상 작곡가 25', 9],
+		[3, '가상 작곡가 3', 8],
+		[177, '가상 작곡가 177', 5]
+	]);
+	assert.deepEqual(
+		rankChangeTable(now, previous, '작곡가', 100).rows.map((row) => row[3]),
+		['25위', '3위', '없음']
+	);
+	// 목록이 100개로 꽉 찼으면 잘렸을 수 있다: 없는 행은 '100위 밖'.
+	const full = ranking(
+		Array.from({ length: 100 }, (_, k) => [k + 1, `가상 작곡가 ${k + 1}`, 200 - k])
+	);
+	assert.deepEqual(
+		rankChangeTable(now, full, '작곡가', 100).rows.map((row) => row[3]),
+		['25위', '3위', '100위 밖']
+	);
+});
+
+test('rankChangeTable reads 첫 선곡 over 없음 for a row first played this 학기', () => {
+	const now = ranking([
+		[4, '가상 작곡가 - 신곡', 7],
+		[6, '모차르트 - 레퀴엠', 5]
+	]);
+	// 잘리지 않은 지난 학기 목록(2개 < 100)에 둘 다 없다.
+	const before = ranking([
+		[9, '말러 - 교향곡 제5번', 8],
+		[8, '바흐 - 미사', 6]
+	]);
+	assert.deepEqual(
+		rankChangeTable(now, before, '곡', 100, new Set([4])).rows.map((row) => row[3]),
+		['첫 선곡', '없음']
 	);
 });
 
