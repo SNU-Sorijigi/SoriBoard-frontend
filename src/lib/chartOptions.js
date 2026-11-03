@@ -6,7 +6,7 @@
 // 모든 색은 Pantone 2026 공식 스와치 값 그대로다(혼합·투명도·파생 색 없음).
 // ECharts 가 기본값으로 칠하는 색(축, 격자, 툴팁, 호버 강조)도 모두 스와치로 지정한다.
 
-import { SHARE_PRECISION, formatShare } from './statTable.js';
+import { SHARE_PRECISION, formatEvenness, formatShare } from './statTable.js';
 
 const ACCENT = '#DBD2DB'; // Orchid Tint 13-3802 TCX (= --action-bg / --primary-primary-600)
 const TEXT = '#2B2C30'; // Stretch Limo 19-4005 TCX (= --gray-gray-950)
@@ -248,7 +248,7 @@ export function countBarOption({ labels, values }, title, subtitle) {
 	};
 }
 
-// 다양성 추이 라인 (0~1 고른정도 여러 계열)
+// 다양성 추이 라인 (0~1 고른정도 여러 계열, 축과 툴팁은 칸처럼 % 로)
 export function diversityLineOption(labels, series, title, subtitle) {
 	return {
 		title: titleBlock(title, subtitle),
@@ -256,7 +256,12 @@ export function diversityLineOption(labels, series, title, subtitle) {
 		color: CATEGORICAL,
 		// 범례는 부제(위에서 약 45~62px) 밑에 둔다. 48 이면 부제 위에 겹친다.
 		grid: { left: 8, right: 16, top: subtitle ? 104 : 72, bottom: 24, containLabel: true },
-		tooltip: { trigger: 'axis', axisPointer: LINE_POINTER, ...TOOLTIP_BOX },
+		tooltip: {
+			trigger: 'axis',
+			axisPointer: LINE_POINTER,
+			...TOOLTIP_BOX,
+			valueFormatter: (v) => formatEvenness(Number.isFinite(v) ? v : null)
+		},
 		legend: {
 			top: subtitle ? 66 : 34,
 			inactiveColor: GRID,
@@ -282,7 +287,7 @@ export function diversityLineOption(labels, series, title, subtitle) {
 			type: 'value',
 			min: 0,
 			max: 1,
-			axisLabel: { fontFamily: FONT, color: SUBTEXT, formatter: (v) => v.toFixed(1) },
+			axisLabel: { fontFamily: FONT, color: SUBTEXT, formatter: formatEvenness },
 			splitLine: SPLIT_LINE
 		},
 		// 파스텔 선은 흰 배경에서 1.3~1.5:1 로 보이지 않으므로, 선은 진한 스와치(실선·점선)로 긋고

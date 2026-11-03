@@ -10,9 +10,10 @@ const DASH = '—';
 /** @param {number | null | undefined} v */
 export const formatCount = (v) => (v == null ? DASH : v.toLocaleString('ko-KR'));
 
-// 다양성(고른정도) 0~1 은 차트 축과 같은 척도로 소수 둘째 자리까지.
+// 다양성(고른정도) 0~1 은 % 로, 정수로 반올림한다(0.4096 → 41%). 선곡 다양성 칸과 학기 결산,
+// 다양성 추이 차트의 축·툴팁과 같은 척도다.
 /** @param {number | null | undefined} v */
-export const formatEvenness = (v) => (v == null ? DASH : v.toFixed(2));
+export const formatEvenness = (v) => (v == null ? DASH : `${Math.round(v * 100)}%`);
 
 // 비율(시대·장르 도넛과 그 표, 학기 결산)은 소수 한 자리로, 0 도 붙여 쓴다(16.0%).
 export const SHARE_PRECISION = 1;

@@ -66,6 +66,25 @@ test('diversity legend sits below the subtitle, and the plot below the legend', 
 	assert.ok(option.grid.top - option.legend.top >= 38, `grid.top ${option.grid.top}`);
 });
 
+test('the diversity chart keeps its 0~1 data but reads in %, as the tiles above it', () => {
+	const option = diversityLineOption(labels, series, '월별 다양성 추이', '0%=편중 · 100%=고름');
+	assert.equal(option.yAxis.min, 0);
+	assert.equal(option.yAxis.max, 1);
+	const axis = option.yAxis.axisLabel.formatter;
+	assert.deepEqual(
+		[0, 0.4, 0.6000000000000001, 1].map((v) => axis(v)),
+		['0%', '40%', '60%', '100%']
+	);
+	const tip = option.tooltip.valueFormatter;
+	assert.equal(tip(0.4096), '41%');
+	assert.equal(tip(0), '0%');
+	assert.equal(tip(null), '—');
+	assert.equal(tip(undefined), '—');
+	assert.equal(tip('-'), '—');
+	assert.equal(option.tooltip.trigger, 'axis');
+	assert.deepEqual(option.series[0].data, [0.8, 0.7, 0.9, 0.6]);
+});
+
 test('without a subtitle the diversity legend stays right under the title', () => {
 	const option = diversityLineOption(labels, series, '월별 다양성 추이', '');
 	assert.equal(option.legend.top, 34);

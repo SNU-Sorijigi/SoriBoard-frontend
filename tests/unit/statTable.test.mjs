@@ -125,9 +125,18 @@ test('a series table has one column per series, each with its own format', () =>
 		['기간', '시대 다양성', '장르 다양성']
 	);
 	assert.deepEqual(table.rows, [
-		['2026-09', '0.84', '0.60'],
-		['2026-10', '—', '0.61']
+		['2026-09', '84%', '60%'],
+		['2026-10', '—', '61%']
 	]);
+});
+
+test('evenness reads in whole percents, as the 선곡 다양성 tiles and 학기 결산 do', () => {
+	assert.equal(formatEvenness(0), '0%');
+	assert.equal(formatEvenness(1), '100%');
+	assert.equal(formatEvenness(0.005), '1%');
+	assert.equal(formatEvenness(0.4096), '41%');
+	assert.equal(formatEvenness(null), '—');
+	assert.equal(formatEvenness(undefined), '—');
 });
 
 test('a diversity group with counted plays keeps its evenness, even 0', () => {
