@@ -12,6 +12,7 @@ import {
 	mixSubtitle,
 	rankChangeTable,
 	rankNotes,
+	tieNote,
 	firstIdSet,
 	loadWithPrevious,
 	firstsTable,
@@ -826,5 +827,65 @@ test('monthlyTable marks the month holding today while the 학기 runs', () => {
 	assert.deepEqual(
 		monthlyTable(monthly('2027-02-28')).rows.map((r) => r[0]),
 		['2026-09', '2026-10', '2026-11']
+	);
+});
+
+// 상위 10 의 동점 줄: 백엔드의 순위 응답(values 는 횟수, 내림차순)에서 보인 10 행 뒤의 같은 횟수.
+const counts = (values) => ({ values });
+
+test('tieNote is empty when the row after the cut has a smaller count', () => {
+	assert.equal(
+		tieNote(counts([13, 12, 11, 11, 10, 10, 10, 9, 9, 9, 8, 8]), 10, 100, '작곡가가', '명'),
+		''
+	);
+});
+
+test('tieNote is empty when the list has no more rows than are shown', () => {
+	assert.equal(tieNote(counts([5, 4, 4]), 10, 100, '작곡가가', '명'), '');
+	assert.equal(tieNote(counts([5, 4, 4, 3, 3, 3, 2, 2, 2, 2]), 10, 100, '작곡가가', '명'), '');
+});
+
+test('tieNote is empty without a list', () => {
+	assert.equal(tieNote(null, 10, 100, '작곡가가', '명'), '');
+	assert.equal(tieNote(undefined, 10, 100, '곡이', '곡'), '');
+});
+
+test('tieNote counts the composers the cut leaves out, with their shared rank', () => {
+	// 2026-2학기 시드: 8~11번째가 모두 9회, 10 행에서 하나가 빠진다.
+	assert.equal(
+		tieNote(counts([13, 12, 11, 11, 10, 10, 10, 9, 9, 9, 9, 8]), 10, 100, '작곡가가', '명'),
+		'9회로 공동 8위인 작곡가가 1명 더 있습니다'
+	);
+});
+
+test("tieNote counts two hidden pieces with each card's noun and unit", () => {
+	assert.equal(
+		tieNote(counts([12, 10, 9, 8, 8, 8, 7, 7, 7, 7, 7, 7, 6]), 10, 100, '곡이', '곡'),
+		'7회로 공동 7위인 곡이 2곡 더 있습니다'
+	);
+	assert.equal(
+		tieNote(counts([9, 8, 7, 6, 5, 4, 3, 2, 2, 1, 1, 1]), 10, 100, '오케스트라가', '곳'),
+		'1회로 공동 10위인 오케스트라가 2곳 더 있습니다'
+	);
+});
+
+test('tieNote says 이상 when the tie runs to the end of a list cut at the cap', () => {
+	const full = [20, 15, 10, 5, ...Array(96).fill(2)];
+	assert.equal(
+		tieNote(counts(full), 10, 100, '곡이', '곡'),
+		'2회로 공동 5위인 곡이 90곡 이상 더 있습니다'
+	);
+	// 상한보다 짧은 목록의 끝까지 이어지면 그것이 전부다.
+	assert.equal(
+		tieNote(counts(full.slice(0, 40)), 10, 100, '곡이', '곡'),
+		'2회로 공동 5위인 곡이 30곡 더 있습니다'
+	);
+});
+
+test('tieNote writes counts of 1,000 or more with a comma', () => {
+	const values = [...Array(12).fill(1234)];
+	assert.equal(
+		tieNote(counts(values), 10, 100, '작곡가가', '명'),
+		'1,234회로 공동 1위인 작곡가가 2명 더 있습니다'
 	);
 });

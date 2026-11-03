@@ -315,6 +315,32 @@ export function rankChangeTable(current, previous, nameHeader, limit = 10, first
 	};
 }
 
+// 상위 10 표가 동점을 자르면 표 아래에 적는 말: 보인 마지막 행(shown 번째)과 횟수가 같은데 표에
+// 들지 못한 행의 수. 예: '9회로 공동 8위인 작곡가가 1명 더 있습니다'. 순위는 순위 칸처럼 같은 횟수는
+// 같은 순위(competitionRanks). 목록(envelope)이 cap 행까지 찼고 동점이 그 끝까지 이어지면 그 뒤가 더
+// 있을 수 있으므로 '… 90명 이상'. noun 은 조사까지('작곡가가', '곡이'), unit 은 세는 말('명', '곡', '곳').
+// 잘린 동점이 없거나 목록이 없으면 ''.
+/**
+ * @param {{ values: number[] } | null | undefined} envelope
+ * @param {number} shown
+ * @param {number} cap
+ * @param {string} noun
+ * @param {string} unit
+ * @returns {string}
+ */
+export function tieNote(envelope, shown, cap, noun, unit) {
+	const values = envelope?.values ?? [];
+	if (shown < 1 || values.length <= shown) return '';
+	const value = values[shown - 1];
+	let end = shown;
+	while (end < values.length && values[end] === value) end++;
+	const hidden = end - shown;
+	if (!hidden) return '';
+	const rank = competitionRanks(values)[shown - 1];
+	const more = end === values.length && values.length >= cap ? ' 이상' : '';
+	return `${formatCount(value)}회로 공동 ${rank}위인 ${noun} ${hidden.toLocaleString()}${unit}${more} 더 있습니다`;
+}
+
 // 막대 툴팁의 셋째 줄(horizontalBarOption 의 notes): rankChangeTable 의 지난 학기 칸을 그대로
 // '지난 학기 3위'·'지난 학기 없음'처럼, '—'(지난 학기에 선곡 없음)이면 ''. 지난 학기 칸이 없으면 null(툴팁 그대로).
 // 표에서 읽으므로 툴팁과 표로 보기가 늘 같은 말을 한다.

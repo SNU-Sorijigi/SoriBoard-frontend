@@ -5,7 +5,8 @@
 	import EChart from '$lib/components/stat/EChart.svelte';
 	import ReportTable from '$lib/components/stat/ReportTable.svelte';
 	import { eraPieOption } from '$lib/chartOptions.js';
-	import { formatCount, groupEvenness, unknownEraNote } from '$lib/statTable.js';
+	import { formatCount, groupEvenness, unknownEraNote, topOf } from '$lib/statTable.js';
+	import { tableViewHref } from '$lib/statQuery.js';
 	import { sortSemesters, semesterLabel, currentSemesterRange } from '$lib/statPeriod.js';
 	import { composerHref } from '$lib/composerStats.js';
 	import {
@@ -27,6 +28,7 @@
 		mixTable,
 		mixSubtitle,
 		rankChangeTable,
+		tieNote,
 		firstIdSet,
 		loadWithPrevious,
 		firstsTable,
@@ -78,19 +80,20 @@
 		return pair;
 	};
 	// 지난 학기와 견주는 카드의 요청: [엔드포인트, 덧붙일 인자, 지난 학기에 덧붙일 인자(없으면 같은 것)].
-	// 상위 10 은 이 학기의 10 개와, 지난 학기의 상위 100(WORKS_LIMIT, 통계와 같은 길이)을 부른다.
-	// 그래야 지난 학기 칸이 '10위 밖' 대신 '23위'·'없음'을 적는다(rankChangeTable).
+	// 상위 10 은 이 학기와 지난 학기 모두 상위 100(WORKS_LIMIT, 통계와 같은 길이)을 부른다.
+	// 표는 이 학기의 앞 10 행만 싣고, 그 뒤에 10 번째와 같은 횟수가 있으면 표 아래에 적는다(tieNote).
+	// 지난 학기 칸은 그래서 '10위 밖' 대신 '23위'·'없음'을 적는다(rankChangeTable).
 	// 시대·장르별 분포는 따로 부르지 않고 다양성 응답의 summary.era·genre 로 그린다(통계처럼).
-	const top10 = { limit: '10' };
-	const previousTop = { limit: String(WORKS_LIMIT) };
+	const TOP = 10;
+	const top100 = { limit: String(WORKS_LIMIT) };
 	/** @type {Record<string, [string, Record<string, string>?, Record<string, string>?]>} */
 	const compared = {
 		summary: ['summary'],
-		composers: ['composers', top10, previousTop],
-		soloists: ['soloists', top10, previousTop],
-		works: ['works', top10, previousTop],
-		conductors: ['conductors', top10, previousTop],
-		orchestras: ['orchestras', top10, previousTop],
+		composers: ['composers', top100],
+		soloists: ['soloists', top100],
+		works: ['works', top100],
+		conductors: ['conductors', top100],
+		orchestras: ['orchestras', top100],
 		// 선곡 다양성·시대·장르별 분포는 summary 를, 월별 선곡은 달마다 센 timeline 을 쓴다.
 		diversity: ['diversity', { bucket: 'month' }],
 		firstComposers: ['firsts', { kind: 'composer' }],
@@ -114,13 +117,16 @@
 	$: firstWorks = data.firstWorks?.current;
 	$: previousFirstComposers = data.firstComposers?.previous;
 	$: previousFirstWorks = data.firstWorks?.previous;
-	// 상위 10 은 이 학기의 목록을 그리고, 지난 학기의 상위 100 과 견준 칸을 붙인다(rankChangeTable).
-	// 작곡가·곡은 처음 튼 목록이 오면 이 학기에 처음 튼 행을 '첫 선곡'으로 적는다.
-	$: composers = data.composers?.current;
-	$: soloists = data.soloists?.current;
-	$: works = data.works?.current;
-	$: conductors = data.conductors?.current;
-	$: orchestras = data.orchestras?.current;
+	// 상위 10 은 이 학기의 목록 앞 10 행을 그리고, 지난 학기의 상위 100 과 견준 칸을 붙인다(rankChangeTable).
+	// 표와 이름 링크는 같은 10 행이다. 작곡가·곡은 처음 튼 목록이 오면 이 학기에 처음 튼 행을 '첫 선곡'으로 적는다.
+	$: composers = topOf(data.composers?.current, TOP);
+	$: soloists = topOf(data.soloists?.current, TOP);
+	$: works = topOf(data.works?.current, TOP);
+	$: conductors = topOf(data.conductors?.current, TOP);
+	$: orchestras = topOf(data.orchestras?.current, TOP);
+	// 10 행이 동점을 잘랐을 때 표 아래의 말과 링크: 통계의 그 학기를 모든 차트 표로 보기로(표가 응답 전체를 싣는다).
+	const cutNote = (envelope, noun, unit) => tieNote(envelope, TOP, WORKS_LIMIT, noun, unit);
+	$: fullListHref = semester ? tableViewHref(`/stat?semester_id=${semester.id}`, true) : '';
 	// KPI 칸은 이 학기의 요약, 그 아래 줄은 지난 학기의 요약과 견준다(없거나 실패하면 줄을 뺀다).
 	$: summary = data.summary?.current;
 	$: previousSummary = data.summary?.previous;
@@ -330,7 +336,8 @@
 						firstIdSet(firstComposers)
 					)
 				: null,
-			links: linksOf(composers, semesterId)
+			links: linksOf(composers, semesterId),
+			note: cutNote(data.composers?.current, '작곡가가', '명')
 		},
 		{
 			key: 'soloists',
@@ -338,7 +345,8 @@
 			table: soloists?.labels.length
 				? rankChangeTable(soloists, data.soloists.previous, '연주자', WORKS_LIMIT)
 				: null,
-			links: performerLinksOf('soloists', soloists, semesterId)
+			links: performerLinksOf('soloists', soloists, semesterId),
+			note: cutNote(data.soloists?.current, '독주자가', '명')
 		},
 		{
 			key: 'works',
@@ -347,6 +355,7 @@
 				? rankChangeTable(works, data.works.previous, '곡', WORKS_LIMIT, firstIdSet(firstWorks))
 				: null,
 			links: workLinksOf(works, semesterId),
+			note: cutNote(data.works?.current, '곡이', '곡'),
 			wide: true
 		},
 		{
@@ -355,7 +364,8 @@
 			table: conductors?.labels.length
 				? rankChangeTable(conductors, data.conductors.previous, '지휘자', WORKS_LIMIT)
 				: null,
-			links: performerLinksOf('conductors', conductors, semesterId)
+			links: performerLinksOf('conductors', conductors, semesterId),
+			note: cutNote(data.conductors?.current, '지휘자가', '명')
 		},
 		{
 			key: 'orchestras',
@@ -363,7 +373,8 @@
 			table: orchestras?.labels.length
 				? rankChangeTable(orchestras, data.orchestras.previous, '오케스트라', WORKS_LIMIT)
 				: null,
-			links: performerLinksOf('orchestras', orchestras, semesterId)
+			links: performerLinksOf('orchestras', orchestras, semesterId),
+			note: cutNote(data.orchestras?.current, '오케스트라가', '곳')
 		}
 	];
 
@@ -676,6 +687,13 @@
 								labelledby={`report-${card.key}`}
 								describedby={`report-${card.key}-sub`}
 							/>
+							{#if card.note}
+								<p class="mix-note">
+									{card.note}<span class="note-link"
+										>&nbsp;· <a href={fullListHref}>통계에서 모두 보기</a></span
+									>
+								</p>
+							{/if}
 						{/if}
 					</section>
 				{/each}
