@@ -647,5 +647,33 @@
 			max-height: none !important;
 			overflow: visible !important;
 		}
+		/* 선곡 기록·학기 결산과 같다: 사이드바·레이아웃의 규칙은 컴포넌트 범위라 !important 로 이겨 A4 폭에 제 크기로 싣는다 */
+		:global(.side-bar) {
+			display: none !important;
+		}
+		:global(html),
+		:global(body),
+		:global(.screen),
+		:global(.app) {
+			min-width: 0 !important;
+		}
+		.catalog-page {
+			padding: 0;
+		}
+		.card {
+			box-shadow: none;
+		}
+		/* 검색어는 개수 줄에 남는다. 수정 열은 머리 칸과 수정·저장·취소 칸을 모두 빼 빈 열이 남지 않게 한다 */
+		.page-link,
+		.view-toggle,
+		.search,
+		.actions,
+		.placeholder .tool-btn {
+			display: none;
+		}
+		/* 이름은 낱말 사이에서만 줄을 바꾼다(선곡 기록과 같다) */
+		table {
+			word-break: keep-all;
+		}
 	}
 </style>

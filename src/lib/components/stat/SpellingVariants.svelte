@@ -324,4 +324,16 @@
 		clip: rect(0 0 0 0);
 		white-space: nowrap;
 	}
+	/* 인쇄: 작곡가 목록과 같다. 종류 고르기는 남기고 다시 시도는 빼며, 곡 이름은 낱말 사이에서만 줄을 바꾼다 */
+	@media print {
+		.card {
+			box-shadow: none;
+		}
+		.placeholder .tool-btn {
+			display: none;
+		}
+		table {
+			word-break: keep-all;
+		}
+	}
 </style>
