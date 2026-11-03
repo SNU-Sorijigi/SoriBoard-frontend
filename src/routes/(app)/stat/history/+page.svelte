@@ -70,34 +70,54 @@
 	let count = null; // 조건에 맞는 선곡 수(plays/ 의 count)
 	let offset = 0; // 지금까지 받은 행 수(다음 쪽의 offset)
 	let loading = false;
+	// 새 목록(검색·필터 변경, '다시 시도')을 부르는 중. 보이던 행은 답이 올 때까지 흐리게 남긴다(작곡가 정리와 같다).
+	let replacing = false;
+	let shownQ = ''; // 보이는 목록이 답한 검색어(개수 줄은 새 목록이 올 때까지 이것으로 쓴다)
 	let error = '';
+	/** @type {HTMLElement | null} */
+	let listScroll = null;
 	// 가장 최근 요청의 응답만 반영한다. 필터를 바꾸면 진행 중인 '더 보기'의 응답도 버린다.
 	// 응답을 반영했으면(성공이든 실패든) true 를 돌려준다.
 	let requestId = 0;
 
 	async function load(more = false) {
 		const id = ++requestId;
-		if (!more) {
-			rows = [];
-			count = null;
-			offset = 0;
-		}
+		const wanted = filter();
 		loading = true;
+		replacing = !more;
 		error = '';
 		try {
-			const res = await fetch(`/api/plays?${playsParams(filter(), current, offset)}`);
+			const res = await fetch(`/api/plays?${playsParams(wanted, current, more ? offset : 0)}`);
 			if (!res.ok) throw new Error(`plays ${res.status}`);
 			const result = await res.json();
 			if (id !== requestId) return false;
-			rows = appendPage(rows, result.results);
-			offset += result.results.length;
+			if (more) {
+				rows = appendPage(rows, result.results);
+				offset += result.results.length;
+			} else {
+				rows = result.results;
+				offset = result.results.length;
+				shownQ = wanted.q;
+				// 새 목록은 맨 위부터 보인다(상자가 남아 있으면 스크롤을 되돌린다).
+				if (listScroll) listScroll.scrollTop = 0;
+			}
 			count = result.count;
 		} catch (e) {
 			if (id !== requestId) return false;
 			console.error('선곡 기록 로딩 실패', e);
 			error = '불러오지 못했습니다';
+			// 새 목록이 실패하면 남겨 둔 행을 비운다: 남기면 '더 보기'의 실패 줄과, 옛 offset 으로 부르는
+			// 그 '다시 시도'가 보인다.
+			if (!more) {
+				rows = [];
+				count = null;
+				offset = 0;
+			}
 		} finally {
-			if (id === requestId) loading = false;
+			if (id === requestId) {
+				loading = false;
+				replacing = false;
+			}
 		}
 		return true;
 	}
@@ -422,7 +442,7 @@
 	<div class="result-bar">
 		<p class="result-count" aria-live="polite">
 			{#if count !== null}
-				총 {count.toLocaleString()}곡{#if q}&nbsp;· '{q}' 검색{/if}
+				총 {count.toLocaleString()}곡{#if shownQ}&nbsp;· '{shownQ}' 검색{/if}
 			{/if}
 			<!-- 목록이 실패하면 화면 낭독기에만 알린다('더 보기'의 실패는 그 '다시 시도'가 말한다). -->
 			{#if error && rows.length === 0}<span class="sr-only"
@@ -435,7 +455,7 @@
 				class="tool-btn"
 				bind:this={exportButton}
 				on:click={exportCsv}
-				disabled={!count || exporting}
+				disabled={!count || exporting || replacing}
 				title="조건에 맞는 선곡을 모두 CSV로 저장"
 			>
 				{exporting
@@ -445,11 +465,24 @@
 		</div>
 	</div>
 
-	<section class="card" aria-label="선곡 목록" tabindex="-1" bind:this={listCard}>
+	<section
+		class="card"
+		aria-label="선곡 목록"
+		aria-busy={replacing}
+		tabindex="-1"
+		bind:this={listCard}
+	>
 		{#if rows.length > 0}
 			<!-- 긴 목록은 이 상자 안에서 스크롤해 머리줄이 남는다. 키보드로도 스크롤하게 포커스를 준다(DataTable 과 같다). -->
 			<!-- svelte-ignore a11y-no-noninteractive-tabindex -->
-			<div class="list-scroll" role="region" aria-label="선곡 목록 표" tabindex="0">
+			<div
+				class="list-scroll"
+				class:stale={replacing}
+				role="region"
+				aria-label="선곡 목록 표"
+				tabindex="0"
+				bind:this={listScroll}
+			>
 				<PlayTable
 					{rows}
 					composerPeriod={{ period, start: customStart, end: customEnd, userId, includeMentees }}
@@ -641,6 +674,10 @@
 	.list-scroll {
 		max-height: calc(100vh - 200px);
 		overflow: auto;
+	}
+	/* 새 목록을 부르는 동안 남겨 둔 행(작곡가 정리의 table.stale 과 같다) */
+	.list-scroll.stale {
+		opacity: 0.6;
 	}
 	.placeholder {
 		display: flex;
