@@ -671,6 +671,36 @@
 			max-height: none !important;
 			overflow: visible !important;
 		}
+		/* 학기 결산과 같다: 사이드바·레이아웃의 규칙은 컴포넌트 범위라 !important 로 이겨 A4 폭에 제 크기로 싣는다 */
+		:global(.side-bar) {
+			display: none !important;
+		}
+		:global(html),
+		:global(body),
+		:global(.screen),
+		:global(.app) {
+			min-width: 0 !important;
+		}
+		.history-page {
+			padding: 0;
+		}
+		.card {
+			box-shadow: none;
+		}
+		/* 검색어는 개수 줄에 남는다. 버튼은 모두 뺀다: .toolbar 의 것(해제, 기간·지기 고르기 안의 적용·다시 시도,
+		   나중에 툴바에 더할 버튼도)까지 */
+		.search,
+		.stat-link,
+		.export,
+		.more .tool-btn,
+		.placeholder .tool-btn,
+		.toolbar :global(button) {
+			display: none;
+		}
+		/* 곡 이름은 낱말 사이에서만 줄을 바꾼다(작곡가 페이지와 같다) */
+		.list-scroll :global(table) {
+			word-break: keep-all;
+		}
 	}
 	/* 통계 페이지의 .sr-only 와 같다: 보이지 않고 화면 낭독기만 읽는다. */
 	.sr-only {
