@@ -14,7 +14,7 @@
 		targetHistoryHref,
 		bucketHistoryLinks
 	} from '$lib/playHistory.js';
-	import { DRILL_CARDS } from '$lib/statDrill.js';
+	import { DRILL_CARDS, WORKS_LIMIT } from '$lib/statDrill.js';
 	import { loadStatusText, withPreviousFailure } from '$lib/statCards.js';
 	import { pageTitle } from '$lib/statTitle.js';
 	import { downloadCsvTable, tableCsv } from '$lib/csvTable.js';
@@ -62,29 +62,34 @@
 		return res.json();
 	};
 	// 요약·상위 10·시대·장르·처음 튼 작곡가·곡은 지난 학기와 견준다(지난 학기가 없으면 previous 는 null).
+	// 지난 학기는 previousExtra 로 부른다(상위 10 은 지난 학기의 상위 100, 아래 compared).
 	// 지난 학기만 실패하면 이 학기만으로 그리고, KPI 칸 아래 줄(previousFailed)이 그렇다고 알린다.
 	// 그 줄의 '다시 시도'(retryPrevious)는 실패한 카드의 지난 학기 쪽만 다시 부른다.
-	const withPrevious = async (endpoint, extra = {}) => {
+	const withPrevious = async (endpoint, extra = {}, previousExtra = extra) => {
 		const before = previous;
 		const pair = await loadWithPrevious(
 			() => getJson(endpoint, semester.id, extra),
-			before && (() => getJson(endpoint, before.id, extra))
+			before && (() => getJson(endpoint, before.id, previousExtra))
 		);
 		if (pair.previousError) {
 			console.error(`학기 결산 지난 학기 로딩 실패 (${endpoint})`, pair.previousError);
 		}
 		return pair;
 	};
-	// 지난 학기와 견주는 카드의 요청: [엔드포인트, 덧붙일 인자].
+	// 지난 학기와 견주는 카드의 요청: [엔드포인트, 덧붙일 인자, 지난 학기에 덧붙일 인자(없으면 같은 것)].
+	// 상위 10 은 이 학기의 10 개와, 지난 학기의 상위 100(WORKS_LIMIT, 통계와 같은 길이)을 부른다.
+	// 그래야 지난 학기 칸이 '10위 밖' 대신 '23위'·'없음'을 적는다(rankChangeTable).
 	// 장르별 분포는 따로 부르지 않고 다양성 응답의 summary.genre 로 그린다(통계처럼).
-	/** @type {Record<string, [string, Record<string, string>?]>} */
+	const top10 = { limit: '10' };
+	const previousTop = { limit: String(WORKS_LIMIT) };
+	/** @type {Record<string, [string, Record<string, string>?, Record<string, string>?]>} */
 	const compared = {
 		summary: ['summary'],
-		composers: ['composers', { limit: '10' }],
-		soloists: ['soloists', { limit: '10' }],
-		works: ['works', { limit: '10' }],
-		conductors: ['conductors', { limit: '10' }],
-		orchestras: ['orchestras', { limit: '10' }],
+		composers: ['composers', top10, previousTop],
+		soloists: ['soloists', top10, previousTop],
+		works: ['works', top10, previousTop],
+		conductors: ['conductors', top10, previousTop],
+		orchestras: ['orchestras', top10, previousTop],
 		eras: ['eras'],
 		// 선곡 다양성·장르별 분포는 summary 를, 월별 선곡은 달마다 센 timeline 을 쓴다.
 		diversity: ['diversity', { bucket: 'month' }],
@@ -109,7 +114,7 @@
 	$: firstWorks = data.firstWorks?.current;
 	$: previousFirstComposers = data.firstComposers?.previous;
 	$: previousFirstWorks = data.firstWorks?.previous;
-	// 상위 10 은 이 학기의 목록을 그리고, 지난 학기의 목록과 견준 칸을 붙인다(rankChangeTable).
+	// 상위 10 은 이 학기의 목록을 그리고, 지난 학기의 상위 100 과 견준 칸을 붙인다(rankChangeTable).
 	// 작곡가·곡은 처음 튼 목록이 오면 이 학기에 처음 튼 행을 '첫 선곡'으로 적는다.
 	$: composers = data.composers?.current;
 	$: soloists = data.soloists?.current;
@@ -175,10 +180,10 @@
 			const gen = generation;
 			const before = previous;
 			const { current } = data[key];
-			const [endpoint, extra] = compared[key];
+			const [endpoint, extra, previousExtra = extra] = compared[key];
 			const still = () => gen === generation && data[key]?.current === current;
 			data[key] = { ...data[key], retryingPrevious: true };
-			getJson(endpoint, before.id, extra)
+			getJson(endpoint, before.id, previousExtra)
 				.then((result) => {
 					if (still()) data[key] = { current, previous: result, previousError: null };
 				})
@@ -321,7 +326,7 @@
 						composers,
 						data.composers.previous,
 						'작곡가',
-						10,
+						WORKS_LIMIT,
 						firstIdSet(firstComposers)
 					)
 				: null,
@@ -331,7 +336,7 @@
 			key: 'soloists',
 			title: '많이 튼 독주자',
 			table: soloists?.labels.length
-				? rankChangeTable(soloists, data.soloists.previous, '연주자')
+				? rankChangeTable(soloists, data.soloists.previous, '연주자', WORKS_LIMIT)
 				: null,
 			links: performerLinksOf('soloists', soloists, semesterId)
 		},
@@ -339,7 +344,7 @@
 			key: 'works',
 			title: '많이 튼 곡',
 			table: works?.labels.length
-				? rankChangeTable(works, data.works.previous, '곡', 10, firstIdSet(firstWorks))
+				? rankChangeTable(works, data.works.previous, '곡', WORKS_LIMIT, firstIdSet(firstWorks))
 				: null,
 			links: workLinksOf(works, semesterId),
 			wide: true
@@ -348,7 +353,7 @@
 			key: 'conductors',
 			title: '많이 튼 지휘자',
 			table: conductors?.labels.length
-				? rankChangeTable(conductors, data.conductors.previous, '지휘자')
+				? rankChangeTable(conductors, data.conductors.previous, '지휘자', WORKS_LIMIT)
 				: null,
 			links: performerLinksOf('conductors', conductors, semesterId)
 		},
@@ -356,7 +361,7 @@
 			key: 'orchestras',
 			title: '많이 튼 오케스트라',
 			table: orchestras?.labels.length
-				? rankChangeTable(orchestras, data.orchestras.previous, '오케스트라')
+				? rankChangeTable(orchestras, data.orchestras.previous, '오케스트라', WORKS_LIMIT)
 				: null,
 			links: performerLinksOf('orchestras', orchestras, semesterId)
 		}
