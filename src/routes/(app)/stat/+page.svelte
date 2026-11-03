@@ -917,7 +917,7 @@
 						—
 					{/if}
 				</div>
-				<div class="kpi-label">기간</div>
+				<div class="kpi-label">처음 튼 날 ~ 마지막으로 튼 날</div>
 			</div>
 		</div>
 		{#if errors.summary}
