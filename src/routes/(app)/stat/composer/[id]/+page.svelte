@@ -1142,4 +1142,90 @@
 	.placeholder.error {
 		color: var(--secondary-secondary-800, #95560d);
 	}
+
+	@page {
+		size: A4;
+		margin: 12mm;
+	}
+	@media print {
+		/* 통계와 같다: 사이드바·레이아웃의 규칙은 컴포넌트 범위라 !important 로 이겨 A4 폭에 제 크기로 싣는다 */
+		:global(.side-bar) {
+			display: none !important;
+		}
+		:global(html),
+		:global(body),
+		:global(.screen),
+		:global(.app) {
+			min-width: 0 !important;
+		}
+		/* 오른쪽 1px: 카드의 오른쪽 테두리가 종이 끝에 잘리지 않게 */
+		.composer-page {
+			padding: 0 1px 0 0;
+		}
+		/* 종이에는 고르는 것·누르는 것을 싣지 않는다: 기간·지기 고르기, 머리말 링크, 모든 차트 표로 보기,
+		   카드의 단추(표로 보기, PNG·CSV 저장, 다시 시도, 전체 기간에서 보기). 표의 이름은 남는다 */
+		.controls,
+		.view-row,
+		.title-group .page-link,
+		.toolbar,
+		.composer-page :global(.tool-btn) {
+			display: none !important;
+		}
+		/* 통계와 같은 작은 칸: A4 폭의 여섯 칸에서 '마지막으로 튼 날'이 낱말 사이에서만 줄을 바꾸게.
+		   날짜(.kpi-value.small)는 제 크기 그대로 */
+		.kpi-row {
+			gap: 6px;
+		}
+		.kpi {
+			padding: 10px 4px;
+		}
+		.kpi-value {
+			font-size: 20px;
+		}
+		.kpi-label {
+			font-size: 12px;
+			word-break: keep-all;
+		}
+		/* 좁은 칸의 '전체 기록 2026-03-02'는 날짜의 '-'가 아니라 '전체 기록' 뒤에서 줄을 바꾼다 */
+		.kpi-change {
+			text-wrap: balance;
+		}
+		/* 카드는 한 줄에 하나, 쪽 사이에서 자르지 않는다(표가 든 카드는 길면 다음 쪽으로 이어진다) */
+		.chart-grid {
+			grid-template-columns: minmax(0, 1fr);
+		}
+		.composer-page :global(.card) {
+			box-shadow: none !important;
+			break-inside: avoid;
+		}
+		.composer-page :global(.card:has(.table-view)) {
+			break-inside: auto;
+		}
+		/* 표는 340px 상자 안에서 스크롤하지 않고 모든 행을 싣는다. 쪽을 넘는 표가 카드 밖으로 넘치지 않도록
+		   카드와 표 상자는 flex 를 풀고, 머리줄은 붙이지 않는다(새 쪽마다 브라우저가 머리줄을 다시 싣는다).
+		   많이 튼 곡은 이 페이지의 카드지만 표 상자는 DataTable 의 것이라 :global 로 잡는다 */
+		.composer-page :global(.card:has(.table-view)),
+		.composer-page :global(.table-view) {
+			display: block !important;
+			height: auto !important;
+		}
+		.composer-page :global(.chart-area:has(.table-view)),
+		.composer-page :global(.table-area:has(.table-view)) {
+			min-height: 0 !important;
+		}
+		.composer-page :global(.table-scroll) {
+			overflow: visible !important;
+		}
+		.composer-page :global(.table-scroll thead th) {
+			position: static !important;
+		}
+		/* 인쇄는 차트를 다시 그리지 않으므로, 넓은 창에서 그린 캔버스가 카드보다 넓으면 비율을 지켜 줄인다 */
+		.composer-page :global(.echart > div),
+		.composer-page :global(.echart canvas) {
+			max-width: 100% !important;
+		}
+		.composer-page :global(.echart canvas) {
+			height: auto !important;
+		}
+	}
 </style>
