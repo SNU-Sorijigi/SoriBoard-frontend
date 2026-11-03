@@ -14,6 +14,7 @@
 	export let loading = false;
 	export let note = ''; // 데이터 경고 등
 	export let noteLink = null; // { href, text }: 경고 뒤에 붙는 링크(예: 작곡가 정리)
+	export let chartNote = ''; // 차트에만 붙는 말: 차트가 화면에 있는 동안만 보인다(예: 잘린 동점, chartTieNote).
 	export let error = ''; // 불러오기 실패 문구
 	export let table = null; // '표로 보기'의 표(statTable.js). 없으면 data 와 csvHeaders 로 만든다.
 	export let rowLabel = ''; // 주면 표의 이름 칸이 단추가 된다(예: '곡 보기', DataTable 의 rowselect).
@@ -125,6 +126,9 @@
 		{/if}
 	</div>
 
+	{#if chartNote && hasData && !loading && !error && !(showTable && shownTable)}
+		<div class="note">{chartNote}</div>
+	{/if}
 	{#if note}
 		<div class="note">
 			{note}{#if noteLink}&nbsp;· <a href={noteLink.href}>{noteLink.text}</a>{/if}

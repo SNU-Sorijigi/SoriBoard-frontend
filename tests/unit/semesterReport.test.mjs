@@ -13,6 +13,7 @@ import {
 	rankChangeTable,
 	rankNotes,
 	tieNote,
+	chartTieNote,
 	firstIdSet,
 	loadWithPrevious,
 	firstsTable,
@@ -888,4 +889,48 @@ test('tieNote writes counts of 1,000 or more with a comma', () => {
 		tieNote(counts(values), 10, 100, '작곡가가', '명'),
 		'1,234회로 공동 1위인 작곡가가 2명 더 있습니다'
 	);
+});
+
+// 차트의 목록은 values 와 items 를 함께 싣는다(topOf 가 자르는 봉투).
+const envelope = (values) => ({ values, items: values.map((_, i) => ({ id: i + 1 })) });
+
+test('chartTieNote says the cut tie under a ranking chart and points to 표로 보기', () => {
+	// 작곡가 차트는 12개: 12번째와 13~15번째가 4회
+	const composers = [30, 25, 20, 15, 12, 10, 9, 8, 7, 6, 5, 4, 4, 4, 4, 3, 2, 1];
+	assert.equal(
+		chartTieNote(envelope(composers), 12, 100, '작곡가가', '명'),
+		'4회로 공동 12위인 작곡가가 3명 더 있습니다 · 표로 보기에 모두 있습니다'
+	);
+	// 곡 차트는 10개: 10개가 일곱 곡이 같은 2회(공동 6위) 안에서 끝난다
+	const works = [5, 4, 4, 3, 3, 2, 2, 2, 2, 2, 2, 2, 1, 1];
+	assert.equal(
+		chartTieNote(envelope(works), 10, 100, '곡이', '곡'),
+		'2회로 공동 6위인 곡이 2곡 더 있습니다 · 표로 보기에 모두 있습니다'
+	);
+});
+
+test('chartTieNote is empty when the chart cuts no tie or draws every row', () => {
+	const orchestras = [5, 4, 3, 3, 2, 2, 2, 2, 2, 2, 1];
+	assert.equal(chartTieNote(envelope(orchestras), 10, 100, '오케스트라가', '곳'), '');
+	assert.equal(chartTieNote(envelope([6, 5, 4, 3, 2, 1]), 10, 100, '지휘자가', '명'), '');
+	assert.equal(chartTieNote(envelope([3, 3, 3]), 12, 100, '독주자가', '명'), '');
+});
+
+test('chartTieNote leaves out 표로 보기 when the tie runs to the end of a full answer', () => {
+	const full = [20, 15, 10, 5, ...Array(96).fill(2)];
+	assert.equal(
+		chartTieNote(envelope(full), 10, 100, '곡이', '곡'),
+		'2회로 공동 5위인 곡이 90곡 이상 더 있습니다'
+	);
+	// 꽉 찬 목록이라도 동점이 목록 안에서 끝나면 잘린 행이 표에 모두 있다.
+	const ended = [20, 15, 10, 5, 2, 2, 2, 2, 2, 2, 2, 2, ...Array(88).fill(1)];
+	assert.equal(
+		chartTieNote(envelope(ended), 10, 100, '곡이', '곡'),
+		'2회로 공동 5위인 곡이 2곡 더 있습니다 · 표로 보기에 모두 있습니다'
+	);
+});
+
+test('chartTieNote is empty without a list', () => {
+	assert.equal(chartTieNote(null, 12, 100, '작곡가가', '명'), '');
+	assert.equal(chartTieNote(undefined, 10, 100, '곡이', '곡'), '');
 });

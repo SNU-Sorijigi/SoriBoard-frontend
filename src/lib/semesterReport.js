@@ -341,6 +341,26 @@ export function tieNote(envelope, shown, cap, noun, unit) {
 	return `${formatCount(value)}회로 공동 ${rank}위인 ${noun} ${hidden.toLocaleString()}${unit}${more} 더 있습니다`;
 }
 
+// 순위 차트(통계, 작곡가 페이지)가 마지막 막대에서 동점을 자르면 차트 아래에 적는 말(ChartCard 의 chartNote).
+// tieNote 와 같은 말에, 잘린 행이 모두 표로 보기에 있으면 ' · 표로 보기에 모두 있습니다'를 붙인다.
+// 목록이 cap 행까지 찼고 동점이 그 끝까지 이어지면('… 이상') 표도 거기서 끝나므로 붙이지 않는다.
+// 잘린 동점이 없거나 목록이 없으면 ''.
+/**
+ * @param {{ values: number[], items: unknown[] } | null | undefined} envelope
+ * @param {number} shown
+ * @param {number} cap
+ * @param {string} noun
+ * @param {string} unit
+ * @returns {string}
+ */
+export function chartTieNote(envelope, shown, cap, noun, unit) {
+	const note = tieNote(envelope, shown, cap, noun, unit);
+	if (!note || !envelope) return note;
+	const { values, items } = envelope;
+	const cutAtCap = items.length >= cap && values[values.length - 1] === values[shown - 1];
+	return cutAtCap ? note : `${note} · 표로 보기에 모두 있습니다`;
+}
+
 // 막대 툴팁의 셋째 줄(horizontalBarOption 의 notes): rankChangeTable 의 지난 학기 칸을 그대로
 // '지난 학기 3위'·'지난 학기 없음'처럼, '—'(지난 학기에 선곡 없음)이면 ''. 지난 학기 칸이 없으면 null(툴팁 그대로).
 // 표에서 읽으므로 툴팁과 표로 보기가 늘 같은 말을 한다.

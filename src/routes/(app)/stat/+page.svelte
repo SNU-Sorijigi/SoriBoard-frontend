@@ -83,6 +83,7 @@
 		mixTable,
 		rankChangeTable,
 		rankNotes,
+		chartTieNote,
 		firstIdSet,
 		firstsTable,
 		ongoingText,
@@ -969,6 +970,7 @@
 				showTable={allTables}
 				title="많이 튼 작곡가"
 				note={rankCapNote(composers, WORKS_LIMIT)}
+				chartNote={chartTieNote(composers, LIMITS.composers, WORKS_LIMIT, '작곡가가', '명')}
 				option={composerOpt}
 				data={composers}
 				loading={loading.composers}
@@ -986,6 +988,7 @@
 				showTable={allTables}
 				title="많이 튼 독주자"
 				note={rankCapNote(soloists, WORKS_LIMIT)}
+				chartNote={chartTieNote(soloists, LIMITS.soloists, WORKS_LIMIT, '독주자가', '명')}
 				option={soloistOpt}
 				data={soloists}
 				loading={loading.soloists}
@@ -1003,6 +1006,7 @@
 				showTable={allTables}
 				title="많이 튼 지휘자"
 				note={rankCapNote(conductors, WORKS_LIMIT)}
+				chartNote={chartTieNote(conductors, LIMITS.conductors, WORKS_LIMIT, '지휘자가', '명')}
 				option={conductorOpt}
 				data={conductors}
 				loading={loading.conductors}
@@ -1020,6 +1024,7 @@
 				showTable={allTables}
 				title="많이 튼 오케스트라"
 				note={rankCapNote(orchestras, WORKS_LIMIT)}
+				chartNote={chartTieNote(orchestras, LIMITS.orchestras, WORKS_LIMIT, '오케스트라가', '곳')}
 				option={orchestraOpt}
 				data={orchestras}
 				loading={loading.orchestras}
@@ -1078,6 +1083,7 @@
 				showTable={allTables}
 				title="많이 튼 곡"
 				note={rankCapNote(works, WORKS_LIMIT)}
+				chartNote={chartTieNote(works, LIMITS.works, WORKS_LIMIT, '곡이', '곡')}
 				option={worksOpt}
 				data={works}
 				loading={loading.works}
