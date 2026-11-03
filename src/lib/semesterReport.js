@@ -11,7 +11,7 @@ import {
 } from './statTable.js';
 import { periodRangeText, semesterLabel } from './statPeriod.js';
 import { bucketRange, timelineView, semesterOf } from './statBucket.js';
-import { genreDistribution } from './statCards.js';
+import { eraDistribution, genreDistribution } from './statCards.js';
 
 const ID = /^[1-9]\d*$/;
 
@@ -148,6 +148,18 @@ export function genrePair(pair) {
 		...pair,
 		current: genreDistribution(pair.current),
 		previous: pair.previous ? genreDistribution(pair.previous) : null
+	};
+}
+
+// 시대 카드의 짝: 장르처럼 다양성 응답의 짝에서 summary.era 로 만든 시대 봉투(stats/eras 와 같은 수,
+// eraDistribution). previousError·retryingPrevious 는 그대로 둔다. 짝이 없으면 null.
+/** @param {{ current: any, previous: any, previousError?: unknown, retryingPrevious?: boolean } | null | undefined} pair */
+export function eraPair(pair) {
+	if (!pair) return null;
+	return {
+		...pair,
+		current: eraDistribution(pair.current),
+		previous: pair.previous ? eraDistribution(pair.previous) : null
 	};
 }
 

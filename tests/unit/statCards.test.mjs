@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
 	requestGroups,
+	eraDistribution,
 	genreDistribution,
 	diversityTiles,
 	DERIVED_CARDS,
@@ -11,15 +12,16 @@ import {
 	withPreviousFailure,
 	withFailedLines
 } from '../../src/lib/statCards.js';
+import { unknownEraNote } from '../../src/lib/statTable.js';
 
 test('the genre card is drawn from the diversity answer', () => {
 	assert.equal(DERIVED_CARDS.genres, 'diversity');
 });
 
 test('a full load asks for diversity once, for both its cards', () => {
-	assert.deepEqual(requestGroups(['summary', 'eras', 'diversity', 'genres']), [
+	assert.deepEqual(requestGroups(['summary', 'composers', 'diversity', 'genres']), [
 		['summary', ['summary']],
-		['eras', ['eras']],
+		['composers', ['composers']],
 		['diversity', ['diversity', 'genres']]
 	]);
 });
@@ -75,6 +77,105 @@ test('genreDistribution of an empty answer has no labels', () => {
 	assert.equal(empty.total_plays, 0);
 });
 
+// 시대별 분포도 다양성 응답으로 그린다: summary.era 는 '미상'을 빼고 주므로 총계에서 모자란 수를 '미상'으로 붙인다.
+/** @param {number} total @param {string[]} labels @param {number[]} values @param {number} share */
+const eraAnswer = (total, labels, values, share) => ({
+	filters: { semester_id: '2', start: '2026-03-01', end: '2026-08-31', bucket: 'month' },
+	total_plays: total,
+	summary: {
+		distinct_works: 30,
+		era: { labels, values, unknown_share: share, entropy: 1.2, evenness: 0.7 },
+		genre: { labels: ['교향곡'], values: [total], entropy: 0, evenness: 0 }
+	},
+	timeline: { bucket: 'month', labels: [], plays: [] }
+});
+
+test('the era card is drawn from the diversity answer', () => {
+	assert.equal(DERIVED_CARDS.eras, 'diversity');
+	assert.deepEqual(requestGroups(['summary', 'eras', 'diversity', 'genres', 'diversityTiles']), [
+		['summary', ['summary']],
+		['diversity', ['eras', 'diversity', 'genres', 'diversityTiles']]
+	]);
+	// A 주별/월별 reload does not cover the era card (it stays drawn).
+	assert.deepEqual(requestGroups(['diversity']), [['diversity', ['diversity']]]);
+});
+
+test('eraDistribution appends 미상 = total − the known 시대 after them', () => {
+	const eras = eraDistribution(eraAnswer(520, ['중세', '바로크', '낭만'], [47, 92, 274], 0.2058));
+	assert.deepEqual(eras.labels, ['중세', '바로크', '낭만', '미상']);
+	assert.deepEqual(eras.values, [47, 92, 274, 107]);
+});
+
+test('eraDistribution adds no 미상 when the 시대 add up to the total', () => {
+	const eras = eraDistribution(eraAnswer(134, ['바로크', '고전'], [100, 34], 0));
+	assert.deepEqual(eras.labels, ['바로크', '고전']);
+	assert.deepEqual(eras.values, [100, 34]);
+	assert.equal(eras.unknown_share, 0);
+});
+
+test('eraDistribution of an empty answer has no labels', () => {
+	const eras = eraDistribution(eraAnswer(0, [], [], 0));
+	assert.deepEqual(eras.labels, []);
+	assert.deepEqual(eras.values, []);
+	assert.equal(eras.total_plays, 0);
+});
+
+test('eraDistribution of a 미상-only answer is one 미상 slice', () => {
+	const eras = eraDistribution(eraAnswer(108, [], [], 1));
+	assert.deepEqual(eras.labels, ['미상']);
+	assert.deepEqual(eras.values, [108]);
+	assert.equal(eras.unknown_share, 1);
+});
+
+test('eraDistribution keeps the filters, the total and unknown_share, like stats/eras', () => {
+	const answer = eraAnswer(520, ['중세', '낭만'], [100, 300], 0.2308);
+	assert.deepEqual(eraDistribution(answer), {
+		filters: answer.filters,
+		total_plays: 520,
+		labels: ['중세', '낭만', '미상'],
+		values: [100, 300, 120],
+		unknown_share: 0.2308
+	});
+	// The answer itself is left as it was.
+	assert.deepEqual(answer.summary.era.labels, ['중세', '낭만']);
+	assert.deepEqual(answer.summary.era.values, [100, 300]);
+});
+
+test('eraDistribution gives the same 시대 미상 note as the stats/eras envelope', () => {
+	const fromEras = {
+		filters: {},
+		total_plays: 520,
+		labels: ['중세', '바로크', '고전', '낭만', '근현대', '미상'],
+		values: [47, 92, 48, 183, 43, 107],
+		items: [],
+		unknown_share: 0.2058
+	};
+	const derived = eraDistribution(
+		eraAnswer(520, ['중세', '바로크', '고전', '낭만', '근현대'], [47, 92, 48, 183, 43], 0.2058)
+	);
+	assert.equal(unknownEraNote(derived), unknownEraNote(fromEras));
+	assert.equal(unknownEraNote(derived), '시대 미상 비율 20.6% — 일부 작곡가 데이터 미반영');
+	// Below 20%: no note either way.
+	const quiet = eraDistribution(eraAnswer(184, ['낭만'], [150], 0.1848));
+	assert.equal(unknownEraNote(quiet), '');
+});
+
+test('retryKeys: the era card retries every failed card of the diversity request', () => {
+	const errors = {
+		eras: '불러오지 못했습니다',
+		diversity: '불러오지 못했습니다',
+		genres: '불러오지 못했습니다',
+		diversityTiles: '불러오지 못했습니다',
+		composers: '불러오지 못했습니다'
+	};
+	const keys = retryKeys('eras', errors);
+	assert.deepEqual(keys, ['diversity', 'eras', 'genres', 'diversityTiles']);
+	assert.deepEqual(requestGroups(keys), [['diversity', keys]]);
+	assert.deepEqual(retryKeys('genres', errors), keys);
+	// Its 지난 학기 retry re-asks the previous diversity, once.
+	assert.deepEqual(previousRetryRequests(keys, ['diversity', 'works']), ['diversity']);
+});
+
 test('the 선곡 다양성 tiles are drawn from the diversity answer', () => {
 	assert.equal(DERIVED_CARDS.diversityTiles, 'diversity');
 });
@@ -110,8 +211,8 @@ test('diversityTiles takes the summary, which does not depend on the bucket', ()
 });
 
 test('retryKeys: a card with its own request retries only itself', () => {
-	const errors = { eras: '불러오지 못했습니다', composers: '불러오지 못했습니다' };
-	assert.deepEqual(retryKeys('eras', errors), ['eras']);
+	const errors = { works: '불러오지 못했습니다', composers: '불러오지 못했습니다' };
+	assert.deepEqual(retryKeys('composers', errors), ['composers']);
 });
 
 test('retryKeys: the genre card retries every failed card of the diversity request', () => {
@@ -119,7 +220,7 @@ test('retryKeys: the genre card retries every failed card of the diversity reque
 		diversity: '불러오지 못했습니다',
 		genres: '불러오지 못했습니다',
 		diversityTiles: '불러오지 못했습니다',
-		eras: '불러오지 못했습니다'
+		composers: '불러오지 못했습니다'
 	};
 	const keys = retryKeys('genres', errors);
 	assert.deepEqual(keys, ['diversity', 'genres', 'diversityTiles']);
@@ -138,12 +239,12 @@ test('retryKeys: when only the genre card failed, it retries the genre card alon
 test('retryKeys never includes a card without an error', () => {
 	const errors = { diversity: '', genres: '불러오지 못했습니다', diversityTiles: '' };
 	assert.deepEqual(retryKeys('diversity', errors), ['genres']);
-	assert.deepEqual(retryKeys('eras', errors), []);
+	assert.deepEqual(retryKeys('composers', errors), []);
 	assert.deepEqual(retryKeys('summary', {}), []);
 });
 
 test('previousRetryRequests: the tiles retry re-asks the failed previous diversity only', () => {
-	assert.deepEqual(previousRetryRequests(['diversityTiles'], ['summary', 'diversity', 'eras']), [
+	assert.deepEqual(previousRetryRequests(['diversityTiles'], ['summary', 'diversity', 'works']), [
 		'diversity'
 	]);
 });
@@ -156,7 +257,7 @@ test('previousRetryRequests: the cards of one request re-ask it once', () => {
 });
 
 test("previousRetryRequests: a card never re-asks another card's previous request", () => {
-	assert.deepEqual(previousRetryRequests(['eras'], ['diversity']), []);
+	assert.deepEqual(previousRetryRequests(['composers'], ['diversity']), []);
 	assert.deepEqual(previousRetryRequests(['works'], ['works', 'firstWorks']), ['works']);
 	assert.deepEqual(previousRetryRequests(['firstComposers'], ['firstComposers', 'firstWorks']), [
 		'firstComposers'

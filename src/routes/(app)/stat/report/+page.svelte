@@ -38,6 +38,7 @@
 		semesterUpcoming,
 		kpiChangeText,
 		evennessChangeText,
+		eraPair,
 		genrePair,
 		monthlyTable
 	} from '$lib/semesterReport.js';
@@ -79,7 +80,7 @@
 	// 지난 학기와 견주는 카드의 요청: [엔드포인트, 덧붙일 인자, 지난 학기에 덧붙일 인자(없으면 같은 것)].
 	// 상위 10 은 이 학기의 10 개와, 지난 학기의 상위 100(WORKS_LIMIT, 통계와 같은 길이)을 부른다.
 	// 그래야 지난 학기 칸이 '10위 밖' 대신 '23위'·'없음'을 적는다(rankChangeTable).
-	// 장르별 분포는 따로 부르지 않고 다양성 응답의 summary.genre 로 그린다(통계처럼).
+	// 시대·장르별 분포는 따로 부르지 않고 다양성 응답의 summary.era·genre 로 그린다(통계처럼).
 	const top10 = { limit: '10' };
 	const previousTop = { limit: String(WORKS_LIMIT) };
 	/** @type {Record<string, [string, Record<string, string>?, Record<string, string>?]>} */
@@ -90,8 +91,7 @@
 		works: ['works', top10, previousTop],
 		conductors: ['conductors', top10, previousTop],
 		orchestras: ['orchestras', top10, previousTop],
-		eras: ['eras'],
-		// 선곡 다양성·장르별 분포는 summary 를, 월별 선곡은 달마다 센 timeline 을 쓴다.
+		// 선곡 다양성·시대·장르별 분포는 summary 를, 월별 선곡은 달마다 센 timeline 을 쓴다.
 		diversity: ['diversity', { bucket: 'month' }],
 		firstComposers: ['firsts', { kind: 'composer' }],
 		firstWorks: ['firsts', { kind: 'work' }]
@@ -107,7 +107,7 @@
 	let loading = Object.fromEntries(CARD_KEYS.map((key) => [key, true]));
 	/** @type {Record<string, string>} */
 	let errors = {};
-	$: ({ eras } = data);
+	$: eras = eraPair(data.diversity);
 	$: genres = genrePair(data.diversity);
 	// 처음 튼 작곡가·곡: 이 학기의 목록과, 부제에 개수만 쓰는 지난 학기의 목록.
 	$: firstComposers = data.firstComposers?.current;
@@ -387,7 +387,7 @@
 		};
 	};
 	// 학기 이름은 인자로 받는다: $: 는 함수 안에서 읽는 변수를 따라가지 않는다.
-	// source: 카드를 그리는 요청(불러오는 중·오류·다시 시도는 그 요청의 것). 장르는 다양성 응답으로 그린다.
+	// source: 카드를 그리는 요청(불러오는 중·오류·다시 시도는 그 요청의 것). 시대·장르는 다양성 응답으로 그린다.
 	const mixCard = (key, source, title, pair, nameHeader, now, before) => ({
 		key,
 		source,
@@ -399,7 +399,7 @@
 		note: key === 'eras' ? unknownEraNote(pair?.current) : ''
 	});
 	$: mixCards = [
-		mixCard('eras', 'eras', '시대별 분포', eras, '시대', label, previousLabel),
+		mixCard('eras', 'diversity', '시대별 분포', eras, '시대', label, previousLabel),
 		mixCard('genres', 'diversity', '장르별 분포', genres, '장르', label, previousLabel)
 	];
 
@@ -482,7 +482,7 @@
 	// 선곡이 없는 학기에 카드 대신 보이는 말. 화면 낭독기의 로드 상태도 같은 말을 한다.
 	$: emptyText = upcoming ? '아직 시작하지 않은 학기입니다.' : '이 학기에는 선곡이 없습니다.';
 	// 로드 상태에 이름을 대는 카드(페이지 순서). 한 요청이 여러 카드를 그린다: 다양성 응답은
-	// 장르별 분포·선곡 다양성·월별 선곡이 함께 쓰고, 셋 다 제 오류와 다시 시도를 띄운다.
+	// 시대·장르별 분포·선곡 다양성·월별 선곡이 함께 쓰고, 넷 다 제 오류와 다시 시도를 띄운다.
 	const cardNames = [
 		['summary', '요약'],
 		['composers', '많이 튼 작곡가'],
@@ -490,7 +490,7 @@
 		['works', '많이 튼 곡'],
 		['conductors', '많이 튼 지휘자'],
 		['orchestras', '많이 튼 오케스트라'],
-		['eras', '시대별 분포'],
+		['diversity', '시대별 분포'],
 		['diversity', '장르별 분포'],
 		['diversity', '선곡 다양성'],
 		['diversity', '월별 선곡'],

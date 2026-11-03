@@ -21,11 +21,12 @@ import {
 	upcomingText,
 	semesterOptionLabel,
 	semesterUpcoming,
+	eraPair,
 	genrePair,
 	monthlyTable
 } from '../../src/lib/semesterReport.js';
 import { rankTable } from '../../src/lib/statTable.js';
-import { genreDistribution } from '../../src/lib/statCards.js';
+import { eraDistribution, genreDistribution } from '../../src/lib/statCards.js';
 
 // sortSemesters 순서(최신 학기 먼저)
 const sorted = [
@@ -705,6 +706,67 @@ test('genrePair: no answer yet gives null, the oldest 학기 has no previous', (
 	const oldest = genrePair({ current: nowDiv, previous: null, previousError: null });
 	assert.equal(oldest.previous, null);
 	assert.equal(mixSubtitle(oldest, '2025-2학기', ''), '2025-2학기 총 24곡 · 지난 학기 없음');
+});
+
+// 시대 카드도 다양성 응답의 짝으로 그린다(summary.era + 총계에서 모자란 '미상', stats/eras 와 같은 수).
+const eraDiv = (start, total, labels, values, share) => ({
+	...diversityAnswer(start, total, ['교향곡'], [total]),
+	summary: {
+		era: { labels, values, unknown_share: share },
+		genre: { labels: ['교향곡'], values: [total] },
+		unique_works: 3
+	}
+});
+const nowEras = eraDiv('2026-09-01', 24, ['바로크', '낭만'], [6, 12], 0.25);
+const beforeEras = eraDiv('2026-03-01', 29, ['고전', '낭만'], [9, 20], 0);
+
+test('eraPair turns both 다양성 answers into 시대 envelopes', () => {
+	const pair = eraPair({ current: nowEras, previous: beforeEras, previousError: null });
+	assert.deepEqual(pair, {
+		current: eraDistribution(nowEras),
+		previous: eraDistribution(beforeEras),
+		previousError: null
+	});
+	assert.deepEqual(pair.current.labels, ['바로크', '낭만', '미상']);
+	assert.deepEqual(pair.current.values, [6, 12, 6]);
+	assert.equal(pair.current.unknown_share, 0.25);
+	assert.deepEqual(pair.previous.labels, ['고전', '낭만']);
+	assert.deepEqual(pair.previous.values, [9, 20]);
+	assert.equal(
+		mixSubtitle(pair, '2026-2학기', '2026-1학기'),
+		'2026-2학기 총 24곡 · 지난 학기(2026-1학기) 총 29곡'
+	);
+	assert.deepEqual(
+		mixTable(pair.current, pair.previous, '시대').rows.map((row) => row[0]),
+		['바로크', '고전', '낭만', '미상']
+	);
+});
+
+test('eraPair keeps a failed previous 학기 and the oldest 학기 has no previous', () => {
+	const error = new Error('diversity 500');
+	const failed = eraPair({ current: nowEras, previous: null, previousError: error });
+	assert.equal(failed.previous, null);
+	assert.equal(failed.previousError, error);
+	assert.equal(
+		mixSubtitle(failed, '2026-2학기', '2026-1학기'),
+		'2026-2학기 총 24곡 · 지난 학기(2026-1학기)를 불러오지 못했습니다'
+	);
+	const retrying = eraPair({
+		current: nowEras,
+		previous: null,
+		previousError: error,
+		retryingPrevious: true
+	});
+	assert.equal(retrying.retryingPrevious, true);
+	const oldest = eraPair({ current: nowEras, previous: null, previousError: null });
+	assert.equal(oldest.previous, null);
+	assert.equal(mixSubtitle(oldest, '2025-2학기', ''), '2025-2학기 총 24곡 · 지난 학기 없음');
+});
+
+test('eraPair: no answer yet gives null', () => {
+	assert.equal(eraPair(null), null);
+	assert.equal(eraPair(undefined), null);
+	assert.equal(mixSubtitle(eraPair(undefined), '2026-2학기', ''), '2026-2학기');
 });
 
 // 다양성 응답(bucket=month)의 모양: 선곡이 있는 달만, 오래된 달부터.

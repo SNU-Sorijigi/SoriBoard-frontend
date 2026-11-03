@@ -2,9 +2,14 @@
 // 다른 카드의 응답으로 그리는 카드도 있다(그 카드를 위해 따로 부르지 않는다).
 
 // 카드 → 그 카드를 그리는 응답을 주는 요청.
+// 시대별 분포는 다양성 응답의 summary.era 로 그린다(stats/eras 와 같은 수).
 // 장르별 분포는 다양성 응답의 summary.genre 로 그린다(stats/genres 와 같은 분류).
 // 선곡 다양성의 칸(시대·장르 다양성, 고유 곡 수)도 다양성 응답의 summary 로 그린다.
-export const DERIVED_CARDS = { genres: 'diversity', diversityTiles: 'diversity' };
+export const DERIVED_CARDS = {
+	eras: 'diversity',
+	genres: 'diversity',
+	diversityTiles: 'diversity'
+};
 
 // 한 번의 로드가 덮는 카드들을 요청별로 묶는다: [[요청, [카드…]], …] (처음 나온 순서).
 /**
@@ -25,7 +30,7 @@ export function requestGroups(keys, derived = DERIVED_CARDS) {
 }
 
 // '다시 시도'로 다시 불러올 카드: card 를 그리는 요청이 그리는 카드 가운데 실패한 것(한 번의 요청으로).
-// 다양성 요청이 실패했으면 장르별 분포의 단추가 선곡 수·다양성 추이 카드와 선곡 다양성의 칸도 함께 불러온다.
+// 다양성 요청이 실패했으면 시대·장르별 분포의 단추가 선곡 수·다양성 추이 카드와 선곡 다양성의 칸도 함께 불러온다.
 // 불러온 카드는 건드리지 않는다.
 /**
  * @param {string} card
@@ -40,7 +45,7 @@ export function retryKeys(card, errors, derived = DERIVED_CARDS) {
 }
 
 // 카드의 '다시 시도'와 함께 다시 부를 앞 학기 요청: keys 를 그리는 요청 가운데 실패한 것(처음 나온 순서, 한 번씩).
-// 앞 학기의 요청 이름은 requestGroups 의 요청 이름과 같다(diversity, eras, composers, …, firstWorks).
+// 앞 학기의 요청 이름은 requestGroups 의 요청 이름과 같다(diversity, composers, …, firstWorks).
 /**
  * @param {string[]} keys
  * @param {string[]} failed
@@ -59,6 +64,22 @@ export function previousRetryRequests(keys, failed, derived = DERIVED_CARDS) {
 export function genreDistribution(diversity) {
 	const { labels, values } = diversity.summary.genre;
 	return { filters: diversity.filters, total_plays: diversity.total_plays, labels, values };
+}
+
+// 다양성 응답 → 시대별 분포 카드의 봉투({ filters, total_plays, labels, values, unknown_share }).
+// stats/eras 와 같은 수다: summary.era 는 '미상'을 빼고 주므로, 모든 선곡이 한 시대에 들어가는 만큼
+// 총계에서 모자란 수(total_plays − 합)를 stats/eras 처럼 맨 뒤의 '미상'으로 붙인다(0 이면 붙이지 않는다).
+/** @param {any} diversity */
+export function eraDistribution(diversity) {
+	const { labels, values, unknown_share } = diversity.summary.era;
+	const unknown = diversity.total_plays - values.reduce((sum, v) => sum + v, 0);
+	return {
+		filters: diversity.filters,
+		total_plays: diversity.total_plays,
+		labels: unknown > 0 ? [...labels, '미상'] : [...labels],
+		values: unknown > 0 ? [...values, unknown] : [...values],
+		unknown_share
+	};
 }
 
 // 다양성 응답 → 선곡 다양성의 칸(시대·장르 다양성, 고유 곡 수)이 읽는 summary.

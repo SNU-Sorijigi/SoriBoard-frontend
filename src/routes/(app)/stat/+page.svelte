@@ -27,6 +27,7 @@
 		requestGroups,
 		retryKeys,
 		previousRetryRequests,
+		eraDistribution,
 		genreDistribution,
 		diversityTiles,
 		loadStatusText,
@@ -167,7 +168,7 @@
 	// 부르고, 앞 학기도 그만큼 불러 표의 지난 학기 칸에 상위 100 안의 순위를 그대로 적는다('23위').
 	const LIMITS = { composers: 12, soloists: 12, conductors: 10, orchestras: 10, works: 10 };
 	// 카드는 따로 불러오고, 실패하면 그 카드에만 오류를 띄운다. 요청 하나가 여러 카드를 그릴 수 있다:
-	// 장르별 분포와 선곡 다양성의 칸은 따로 부르지 않고 다양성 응답으로 그린다(statCards.js).
+	// 시대·장르별 분포와 선곡 다양성의 칸은 따로 부르지 않고 다양성 응답으로 그린다(statCards.js).
 	const cardRequests = {
 		summary: () => getJson('summary'),
 		composers: () => getJson('composers', { limit: WORKS_LIMIT }),
@@ -175,7 +176,6 @@
 		conductors: () => getJson('conductors', { limit: WORKS_LIMIT }),
 		orchestras: () => getJson('orchestras', { limit: WORKS_LIMIT }),
 		timeline: () => getJson('timeline', { bucket: timelineBucket }),
-		eras: () => getJson('eras'),
 		diversity: () => getJson('diversity', { bucket: diversityBucket }),
 		works: () => getJson('works', { limit: WORKS_LIMIT }),
 		// 시작이 없는 기간이면 firsts 는 지금까지 튼 모든 것을 주므로 부르지 않는다(null, statFirsts.js).
@@ -185,7 +185,7 @@
 	const hasFirsts = () =>
 		hasPeriodStart({ period, start: period === CUSTOM ? customStart : startDate });
 	// 다른 카드의 응답에서 꺼내 그리는 카드.
-	const pickCard = { genres: genreDistribution, diversityTiles };
+	const pickCard = { eras: eraDistribution, genres: genreDistribution, diversityTiles };
 	const CARD_KEYS = [...Object.keys(cardRequests), ...Object.keys(pickCard)];
 
 	/** @type {Record<string, any>} */
@@ -225,8 +225,8 @@
 		}
 		await Promise.allSettled(
 			requestGroups(keys).map(async ([request, cards]) => {
-				// 주별/월별로 다양성만 다시 부르면 장르 카드는 덮이지 않으므로, 진행 중인 전체 로드의
-				// 다양성 응답이 장르 카드를 채운다(summary 는 버킷과 무관하다).
+				// 주별/월별로 다양성만 다시 부르면 시대·장르 카드는 덮이지 않으므로, 진행 중인 전체 로드의
+				// 다양성 응답이 그 카드들을 채운다(summary 는 버킷과 무관하다).
 				const latest = () => cards.filter((key) => requests.isLatest(key, id));
 				try {
 					const result = await cardRequests[request]();
@@ -300,14 +300,15 @@
 		const chosen = list.find((s) => String(s.id) === p);
 		return chosen ? previousSemester(chosen, list) : null;
 	};
-	// 앞 학기의 장르도 지금 학기의 카드처럼 다양성 응답에서 꺼낸다(요청 하나, stats/genres 와 같은 수). 월별 버킷이면 쓰지 않는 timeline 이 작다.
+	// 앞 학기의 시대·장르도 지금 학기의 카드처럼 다양성 응답에서 꺼낸다(요청 하나, stats/eras·genres 와 같은 수).
+	// 월별 버킷이면 쓰지 않는 timeline 이 작다.
 	const previousRequests = {
 		summary: { apply: (result) => (previousSummary = result) },
-		eras: { apply: (result) => (previousEras = result) },
 		diversity: {
 			extra: { bucket: 'month' },
 			apply: (result) => {
 				previousTiles = diversityTiles(result);
+				previousEras = eraDistribution(result);
 				previousGenres = genreDistribution(result);
 			}
 		},
