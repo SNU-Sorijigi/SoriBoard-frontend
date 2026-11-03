@@ -13,6 +13,7 @@ import {
 	chartLabel,
 	tableRegionLabel,
 	placeholderText,
+	PERFORMER_EMPTY,
 	unknownEraNote,
 	topOf,
 	rankCapNote
@@ -205,6 +206,34 @@ test('a card without a chart names itself, except while it loads', () => {
 		'월별 선곡 수 — 데이터가 없습니다'
 	);
 	assert.equal(placeholderText(''), '데이터가 없습니다');
+});
+
+test('an empty performer card says why it is empty, but loading and errors still win', () => {
+	const empty = PERFORMER_EMPTY.conductors;
+	assert.equal(
+		placeholderText('많이 튼 지휘자', { empty }),
+		'많이 튼 지휘자 — 지휘자가 적힌 선곡이 없습니다'
+	);
+	assert.equal(placeholderText('많이 튼 지휘자', { loading: true, empty }), '불러오는 중...');
+	assert.equal(
+		placeholderText('많이 튼 지휘자', { error: '불러오지 못했습니다', empty }),
+		'많이 튼 지휘자 — 불러오지 못했습니다'
+	);
+	assert.equal(
+		placeholderText('많이 튼 지휘자', { empty: undefined }),
+		'많이 튼 지휘자 — 데이터가 없습니다'
+	);
+	assert.equal(
+		placeholderText('많이 튼 지휘자', { empty: '' }),
+		'많이 튼 지휘자 — 데이터가 없습니다'
+	);
+	assert.equal(placeholderText('', { empty }), '지휘자가 적힌 선곡이 없습니다');
+	assert.deepEqual(Object.keys(PERFORMER_EMPTY).sort(), ['conductors', 'orchestras', 'soloists']);
+	assert.equal(
+		placeholderText('많이 튼 오케스트라', { empty: PERFORMER_EMPTY.orchestras }),
+		'많이 튼 오케스트라 — 오케스트라가 적힌 선곡이 없습니다'
+	);
+	assert.equal(PERFORMER_EMPTY.soloists, '독주자가 적힌 선곡이 없습니다');
 });
 
 // 지어낸 순위 응답: n명, 많은 순.

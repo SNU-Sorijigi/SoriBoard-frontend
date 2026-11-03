@@ -50,7 +50,8 @@
 		groupEvenness,
 		unknownEraNote,
 		topOf,
-		rankCapNote
+		rankCapNote,
+		PERFORMER_EMPTY
 	} from '$lib/statTable.js';
 	import { tableCsv } from '$lib/csvTable.js';
 	import {
@@ -987,6 +988,7 @@
 			<ChartCard
 				showTable={allTables}
 				title="많이 튼 독주자"
+				emptyText={PERFORMER_EMPTY.soloists}
 				note={rankCapNote(soloists, WORKS_LIMIT)}
 				chartNote={chartTieNote(soloists, LIMITS.soloists, WORKS_LIMIT, '독주자가', '명')}
 				option={soloistOpt}
@@ -1005,6 +1007,7 @@
 			<ChartCard
 				showTable={allTables}
 				title="많이 튼 지휘자"
+				emptyText={PERFORMER_EMPTY.conductors}
 				note={rankCapNote(conductors, WORKS_LIMIT)}
 				chartNote={chartTieNote(conductors, LIMITS.conductors, WORKS_LIMIT, '지휘자가', '명')}
 				option={conductorOpt}
@@ -1023,6 +1026,7 @@
 			<ChartCard
 				showTable={allTables}
 				title="많이 튼 오케스트라"
+				emptyText={PERFORMER_EMPTY.orchestras}
 				note={rankCapNote(orchestras, WORKS_LIMIT)}
 				chartNote={chartTieNote(orchestras, LIMITS.orchestras, WORKS_LIMIT, '오케스트라가', '곳')}
 				option={orchestraOpt}

@@ -5,7 +5,13 @@
 	import EChart from '$lib/components/stat/EChart.svelte';
 	import ReportTable from '$lib/components/stat/ReportTable.svelte';
 	import { eraPieOption } from '$lib/chartOptions.js';
-	import { formatCount, groupEvenness, unknownEraNote, topOf } from '$lib/statTable.js';
+	import {
+		formatCount,
+		groupEvenness,
+		unknownEraNote,
+		topOf,
+		PERFORMER_EMPTY
+	} from '$lib/statTable.js';
 	import { tableViewHref } from '$lib/statQuery.js';
 	import { sortSemesters, semesterLabel, currentSemesterRange } from '$lib/statPeriod.js';
 	import { composerHref } from '$lib/composerStats.js';
@@ -346,7 +352,8 @@
 				? rankChangeTable(soloists, data.soloists.previous, '연주자', WORKS_LIMIT)
 				: null,
 			links: performerLinksOf('soloists', soloists, semesterId),
-			note: cutNote(data.soloists?.current, '독주자가', '명')
+			note: cutNote(data.soloists?.current, '독주자가', '명'),
+			empty: PERFORMER_EMPTY.soloists
 		},
 		{
 			key: 'works',
@@ -365,7 +372,8 @@
 				? rankChangeTable(conductors, data.conductors.previous, '지휘자', WORKS_LIMIT)
 				: null,
 			links: performerLinksOf('conductors', conductors, semesterId),
-			note: cutNote(data.conductors?.current, '지휘자가', '명')
+			note: cutNote(data.conductors?.current, '지휘자가', '명'),
+			empty: PERFORMER_EMPTY.conductors
 		},
 		{
 			key: 'orchestras',
@@ -374,7 +382,8 @@
 				? rankChangeTable(orchestras, data.orchestras.previous, '오케스트라', WORKS_LIMIT)
 				: null,
 			links: performerLinksOf('orchestras', orchestras, semesterId),
-			note: cutNote(data.orchestras?.current, '오케스트라가', '곳')
+			note: cutNote(data.orchestras?.current, '오케스트라가', '곳'),
+			empty: PERFORMER_EMPTY.orchestras
 		}
 	];
 
@@ -679,7 +688,7 @@
 								</button>
 							</div>
 						{:else if !card.table}
-							<div class="placeholder">데이터가 없습니다</div>
+							<div class="placeholder">{card.empty ?? '데이터가 없습니다'}</div>
 						{:else}
 							<ReportTable
 								table={card.table}

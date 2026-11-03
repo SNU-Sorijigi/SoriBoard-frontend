@@ -171,13 +171,21 @@ export function tableRegionLabel(title) {
 
 // 차트를 그리지 못할 때 카드에 보일 문구. 차트 제목은 캔버스에만 그려지므로, 남아 있는 문구(실패,
 // 빈 데이터)에는 어느 카드인지 제목을 붙인다. 불러오는 중은 잠깐이라 그대로 둔다.
+// empty 를 주면 빈 카드에 '데이터가 없습니다' 대신 왜 비었는지를 보인다(예: PERFORMER_EMPTY).
 /**
  * @param {string} title
- * @param {{ loading?: boolean, error?: string }} [state]
+ * @param {{ loading?: boolean, error?: string, empty?: string }} [state]
  */
-export function placeholderText(title, { loading = false, error = '' } = {}) {
+export function placeholderText(title, { loading = false, error = '', empty = '' } = {}) {
 	if (loading) return '불러오는 중...';
-	const message = error || '데이터가 없습니다';
+	const message = error || empty || '데이터가 없습니다';
 	const name = title.trim();
 	return name ? `${name} — ${message}` : message;
 }
+
+// 연주자 카드가 빈 까닭: 통계 API 는 그 연주자가 적히지 않은 선곡을 세지 않는다(피아노·실내악·성악 등).
+export const PERFORMER_EMPTY = {
+	soloists: '독주자가 적힌 선곡이 없습니다',
+	conductors: '지휘자가 적힌 선곡이 없습니다',
+	orchestras: '오케스트라가 적힌 선곡이 없습니다'
+};

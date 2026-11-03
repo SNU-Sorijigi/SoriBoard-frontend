@@ -16,6 +16,7 @@
 	export let noteLink = null; // { href, text }: 경고 뒤에 붙는 링크(예: 작곡가 정리)
 	export let chartNote = ''; // 차트에만 붙는 말: 차트가 화면에 있는 동안만 보인다(예: 잘린 동점, chartTieNote).
 	export let error = ''; // 불러오기 실패 문구
+	export let emptyText = ''; // 빈 카드에 '데이터가 없습니다' 대신 보일 까닭(예: PERFORMER_EMPTY, statTable.js)
 	export let table = null; // '표로 보기'의 표(statTable.js). 없으면 data 와 csvHeaders 로 만든다.
 	export let rowLabel = ''; // 주면 표의 이름 칸이 단추가 된다(예: '곡 보기', DataTable 의 rowselect).
 	/** @type {(string | null)[]} */
@@ -97,7 +98,7 @@
 		{#if loading || error || !hasData}
 			<!-- 제목은 차트가 그리므로, 실패하거나 비었으면 어느 카드인지 여기서 밝힌다. -->
 			<div class="placeholder" class:error={!loading && error}>
-				{placeholderText(title, { loading, error })}
+				{placeholderText(title, { loading, error, empty: emptyText || undefined })}
 				{#if !loading && error && retry}
 					<button class="tool-btn" on:click={onRetry} aria-label={`${title} 다시 시도`}>
 						다시 시도
