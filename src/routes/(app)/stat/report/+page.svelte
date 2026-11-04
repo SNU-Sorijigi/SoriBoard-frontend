@@ -29,6 +29,13 @@
 	import { todayStamp } from '$lib/csv.js';
 	import { byCount } from '$lib/statFirsts.js';
 	import {
+		splitSpellings,
+		splitSpellingNote,
+		spellingKindOf,
+		duplicatesSearch,
+		catalogViewHref
+	} from '$lib/catalogSpelling.js';
+	import {
 		reportHref,
 		pickSemester,
 		previousSemester,
@@ -330,6 +337,34 @@
 				requested: historyHref({ ...historyFilter, requested: 'true' })
 			}
 		: {};
+	// 표기 정리의 묶음(catalog/duplicates/, 전체 기간): 학기와 상관없으므로 처음 한 번만 부르고(통계처럼),
+	// 많이 튼 작곡가·독주자·지휘자·오케스트라의 응답(상위 100 전체, 표의 10 행만이 아니다)에 한 묶음의
+	// 표기가 둘 이상 들면 그 카드의 표 아래에 알린다. 종류마다 따로 부르고, 못 받은 종류만 줄을 두지 않는다.
+	/** @type {Record<string, string>} 카드 → catalog/duplicates/ 의 kind */
+	const SPLIT_KINDS = Object.fromEntries(
+		Object.keys(DRILL_CARDS).map((card) => [card, spellingKindOf(DRILL_CARDS[card].param)])
+	);
+	/** @type {Record<string, any>} */
+	let duplicates = {};
+	async function loadDuplicates(kind) {
+		try {
+			const res = await fetch(`/api/catalog/duplicates${duplicatesSearch(kind)}`);
+			if (!res.ok) throw new Error(`catalog/duplicates ${res.status}`);
+			const groups = await res.json();
+			// 나란히 부르므로, 받은 뒤의 duplicates 에 더한다(await 앞에서 펼치면 먼저 온 종류를 덮는다).
+			duplicates = { ...duplicates, [kind]: groups };
+		} catch (e) {
+			console.error(`표기만 다른 이름 로딩 실패 (${kind})`, e);
+		}
+	}
+	onMount(() => Object.values(SPLIT_KINDS).forEach(loadDuplicates));
+	// 학기를 바꾸면 다시 부르지 않고 이 학기의 응답으로 줄만 다시 센다.
+	$: splits = Object.fromEntries(
+		Object.entries(SPLIT_KINDS).map(([card, kind]) => [
+			card,
+			splitSpellingNote(splitSpellings(duplicates[kind], data[card]?.current))
+		])
+	);
 	$: topCards = [
 		{
 			key: 'composers',
@@ -344,7 +379,9 @@
 					)
 				: null,
 			links: linksOf(composers, semesterId),
-			note: cutNote(data.composers?.current, '작곡가가', '명')
+			note: cutNote(data.composers?.current, '작곡가가', '명'),
+			split: splits.composers,
+			splitKind: SPLIT_KINDS.composers
 		},
 		{
 			key: 'soloists',
@@ -354,6 +391,8 @@
 				: null,
 			links: performerLinksOf('soloists', soloists, semesterId),
 			note: cutNote(data.soloists?.current, '독주자가', '명'),
+			split: splits.soloists,
+			splitKind: SPLIT_KINDS.soloists,
 			empty: PERFORMER_EMPTY.soloists
 		},
 		{
@@ -374,6 +413,8 @@
 				: null,
 			links: performerLinksOf('conductors', conductors, semesterId),
 			note: cutNote(data.conductors?.current, '지휘자가', '명'),
+			split: splits.conductors,
+			splitKind: SPLIT_KINDS.conductors,
 			empty: PERFORMER_EMPTY.conductors
 		},
 		{
@@ -384,6 +425,8 @@
 				: null,
 			links: performerLinksOf('orchestras', orchestras, semesterId),
 			note: cutNote(data.orchestras?.current, '오케스트라가', '곳'),
+			split: splits.orchestras,
+			splitKind: SPLIT_KINDS.orchestras,
 			empty: PERFORMER_EMPTY.orchestras
 		}
 	];
@@ -720,6 +763,13 @@
 								<p class="mix-note">
 									{card.note}<span class="note-link"
 										>&nbsp;· <a href={fullListHref}>통계에서 모두 보기</a></span
+									>
+								</p>
+							{/if}
+							{#if card.split}
+								<p class="mix-note">
+									{card.split}<span class="note-link"
+										>&nbsp;· <a href={catalogViewHref('', card.splitKind)}>표기 정리</a></span
 									>
 								</p>
 							{/if}
