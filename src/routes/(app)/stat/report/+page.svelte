@@ -33,7 +33,8 @@
 		splitSpellingNote,
 		spellingKindOf,
 		duplicatesSearch,
-		catalogViewHref
+		catalogViewHref,
+		MUSIC_SPLIT_LEAD
 	} from '$lib/catalogSpelling.js';
 	import {
 		reportHref,
@@ -339,7 +340,8 @@
 		: {};
 	// 표기 정리의 묶음(catalog/duplicates/, 전체 기간): 학기와 상관없으므로 처음 한 번만 부르고(통계처럼),
 	// 많이 튼 작곡가·독주자·지휘자·오케스트라의 응답(상위 100 전체, 표의 10 행만이 아니다)에 한 묶음의
-	// 표기가 둘 이상 들면 그 카드의 표 아래에 알린다. 종류마다 따로 부르고, 못 받은 종류만 줄을 두지 않는다.
+	// 표기가 둘 이상 들면 그 카드의 표 아래에 알린다. 많이 튼 곡은 작품 번호가 같은 곡(kind=music)으로 같다.
+	// 종류마다 따로 부르고, 못 받은 종류만 줄을 두지 않는다.
 	/** @type {Record<string, string>} 카드 → catalog/duplicates/ 의 kind */
 	const SPLIT_KINDS = Object.fromEntries(
 		Object.keys(DRILL_CARDS).map((card) => [card, spellingKindOf(DRILL_CARDS[card].param)])
@@ -357,13 +359,18 @@
 			console.error(`표기만 다른 이름 로딩 실패 (${kind})`, e);
 		}
 	}
-	onMount(() => Object.values(SPLIT_KINDS).forEach(loadDuplicates));
+	onMount(() => [...Object.values(SPLIT_KINDS), 'music'].forEach(loadDuplicates));
 	// 학기를 바꾸면 다시 부르지 않고 이 학기의 응답으로 줄만 다시 센다.
 	$: splits = Object.fromEntries(
 		Object.entries(SPLIT_KINDS).map(([card, kind]) => [
 			card,
 			splitSpellingNote(splitSpellings(duplicates[kind], data[card]?.current))
 		])
+	);
+	$: worksSplit = splitSpellingNote(
+		splitSpellings(duplicates.music, data.works?.current),
+		2,
+		MUSIC_SPLIT_LEAD
 	);
 	$: topCards = [
 		{
@@ -403,6 +410,8 @@
 				: null,
 			links: workLinksOf(works, semesterId),
 			note: cutNote(data.works?.current, '곡이', '곡'),
+			split: worksSplit,
+			splitKind: 'music',
 			wide: true
 		},
 		{

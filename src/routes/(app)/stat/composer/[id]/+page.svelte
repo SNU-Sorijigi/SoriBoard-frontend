@@ -52,7 +52,8 @@
 		composerVariants,
 		duplicatesSearch,
 		splitSpellings,
-		splitSpellingNote
+		splitSpellingNote,
+		MUSIC_SPLIT_LEAD
 	} from '$lib/catalogSpelling.js';
 	import { hasPeriodStart, firstsSubtitle, firstsEmptyText, byCount } from '$lib/statFirsts.js';
 	import { readTableView, writeTableView, tableViewHref } from '$lib/statQuery.js';
@@ -75,6 +76,7 @@
 		composerFacts,
 		composerTimelineBucket,
 		composerWorksTable,
+		composerWorkName,
 		composerWorksCsv,
 		composerFirstsTable,
 		composerIsWholeRecord,
@@ -251,7 +253,8 @@
 	// 표기 정리의 묶음(catalog/duplicates/, 전체 기간·전체 지기): 모든 작곡가에 같으므로 종류마다(작곡가,
 	// 독주자, 지휘자, 오케스트라) 처음 한 번만 부르고 둔다(다른 작곡가로 옮겨 가거나 기간·지기를 바꿔도 다시
 	// 부르지 않는다). 작곡가 묶음은 제목 아래 '표기만 다른 이름' 줄에, 나머지는 많이 튼 독주자·지휘자·오케스트라에
-	// 한 묶음의 표기가 둘 이상 들면 그 카드의 줄에 알린다(통계와 같다). 못 받은 종류만 줄을 두지 않는다.
+	// 한 묶음의 표기가 둘 이상 들면 그 카드의 줄에 알린다(통계와 같다). 많이 튼 곡은 작품 번호가 같은 곡
+	// (kind=music, 한 작곡가 안의 묶음)으로 같다. 못 받은 종류만 줄을 두지 않는다.
 	/** @type {Record<string, any>} */
 	let duplicates = {};
 	let duplicatesAsked = false;
@@ -268,12 +271,26 @@
 	}
 	function loadAllDuplicates() {
 		duplicatesAsked = true;
-		['composer', 'player', 'conductor', 'orchestra'].forEach(loadDuplicates);
+		['composer', 'player', 'conductor', 'orchestra', 'music'].forEach(loadDuplicates);
 	}
 	$: variants = composerVariants(duplicates.composer, composerId);
 	$: soloistSplit = splitSpellingNote(splitSpellings(duplicates.player, soloists));
 	$: conductorSplit = splitSpellingNote(splitSpellings(duplicates.conductor, conductors));
 	$: orchestraSplit = splitSpellingNote(splitSpellings(duplicates.orchestra, orchestras));
+	// 곡 이름은 표처럼 작곡가 이름 없이(작곡가를 아직 못 받았으면 응답의 이름 그대로).
+	$: worksSplit = splitSpellingNote(
+		splitSpellings(
+			duplicates.music,
+			works && composer
+				? {
+						...works,
+						items: works.items.map((item) => ({ ...item, name: composerWorkName(item, composer) }))
+					}
+				: works
+		),
+		2,
+		MUSIC_SPLIT_LEAD
+	);
 	// 카드의 줄: 상위 N위 줄 뒤에 표기 줄을 ' · '로 잇고, 표기 줄이 있으면 그 종류의 표기 정리로 잇는다.
 	const withSplit = (capNote, split) => [capNote, split].filter(Boolean).join(' · ');
 	const splitLink = (split, kind) =>
@@ -861,6 +878,11 @@
 							subtitle={worksSubtitle}
 							links={worksLinks}
 						/>
+						{#if worksSplit}
+							<div class="note">
+								{worksSplit}&nbsp;· <a href={catalogViewHref('', 'music')}>표기 정리</a>
+							</div>
+						{/if}
 					{/if}
 				</section>
 				<ChartCard
@@ -1196,6 +1218,18 @@
 	}
 	.placeholder.error {
 		color: var(--secondary-secondary-800, #95560d);
+	}
+	/* 많이 튼 곡의 줄: ChartCard 의 .note 와 같다 */
+	.note {
+		margin-top: 4px;
+		font-family: var(--small-medium-font-family, 'Noto Sans KR', sans-serif);
+		font-size: var(--small-medium-font-size, 13px);
+		color: var(--secondary-secondary-800, #95560d);
+		text-align: center;
+	}
+	.note a {
+		color: inherit;
+		text-underline-offset: 3px;
 	}
 
 	@page {

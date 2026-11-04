@@ -5,10 +5,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DRILL_CARDS } from '../../src/lib/statDrill.js';
 import {
+	MUSIC_SPLIT_LEAD,
 	spellingKindOf,
 	splitSpellings,
 	splitSpellingNote
 } from '../../src/lib/catalogSpelling.js';
+import { composerWorkName } from '../../src/lib/composerStats.js';
 import { topOf } from '../../src/lib/statTable.js';
 
 const kindOf = (card) => spellingKindOf(DRILL_CARDS[card].param);
@@ -77,4 +79,112 @@ test('a group with only one spelling in this 학기 answer gives no note', () =>
 	// 응답이 없거나(불러오는 중·실패) 표기 정리를 못 받았으면 줄도 없다.
 	assert.equal(noteOf(duplicates, undefined), '');
 	assert.equal(noteOf(undefined, current), '');
+});
+
+// 많이 튼 곡(학기 결산의 상위 10, 작곡가 페이지): 작품 번호가 같은 곡(kind=music)의 묶음을 두 묶음까지.
+const worksNoteOf = (duplicates, envelope) =>
+	splitSpellingNote(splitSpellings(duplicates, envelope), 2, MUSIC_SPLIT_LEAD);
+const musicGroup = (key, rows) => ({
+	key,
+	count: rows.reduce((sum, row) => sum + row.count, 0),
+	rows: rows.map(([id, name, count]) => ({
+		id,
+		name,
+		count,
+		composer_id: 1,
+		composer_name: '가상 A'
+	}))
+});
+
+test('학기 결산 많이 튼 곡: a piece split outside the 10 rows gives the 작품 번호 note, 2 groups + 외 N묶음', () => {
+	const works = Array.from({ length: 30 }, (_, i) => ({
+		id: 500 + i,
+		name: `가상 B - 소품 ${i + 1}번`,
+		count: 40 - i
+	}));
+	works[0] = { id: 21, name: '가상 A - 교향곡 1번 Op. 21', count: 40 };
+	works[13] = { id: 22, name: '가상 A - 교향곡 1번 op.21', count: 27 };
+	works[4] = { id: 31, name: '가상 A - 소나타 Op. 5', count: 36 };
+	works[20] = { id: 32, name: '가상 A - 소나타 op.5', count: 20 };
+	works[25] = { id: 41, name: '가상 A - 사중주 Op. 9', count: 15 };
+	works[29] = { id: 42, name: '가상 A - 사중주 Op.9', count: 11 };
+	const current = {
+		total_plays: 900,
+		labels: works.map((item) => item.name),
+		values: works.map((item) => item.count),
+		items: works
+	};
+	const duplicates = {
+		kind: 'music',
+		groups: [
+			// 전체 기간의 순서: 이 학기의 합(사중주 26, 교향곡 67, 소나타 56)과 다르다.
+			[
+				'op9',
+				[
+					[41, '사중주 Op. 9', 90],
+					[42, '사중주 Op.9', 50]
+				]
+			],
+			[
+				'op21',
+				[
+					[21, '교향곡 1번 Op. 21', 60],
+					[22, '교향곡 1번 op.21', 30]
+				]
+			],
+			[
+				'op5',
+				[
+					[31, '소나타 Op. 5', 40],
+					[32, '소나타 op.5', 20],
+					[33, '소나타 Op 5', 5]
+				]
+			]
+		].map(([key, rows]) => musicGroup(key, rows))
+	};
+	const shown = topOf(current, 10).items.map((item) => item.id);
+	assert.ok(shown.includes(21) && !shown.includes(22));
+	assert.equal(
+		worksNoteOf(duplicates, current),
+		'작품 번호가 같은 곡은 따로 셉니다: ‘가상 A - 교향곡 1번 Op. 21’ 40회 + ‘가상 A - 교향곡 1번 op.21’ 27회; ' +
+			'‘가상 A - 소나타 Op. 5’ 36회 + ‘가상 A - 소나타 op.5’ 20회 외 1묶음'
+	);
+});
+
+test('작곡가 페이지 많이 튼 곡: the note names pieces as the table does, without the composer', () => {
+	const composer = { id: 3, name: '가상 C' };
+	const works = {
+		items: [
+			{ id: 61, name: '가상 C - 교향곡 1번 Op. 21', count: 9, composer_id: 3 },
+			{ id: 70, name: '가상 C - 미뉴에트', count: 6, composer_id: 3 },
+			// 같은 이름이 앞에 붙었지만 다른 작곡가(composer_id)의 곡: 이름을 그대로 둔다.
+			{ id: 81, name: '가상 C - 세레나데 K. 550', count: 5, composer_id: 4 },
+			{ id: 62, name: '가상 C - 교향곡 1번 op.21', count: 4, composer_id: 3 },
+			{ id: 82, name: '가상 C - 세레나데 KV 550', count: 2, composer_id: 4 }
+		]
+	};
+	const duplicates = {
+		kind: 'music',
+		groups: [
+			musicGroup('op21', [
+				[61, '교향곡 1번 Op. 21', 30],
+				[62, '교향곡 1번 op.21', 12]
+			]),
+			musicGroup('k550', [
+				[81, '세레나데 K. 550', 8],
+				[82, '세레나데 KV 550', 3]
+			])
+		]
+	};
+	const named = {
+		...works,
+		items: works.items.map((item) => ({ ...item, name: composerWorkName(item, composer) }))
+	};
+	assert.equal(
+		worksNoteOf(duplicates, named),
+		'작품 번호가 같은 곡은 따로 셉니다: ‘교향곡 1번 Op. 21’ 9회 + ‘교향곡 1번 op.21’ 4회; ' +
+			'‘가상 C - 세레나데 K. 550’ 5회 + ‘가상 C - 세레나데 KV 550’ 2회'
+	);
+	// 작곡가를 아직 못 받았으면 응답의 이름 그대로.
+	assert.match(worksNoteOf(duplicates, works), /‘가상 C - 교향곡 1번 Op\. 21’ 9회/);
 });
