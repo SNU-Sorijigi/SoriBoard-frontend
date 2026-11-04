@@ -16,7 +16,8 @@ import {
 	PERFORMER_EMPTY,
 	unknownEraNote,
 	topOf,
-	rankCapNote
+	rankCapNote,
+	rankCapSubtitle
 } from '../../src/lib/statTable.js';
 
 test('equal counts share a rank and the next rank skips', () => {
@@ -264,4 +265,33 @@ test('a ranking table says it stops at the cap only when it reaches it', () => {
 	assert.equal(rankCapNote(envelope(99), 100), '');
 	assert.equal(rankCapNote(envelope(100), 100), '표로 보기·CSV는 상위 100위까지');
 	assert.equal(rankCapNote(null, 100), '');
+});
+
+test('a capped ranking table says out of how many, from the summary total', () => {
+	const cap = '표로 보기·CSV는 상위 100위까지';
+	assert.equal(rankCapNote(envelope(100), 100, 312, ['작곡가', '명']), `${cap} (작곡가 312명 중)`);
+	assert.equal(rankCapNote(envelope(100), 100, 1204, ['곡', '곡']), `${cap} (곡 1,204곡 중)`);
+	assert.equal(
+		rankCapNote(envelope(100), 100, 118, ['오케스트라', '곳']),
+		`${cap} (오케스트라 118곳 중)`
+	);
+	// 표에 모두 있으면(전체가 줄 수보다 많지 않으면) 적지 않는다.
+	assert.equal(rankCapNote(envelope(100), 100, 100, ['작곡가', '명']), '');
+	assert.equal(rankCapNote(envelope(100), 100, 99, ['작곡가', '명']), '');
+	// 전체를 모르면(요약을 불러오는 중, 실패, 그 칸이 없는 응답) 지금의 문구.
+	assert.equal(rankCapNote(envelope(100), 100, undefined, ['작곡가', '명']), cap);
+	assert.equal(rankCapNote(envelope(100), 100, null, ['작곡가', '명']), cap);
+	// 상한에 닿지 않았거나 응답이 없으면 없다.
+	assert.equal(rankCapNote(envelope(99), 100, 312, ['작곡가', '명']), '');
+	assert.equal(rankCapNote(null, 100, 312, ['작곡가', '명']), '');
+});
+
+test("a 작곡가 page's capped 많이 튼 곡 subtitle says out of how many", () => {
+	assert.equal(rankCapSubtitle(envelope(100), 100, 212, '곡'), ' · 상위 100곡 (212곡 중)');
+	assert.equal(rankCapSubtitle(envelope(100), 100, 1204, '곡'), ' · 상위 100곡 (1,204곡 중)');
+	assert.equal(rankCapSubtitle(envelope(100), 100, undefined, '곡'), ' · 상위 100곡');
+	assert.equal(rankCapSubtitle(envelope(100), 100, null, '곡'), ' · 상위 100곡');
+	assert.equal(rankCapSubtitle(envelope(100), 100, 100, '곡'), '');
+	assert.equal(rankCapSubtitle(envelope(99), 100, 212, '곡'), '');
+	assert.equal(rankCapSubtitle(null, 100, 212, '곡'), '');
 });

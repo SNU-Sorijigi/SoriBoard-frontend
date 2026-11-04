@@ -970,7 +970,7 @@
 			<ChartCard
 				showTable={allTables}
 				title="많이 튼 작곡가"
-				note={rankCapNote(composers, WORKS_LIMIT)}
+				note={rankCapNote(composers, WORKS_LIMIT, summary?.composers, ['작곡가', '명'])}
 				chartNote={chartTieNote(composers, LIMITS.composers, WORKS_LIMIT, '작곡가가', '명')}
 				option={composerOpt}
 				data={composers}
@@ -1008,7 +1008,7 @@
 				showTable={allTables}
 				title="많이 튼 지휘자"
 				emptyText={PERFORMER_EMPTY.conductors}
-				note={rankCapNote(conductors, WORKS_LIMIT)}
+				note={rankCapNote(conductors, WORKS_LIMIT, summary?.conductors, ['지휘자', '명'])}
 				chartNote={chartTieNote(conductors, LIMITS.conductors, WORKS_LIMIT, '지휘자가', '명')}
 				option={conductorOpt}
 				data={conductors}
@@ -1027,7 +1027,7 @@
 				showTable={allTables}
 				title="많이 튼 오케스트라"
 				emptyText={PERFORMER_EMPTY.orchestras}
-				note={rankCapNote(orchestras, WORKS_LIMIT)}
+				note={rankCapNote(orchestras, WORKS_LIMIT, summary?.orchestras, ['오케스트라', '곳'])}
 				chartNote={chartTieNote(orchestras, LIMITS.orchestras, WORKS_LIMIT, '오케스트라가', '곳')}
 				option={orchestraOpt}
 				data={orchestras}
@@ -1086,7 +1086,7 @@
 			<ChartCard
 				showTable={allTables}
 				title="많이 튼 곡"
-				note={rankCapNote(works, WORKS_LIMIT)}
+				note={rankCapNote(works, WORKS_LIMIT, summary?.works, ['곡', '곡'])}
 				chartNote={chartTieNote(works, LIMITS.works, WORKS_LIMIT, '곡이', '곡')}
 				option={worksOpt}
 				data={works}

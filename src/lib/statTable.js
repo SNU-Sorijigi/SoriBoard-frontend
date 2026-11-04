@@ -95,13 +95,45 @@ export function topOf(envelope, n) {
 	};
 }
 
-// 순위 표가 백엔드의 상한(cap)까지 찼으면, 그 뒤가 더 있을 수 있다고 카드 아래에 적는다.
+// 순위 표가 백엔드의 상한(cap)까지 찼으면 잘렸을 수 있다. total 은 같은 기간·필터의 요약(stats/summary)이
+// 세는 전체 수(KPI 칸의 숫자)다. 그것이 표의 줄 수보다 많지 않으면 표에 모두 있으므로 잘린 것이 아니다.
+// total 을 모르면(요약을 불러오는 중, 실패, 그 칸이 없는 응답) 잘렸다고 본다.
+const isCount = (v) => typeof v === 'number' && Number.isFinite(v);
 /**
  * @param {{ items: unknown[] } | null | undefined} envelope
  * @param {number} cap
+ * @param {number | null | undefined} [total]
  */
-export const rankCapNote = (envelope, cap) =>
-	envelope && envelope.items.length >= cap ? `표로 보기·CSV는 상위 ${cap}위까지` : '';
+const rankIsCut = (envelope, cap, total) =>
+	!!envelope && envelope.items.length >= cap && !(isCount(total) && total <= envelope.items.length);
+
+// 잘린 순위 표는 카드 아래에 어디까지 실었는지, total 을 알면 몇 중인지도 적는다:
+// '표로 보기·CSV는 상위 100위까지 (작곡가 312명 중)'. label 은 [이름, 단위] (예: ['작곡가', '명']).
+/**
+ * @param {{ items: unknown[] } | null | undefined} envelope
+ * @param {number} cap
+ * @param {number | null | undefined} [total]
+ * @param {[string, string]} [label]
+ */
+export function rankCapNote(envelope, cap, total, label) {
+	if (!rankIsCut(envelope, cap, total)) return '';
+	const note = `표로 보기·CSV는 상위 ${cap}위까지`;
+	return isCount(total) && label
+		? `${note} (${label[0]} ${formatCount(total)}${label[1]} 중)`
+		: note;
+}
+
+// 같은 판단을 부제목 꼬리로: ' · 상위 100곡 (212곡 중)', total 을 모르면 ' · 상위 100곡', 잘리지 않았으면 ''.
+/**
+ * @param {{ items: unknown[] } | null | undefined} envelope
+ * @param {number} cap
+ * @param {number | null | undefined} total
+ * @param {string} unit
+ */
+export function rankCapSubtitle(envelope, cap, total, unit) {
+	if (!rankIsCut(envelope, cap, total)) return '';
+	return ` · 상위 ${cap}${unit}` + (isCount(total) ? ` (${formatCount(total)}${unit} 중)` : '');
+}
 
 // 도넛(시대·장르): 이름, 횟수, 비율.
 /**

@@ -10,6 +10,7 @@
 	import {
 		placeholderText,
 		rankCapNote,
+		rankCapSubtitle,
 		shareTable,
 		topOf,
 		PERFORMER_EMPTY
@@ -530,7 +531,7 @@
 	// 처음·마지막 날짜는 기간·지기와 상관없이 그 곡의 전체 기록 기준이다(stats/works).
 	$: worksSubtitle = works
 		? subtitleFor(works) +
-			(works.items.length >= WORKS_LIMIT ? ` · 상위 ${WORKS_LIMIT}곡` : '') +
+			rankCapSubtitle(works, WORKS_LIMIT, summary?.works, '곡') +
 			(period === ALL && !userId ? '' : ' · 처음·마지막은 전체 기록 기준')
 		: '';
 	$: count = (v) => (v == null ? '—' : v.toLocaleString());
@@ -864,7 +865,7 @@
 					showTable={allTables}
 					title="많이 튼 지휘자"
 					emptyText={PERFORMER_EMPTY.conductors}
-					note={rankCapNote(conductors, WORKS_LIMIT)}
+					note={rankCapNote(conductors, WORKS_LIMIT, summary?.conductors, ['지휘자', '명'])}
 					chartNote={chartTieNote(conductors, LIMITS.conductors, WORKS_LIMIT, '지휘자가', '명')}
 					option={conductorOpt}
 					data={conductors}
@@ -882,7 +883,7 @@
 					showTable={allTables}
 					title="많이 튼 오케스트라"
 					emptyText={PERFORMER_EMPTY.orchestras}
-					note={rankCapNote(orchestras, WORKS_LIMIT)}
+					note={rankCapNote(orchestras, WORKS_LIMIT, summary?.orchestras, ['오케스트라', '곳'])}
 					chartNote={chartTieNote(orchestras, LIMITS.orchestras, WORKS_LIMIT, '오케스트라가', '곳')}
 					option={orchestraOpt}
 					data={orchestras}
