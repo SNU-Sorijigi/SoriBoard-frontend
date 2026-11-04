@@ -41,3 +41,15 @@ export function firstsEmptyText(title, unit, previous = null) {
 	const before = previous ? ` · 지난 학기 ${previous.items.length.toLocaleString()}${unit}` : '';
 	return `${title} — 이 기간에는 없습니다${before}`;
 }
+
+// 카드의 '많이 튼 순': 같은 목록을 횟수가 많은 것부터. 횟수가 같으면 받은 순서(처음 튼 날, 이름 순)를
+// 지킨다(정렬은 안정적이다). 받은 목록은 바꾸지 않는다. 표와 이름의 링크는 모두 items 에서 만든다.
+/**
+ * @template {{ count: number }} T
+ * @param {{ items: T[] } | null | undefined} firsts
+ * @returns {{ items: T[] } | null}
+ */
+export function byCount(firsts) {
+	if (!firsts) return null;
+	return { ...firsts, items: [...firsts.items].sort((a, b) => b.count - a.count) };
+}

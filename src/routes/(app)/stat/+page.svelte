@@ -90,7 +90,7 @@
 		ongoingText,
 		upcomingText
 	} from '$lib/semesterReport.js';
-	import { hasPeriodStart, firstsSubtitle, firstsEmptyText } from '$lib/statFirsts.js';
+	import { hasPeriodStart, firstsSubtitle, firstsEmptyText, byCount } from '$lib/statFirsts.js';
 	import { memberFileText } from '$lib/statFileName.js';
 	import { pageTitle, periodTitle } from '$lib/statTitle.js';
 
@@ -738,8 +738,12 @@
 	$: firstsAsked = hasPeriodStart({ period, start: period === CUSTOM ? customStart : startDate });
 	$: firstComposers = data.firstComposers;
 	$: firstWorks = data.firstWorks;
-	$: firstComposerLinks = firstComposers
-		? firstComposers.items.map((item) =>
+	// 카드마다 '많이 튼 순'(TableCard). 기간·지기를 바꿔도 남는다. 표와 링크는 같은 보이는 목록에서 만든다.
+	let firstsByCount = { composers: false, works: false };
+	$: shownFirstComposers = firstsByCount.composers ? byCount(firstComposers) : firstComposers;
+	$: shownFirstWorks = firstsByCount.works ? byCount(firstWorks) : firstWorks;
+	$: firstComposerLinks = shownFirstComposers
+		? shownFirstComposers.items.map((item) =>
 				tableViewHref(
 					composerHref(item.id, {
 						period,
@@ -752,8 +756,8 @@
 				)
 			)
 		: [];
-	$: firstWorkLinks = firstWorks
-		? firstWorks.items.map((item) =>
+	$: firstWorkLinks = shownFirstWorks
+		? shownFirstWorks.items.map((item) =>
 				historyHref({ ...historyFilter, targets: [{ param: 'music_id', id: String(item.id) }] })
 			)
 		: [];
@@ -1236,8 +1240,12 @@
 			<TableCard
 				title="처음 튼 작곡가"
 				subtitle={firstsSubtitle(viewLabel, firstComposers, '작곡가', '명', previousFirstComposers)}
-				table={firstComposers?.items.length ? firstsTable(firstComposers, '작곡가') : null}
+				table={shownFirstComposers?.items.length
+					? firstsTable(shownFirstComposers, '작곡가')
+					: null}
 				links={firstComposerLinks}
+				sortLabel="많이 튼 순"
+				bind:sorted={firstsByCount.composers}
 				loading={loading.firstComposers}
 				error={errors.firstComposers}
 				retry={() => retry('firstComposers')}
@@ -1251,8 +1259,10 @@
 			<TableCard
 				title="처음 튼 곡"
 				subtitle={firstsSubtitle(viewLabel, firstWorks, '곡', '곡', previousFirstWorks)}
-				table={firstWorks?.items.length ? firstsTable(firstWorks, '곡') : null}
+				table={shownFirstWorks?.items.length ? firstsTable(shownFirstWorks, '곡') : null}
 				links={firstWorkLinks}
+				sortLabel="많이 튼 순"
+				bind:sorted={firstsByCount.works}
 				loading={loading.firstWorks}
 				error={errors.firstWorks}
 				retry={() => retry('firstWorks')}

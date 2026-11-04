@@ -1,6 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { hasPeriodStart, firstsSubtitle, firstsEmptyText } from '../../src/lib/statFirsts.js';
+import {
+	hasPeriodStart,
+	firstsSubtitle,
+	firstsEmptyText,
+	byCount
+} from '../../src/lib/statFirsts.js';
 
 test('a view has a period start for a 학기, and for 이번 학기 or 직접 지정 with a start', () => {
 	assert.equal(hasPeriodStart({ period: 'current', start: '2026-09-01' }), true);
@@ -102,4 +107,29 @@ test('an empty list says there is none in this period, with the previous 학기 
 		firstsEmptyText('처음 튼 작곡가', '명', items(1234)),
 		'처음 튼 작곡가 — 이 기간에는 없습니다 · 지난 학기 1,234명'
 	);
+});
+
+test('많이 튼 순 puts the most-played first and keeps the received order for equal counts', () => {
+	const firsts = {
+		items: [
+			{ id: 1, name: '가', first_played: '2026-09-01', count: 1 },
+			{ id: 2, name: '나', first_played: '2026-09-02', count: 5 },
+			{ id: 3, name: '다', first_played: '2026-09-03', count: 5 }
+		]
+	};
+	assert.deepEqual(
+		byCount(firsts).items.map((item) => item.first_played),
+		['2026-09-02', '2026-09-03', '2026-09-01']
+	);
+	// 받은 목록은 그대로다.
+	assert.deepEqual(
+		firsts.items.map((item) => item.id),
+		[1, 2, 3]
+	);
+});
+
+test('많이 튼 순 has nothing to sort before the list is there, and an empty list stays empty', () => {
+	assert.equal(byCount(null), null);
+	assert.equal(byCount(undefined), null);
+	assert.deepEqual(byCount({ items: [] }), { items: [] });
 });

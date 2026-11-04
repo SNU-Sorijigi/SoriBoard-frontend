@@ -19,6 +19,10 @@
 	/** @type {string | string[]} */
 	export let fileTag = ''; // 내려받는 파일 이름에서 제목 뒤에 붙는 보기(statFileName.js)
 	export let emptyText = ''; // 주면 부르지 않은 카드에 이 문구를 보인다(예: 기간의 시작이 없을 때).
+	// 주면(예: '많이 튼 순') 표가 보이는 동안 왼쪽 위에 그 순서로 보는 단추가 있다. 비우면 단추가 없다.
+	// 눌렸는지는 sorted 로 알리고(bind:sorted), 행을 그 순서로 주는 것은 부르는 쪽이다(table, links).
+	export let sortLabel = '';
+	export let sorted = false;
 
 	let card;
 
@@ -30,6 +34,8 @@
 
 	$: canExport = Boolean(table) && !loading && !error && !emptyText;
 	// 빈 카드는 한 줄뿐이므로 표의 높이를 지키지 않는다(불러오는 중·실패는 표가 올 자리라 그대로).
+	$: showSort = Boolean(sortLabel) && canExport;
+	$: shownSubtitle = sorted && sortLabel ? `${subtitle} · ${sortLabel}` : subtitle;
 	$: compact = !loading && !error && (Boolean(emptyText) || !table);
 
 	function exportCsv() {
@@ -40,6 +46,18 @@
 </script>
 
 <div class="card" bind:this={card} tabindex="-1" role="group" aria-label={title}>
+	{#if showSort}
+		<button
+			class="tool-btn view-toggle"
+			class:active={sorted}
+			aria-pressed={sorted}
+			on:click={() => (sorted = !sorted)}
+			title={`${sortLabel}으로 보기`}
+			aria-label={`${title} ${sortLabel}으로 보기`}
+		>
+			{sortLabel}
+		</button>
+	{/if}
 	<div class="toolbar">
 		<button
 			class="tool-btn"
@@ -64,7 +82,7 @@
 				{/if}
 			</div>
 		{:else}
-			<DataTable {table} {title} {subtitle} {links} />
+			<DataTable {table} {title} subtitle={shownSubtitle} {links} />
 		{/if}
 	</div>
 </div>
@@ -102,6 +120,18 @@
 	}
 	.tool-btn:hover:not(:disabled) {
 		background: var(--secondary-secondary-200, #fdf1e4);
+	}
+	/* ChartCard 의 '표로 보기'와 같은 자리·모양: 왼쪽 위, 눌린 상태는 포인터가 올라가 있어도 유지한다. */
+	.view-toggle {
+		position: absolute;
+		top: 12px;
+		left: 12px;
+		z-index: 2;
+	}
+	.view-toggle.active,
+	.view-toggle.active:hover:not(:disabled) {
+		background: var(--action-bg);
+		color: var(--action-fg);
 	}
 	.tool-btn:disabled {
 		/* exact swatches instead of a 40% opacity blend */
