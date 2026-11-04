@@ -504,19 +504,30 @@
 	onMount(loadAll);
 
 	// 표기 정리의 묶음(catalog/duplicates/, 전체 기간): 기간·지기와 상관없으므로 처음 한 번만 부르고,
-	// 많이 튼 작곡가에 한 묶음의 표기가 둘 이상 들면 그 카드의 줄에 알린다. 못 받으면 줄을 두지 않는다.
-	let duplicates = null;
-	async function loadDuplicates() {
+	// 많이 튼 작곡가·독주자·지휘자·오케스트라에 한 묶음의 표기가 둘 이상 들면 그 카드의 줄에 알린다.
+	// 종류마다 따로 부르고, 못 받은 종류만 줄을 두지 않는다.
+	/** @type {Record<string, any>} */
+	let duplicates = {};
+	async function loadDuplicates(kind) {
 		try {
-			const res = await fetch(`/api/catalog/duplicates${duplicatesSearch('composer')}`);
+			const res = await fetch(`/api/catalog/duplicates${duplicatesSearch(kind)}`);
 			if (!res.ok) throw new Error(`catalog/duplicates ${res.status}`);
-			duplicates = await res.json();
+			const groups = await res.json();
+			// 나란히 부르므로, 받은 뒤의 duplicates 에 더한다(await 앞에서 펼치면 먼저 온 종류를 덮는다).
+			duplicates = { ...duplicates, [kind]: groups };
 		} catch (e) {
-			console.error('표기만 다른 이름 로딩 실패', e);
+			console.error(`표기만 다른 이름 로딩 실패 (${kind})`, e);
 		}
 	}
-	onMount(loadDuplicates);
-	$: composerSplit = splitSpellingNote(splitSpellings(duplicates, composers));
+	onMount(() => ['composer', 'player', 'conductor', 'orchestra'].forEach(loadDuplicates));
+	$: composerSplit = splitSpellingNote(splitSpellings(duplicates.composer, composers));
+	$: soloistSplit = splitSpellingNote(splitSpellings(duplicates.player, soloists));
+	$: conductorSplit = splitSpellingNote(splitSpellings(duplicates.conductor, conductors));
+	$: orchestraSplit = splitSpellingNote(splitSpellings(duplicates.orchestra, orchestras));
+	// 카드의 줄: 상위 N위 줄 뒤에 표기 줄을 ' · '로 잇고, 표기 줄이 있으면 그 종류의 표기 정리로 잇는다.
+	const withSplit = (capNote, split) => [capNote, split].filter(Boolean).join(' · ');
+	const splitLink = (split, kind) =>
+		split ? { href: catalogViewHref('', kind), text: '표기 정리' } : null;
 
 	function onScopeChange(e) {
 		scope = e.detail;
@@ -996,15 +1007,11 @@
 			<ChartCard
 				showTable={allTables}
 				title="많이 튼 작곡가"
-				note={[
+				note={withSplit(
 					rankCapNote(composers, WORKS_LIMIT, summary?.composers, ['작곡가', '명']),
 					composerSplit
-				]
-					.filter(Boolean)
-					.join(' · ')}
-				noteLink={composerSplit
-					? { href: catalogViewHref('', DEFAULT_KIND), text: '표기 정리' }
-					: null}
+				)}
+				noteLink={splitLink(composerSplit, DEFAULT_KIND)}
 				chartNote={chartTieNote(composers, LIMITS.composers, WORKS_LIMIT, '작곡가가', '명')}
 				option={composerOpt}
 				data={composers}
@@ -1023,7 +1030,8 @@
 				showTable={allTables}
 				title="많이 튼 독주자"
 				emptyText={PERFORMER_EMPTY.soloists}
-				note={rankCapNote(soloists, WORKS_LIMIT)}
+				note={withSplit(rankCapNote(soloists, WORKS_LIMIT), soloistSplit)}
+				noteLink={splitLink(soloistSplit, 'player')}
 				chartNote={chartTieNote(soloists, LIMITS.soloists, WORKS_LIMIT, '독주자가', '명')}
 				option={soloistOpt}
 				data={soloists}
@@ -1042,7 +1050,11 @@
 				showTable={allTables}
 				title="많이 튼 지휘자"
 				emptyText={PERFORMER_EMPTY.conductors}
-				note={rankCapNote(conductors, WORKS_LIMIT, summary?.conductors, ['지휘자', '명'])}
+				note={withSplit(
+					rankCapNote(conductors, WORKS_LIMIT, summary?.conductors, ['지휘자', '명']),
+					conductorSplit
+				)}
+				noteLink={splitLink(conductorSplit, 'conductor')}
 				chartNote={chartTieNote(conductors, LIMITS.conductors, WORKS_LIMIT, '지휘자가', '명')}
 				option={conductorOpt}
 				data={conductors}
@@ -1061,7 +1073,11 @@
 				showTable={allTables}
 				title="많이 튼 오케스트라"
 				emptyText={PERFORMER_EMPTY.orchestras}
-				note={rankCapNote(orchestras, WORKS_LIMIT, summary?.orchestras, ['오케스트라', '곳'])}
+				note={withSplit(
+					rankCapNote(orchestras, WORKS_LIMIT, summary?.orchestras, ['오케스트라', '곳']),
+					orchestraSplit
+				)}
+				noteLink={splitLink(orchestraSplit, 'orchestra')}
 				chartNote={chartTieNote(orchestras, LIMITS.orchestras, WORKS_LIMIT, '오케스트라가', '곳')}
 				option={orchestraOpt}
 				data={orchestras}

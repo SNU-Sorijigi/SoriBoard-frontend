@@ -548,3 +548,62 @@ test('the note lists three groups, then how many more', () => {
 		'표기만 다른 이름은 따로 셉니다: ‘A5’ 5회 + ‘B5’ 1회; ‘A4’ 4회 + ‘B4’ 1회; ‘A3’ 3회 + ‘B3’ 1회; ‘A2’ 2회 + ‘B2’ 1회 외 1묶음'
 	);
 });
+
+test('a player group splits 많이 튼 독주자 with its labels and counts, not the catalog names', () => {
+	const players = {
+		kind: 'player',
+		groups: [
+			{
+				key: '가상독주자001',
+				count: 29,
+				rows: [
+					{ id: 1, name: '가상 독주자 001', count: 24, instrument: '피아노' },
+					{ id: 106, name: '가상독주자 001', count: 5, instrument: '피아노' }
+				]
+			}
+		]
+	};
+	const soloists = envelopeOf([
+		{ id: 1, name: '가상 독주자 001 (피아노)', count: 14 },
+		{ id: 7, name: '가상 독주자 007 (첼로)', count: 9 },
+		{ id: 106, name: '가상독주자 001 (피아노)', count: 5 }
+	]);
+	const split = splitSpellings(players, soloists);
+	assert.deepEqual(split, [
+		{
+			rows: [
+				{ id: 1, name: '가상 독주자 001 (피아노)', count: 14 },
+				{ id: 106, name: '가상독주자 001 (피아노)', count: 5 }
+			],
+			count: 19
+		}
+	]);
+	assert.equal(
+		splitSpellingNote(split),
+		'표기만 다른 이름은 따로 셉니다: ‘가상 독주자 001 (피아노)’ 14회 + ‘가상독주자 001 (피아노)’ 5회'
+	);
+});
+
+test('a conductor group with string ids matches a ranking with number ids', () => {
+	const conductors = {
+		kind: 'conductor',
+		groups: [
+			{
+				key: '가상지휘자002',
+				count: 25,
+				rows: [
+					{ id: '2', name: '가상 지휘자 002', count: 22 },
+					{ id: '122', name: '가상 지휘자-002', count: 3 }
+				]
+			}
+		]
+	};
+	const ranking = envelopeOf([
+		{ id: 122, name: '가상 지휘자-002', count: 3 },
+		{ id: 2, name: '가상 지휘자 002', count: 6 }
+	]);
+	assert.equal(
+		splitSpellingNote(splitSpellings(conductors, ranking)),
+		'표기만 다른 이름은 따로 셉니다: ‘가상 지휘자-002’ 3회 + ‘가상 지휘자 002’ 6회'
+	);
+});
