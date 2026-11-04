@@ -6,7 +6,9 @@ import {
 	knownUser,
 	readTableView,
 	writeTableView,
-	tableViewHref
+	tableViewHref,
+	readFirstsByCount,
+	writeFirstsByCount
 } from '../../src/lib/statQuery.js';
 import { composerHref, composerStatHref } from '../../src/lib/composerStats.js';
 import { statHref } from '../../src/lib/playHistory.js';
@@ -151,6 +153,61 @@ test('모든 차트 표로 보기 writes view=table, removes it when off, and ke
 	assert.equal(params.toString(), 'semester_id=3&scope=individual&user_id=12&drill=composers%3A5');
 	writeTableView(params, false);
 	assert.equal(params.has('view'), false);
+});
+
+const firstsByCount = (search) => readFirstsByCount(new URLSearchParams(search));
+const NONE = { composers: false, works: false };
+
+test('처음 튼 많이 튼 순 is read from by_count, either order', () => {
+	assert.deepEqual(firstsByCount(''), NONE);
+	assert.deepEqual(firstsByCount('by_count=works'), { composers: false, works: true });
+	assert.deepEqual(firstsByCount('by_count=composers'), { composers: true, works: false });
+	assert.deepEqual(firstsByCount('by_count=composers,works'), { composers: true, works: true });
+	assert.deepEqual(firstsByCount('by_count=works,composers'), { composers: true, works: true });
+	assert.deepEqual(firstsByCount('view=table&by_count=works'), { composers: false, works: true });
+	assert.deepEqual(firstsByCount('semester_id=3&by_count=works&view=table'), {
+		composers: false,
+		works: true
+	});
+});
+
+test('처음 튼 많이 튼 순 ignores unknown and repeated names', () => {
+	assert.deepEqual(firstsByCount('by_count=foo'), NONE);
+	assert.deepEqual(firstsByCount('by_count='), NONE);
+	assert.deepEqual(firstsByCount('by_count=works,works,foo'), { composers: false, works: true });
+	assert.deepEqual(firstsByCount('by_count=foo,works,works'), { composers: false, works: true });
+	assert.deepEqual(firstsByCount('by_count=WORKS'), NONE);
+	assert.deepEqual(firstsByCount('by_count=works%20'), NONE);
+});
+
+test('처음 튼 많이 튼 순 writes by_count as composers,works and removes it when both are off', () => {
+	const params = new URLSearchParams('semester_id=3&view=table');
+	writeFirstsByCount(params, NONE);
+	assert.equal(params.toString(), 'semester_id=3&view=table');
+	writeFirstsByCount(params, { composers: false, works: true });
+	assert.equal(params.get('by_count'), 'works');
+	writeFirstsByCount(params, { composers: true, works: false });
+	assert.equal(params.get('by_count'), 'composers');
+	writeFirstsByCount(params, { composers: true, works: true });
+	assert.deepEqual(params.getAll('by_count'), ['composers,works']);
+	assert.equal(params.get('semester_id'), '3');
+	assert.equal(params.get('view'), 'table');
+	writeFirstsByCount(params, NONE);
+	assert.equal(params.has('by_count'), false);
+	assert.equal(params.toString(), 'semester_id=3&view=table');
+	const messy = new URLSearchParams('by_count=foo,works,works&semester_id=3');
+	writeFirstsByCount(messy, firstsByCount(messy.toString()));
+	assert.equal(messy.get('by_count'), 'works');
+});
+
+test('처음 튼 많이 튼 순 reads back what it writes', () => {
+	for (const composers of [false, true]) {
+		for (const works of [false, true]) {
+			const params = new URLSearchParams('semester_id=3');
+			writeFirstsByCount(params, { composers, works });
+			assert.deepEqual(readFirstsByCount(params), { composers, works });
+		}
+	}
 });
 
 test('a link with 모든 차트 표로 보기 off is left exactly as it is', () => {

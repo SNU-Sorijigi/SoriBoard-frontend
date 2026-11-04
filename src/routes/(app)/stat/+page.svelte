@@ -20,7 +20,9 @@
 		statQueryHref,
 		readTableView,
 		writeTableView,
-		tableViewHref
+		tableViewHref,
+		readFirstsByCount,
+		writeFirstsByCount
 	} from '$lib/statQuery.js';
 	import { createLatestRequests } from '$lib/latestRequest.js';
 	import {
@@ -123,6 +125,7 @@
 		writeDiversityBucket(url.searchParams, diversityBucket);
 		writeDrillQuery(url.searchParams, drill ?? linkedDrill);
 		writeTableView(url.searchParams, allTables);
+		writeFirstsByCount(url.searchParams, firstsByCount);
 		goto(statQueryHref(url, { scope, userId, includeMentees }), {
 			replaceState: true,
 			keepFocus: true,
@@ -776,7 +779,16 @@
 	$: firstComposers = data.firstComposers;
 	$: firstWorks = data.firstWorks;
 	// 카드마다 '많이 튼 순'(TableCard). 기간·지기를 바꿔도 남는다. 표와 링크는 같은 보이는 목록에서 만든다.
-	let firstsByCount = { composers: false, works: false };
+	// URL의 by_count 에서 읽고, 누르면 URL에 쓴다(처음 그릴 때는 URL과 같으므로 쓰지 않는다).
+	let firstsByCount = readFirstsByCount($page.url.searchParams);
+	let firstsByCountKey = `${firstsByCount.composers}${firstsByCount.works}`;
+	$: {
+		const key = `${firstsByCount.composers}${firstsByCount.works}`;
+		if (key !== firstsByCountKey) {
+			firstsByCountKey = key;
+			syncUrl();
+		}
+	}
 	$: shownFirstComposers = firstsByCount.composers ? byCount(firstComposers) : firstComposers;
 	$: shownFirstWorks = firstsByCount.works ? byCount(firstWorks) : firstWorks;
 	$: firstComposerLinks = shownFirstComposers

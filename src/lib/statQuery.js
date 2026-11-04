@@ -60,6 +60,26 @@ export function writeTableView(params, on) {
 	else params.delete('view');
 }
 
+// 통계의 처음 튼 작곡가·곡 '많이 튼 순'은 URL의 by_count 에 둔다(by_count=works, by_count=composers,works).
+// 둘 다 꺼진 기본값은 URL에 남기지 않는다. 모르는 이름은 버리고, 겹친 이름은 한 번으로 읽는다.
+const FIRSTS = ['composers', 'works'];
+
+/** @param {URLSearchParams} params */
+export function readFirstsByCount(params) {
+	const names = (params.get('by_count') ?? '').split(',');
+	return { composers: names.includes('composers'), works: names.includes('works') };
+}
+
+/**
+ * @param {URLSearchParams} params
+ * @param {{ composers: boolean, works: boolean }} flags
+ */
+export function writeFirstsByCount(params, flags) {
+	const names = FIRSTS.filter((name) => flags[name]);
+	if (names.length) params.set('by_count', names.join(','));
+	else params.delete('by_count');
+}
+
 // 모든 차트 표로 보기를 켠 페이지의 통계·작곡가 링크는 view=table 을 이어 간다.
 /**
  * @param {string} href 경로와 쿼리(예: /stat/composer/5?semester_id=3)
