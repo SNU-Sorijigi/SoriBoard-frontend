@@ -13,7 +13,9 @@ import {
 	composerVariants,
 	spellingKindOf,
 	spellingVariants,
-	variantHistoryHref
+	variantHistoryHref,
+	splitSpellings,
+	splitSpellingNote
 } from '../../src/lib/catalogSpelling.js';
 import { readHistoryQuery } from '../../src/lib/playHistory.js';
 import { readCatalogQuery } from '../../src/lib/composerCatalog.js';
@@ -384,4 +386,165 @@ test('the tab title names the 표기 정리 view and its kind, never the search 
 		assert.equal(titleOf(catalogViewHref('가상', kind)), `${label} · 표기 정리`);
 	}
 	assert.equal(titleOf(catalogViewHref('가상', null)), '작곡가 정리');
+});
+
+// catalog/duplicates/ 의 묶음(전체 기간 수)과 통계의 많이 튼 작곡가 응답(이 보기의 수).
+const dupGroups = {
+	kind: 'composer',
+	groups: [
+		{
+			key: 'beethoven',
+			count: 90,
+			rows: [
+				{ id: 1, name: 'Beethoven', count: 70 },
+				{ id: 2, name: '베토벤', count: 20 }
+			]
+		},
+		{
+			key: 'bach',
+			count: 50,
+			rows: [
+				{ id: 3, name: 'J.S. Bach', count: 30 },
+				{ id: 4, name: 'J. S. Bach', count: 20 }
+			]
+		},
+		{
+			key: 'mozart',
+			count: 9,
+			rows: [
+				{ id: 5, name: 'Mozart', count: 8 },
+				{ id: 6, name: 'mozart', count: 1 }
+			]
+		}
+	]
+};
+const envelopeOf = (items) => ({
+	labels: items.map((item) => item.name),
+	values: items.map((item) => item.count),
+	items
+});
+
+test('a group with two names in the answer is split, with this view’s names and counts', () => {
+	const composers = envelopeOf([
+		{ id: 1, name: 'Beethoven', count: 40 },
+		{ id: 9, name: 'Brahms', count: 30 },
+		{ id: 2, name: '베토벤', count: 12 },
+		{ id: 5, name: 'Mozart', count: 3 }
+	]);
+	assert.deepEqual(splitSpellings(dupGroups, composers), [
+		{
+			rows: [
+				{ id: 1, name: 'Beethoven', count: 40 },
+				{ id: 2, name: '베토벤', count: 12 }
+			],
+			count: 52
+		}
+	]);
+});
+
+test('a group with only one name in the answer does not split this view', () => {
+	const composers = envelopeOf([
+		{ id: 2, name: '베토벤', count: 12 },
+		{ id: 3, name: 'J.S. Bach', count: 5 }
+	]);
+	assert.deepEqual(splitSpellings(dupGroups, composers), []);
+	assert.deepEqual(splitSpellings({ groups: [] }, composers), []);
+});
+
+test('a missing or malformed answer splits nothing', () => {
+	const composers = envelopeOf([
+		{ id: 1, name: 'Beethoven', count: 40 },
+		{ id: 2, name: '베토벤', count: 12 }
+	]);
+	for (const bad of [null, undefined, {}, { groups: null }, { groups: 'x' }, { message: 'x' }]) {
+		assert.deepEqual(splitSpellings(bad, composers), []);
+	}
+	for (const bad of [null, undefined, {}, { items: null }, { items: 'x' }]) {
+		assert.deepEqual(splitSpellings(dupGroups, bad), []);
+	}
+	assert.deepEqual(
+		splitSpellings({ groups: [null, { key: 'x' }, { rows: [null, { name: 'a' }] }] }, composers),
+		[]
+	);
+});
+
+test('string and number ids match', () => {
+	const composers = envelopeOf([
+		{ id: '2', name: '베토벤', count: 12 },
+		{ id: 1, name: 'Beethoven', count: 4 }
+	]);
+	const strings = {
+		groups: [
+			{
+				key: 'b',
+				count: 2,
+				rows: [
+					{ id: '1', name: 'Beethoven', count: 1 },
+					{ id: 2, name: '베토벤', count: 1 }
+				]
+			}
+		]
+	};
+	const split = splitSpellings(strings, composers);
+	assert.equal(split.length, 1);
+	assert.deepEqual(
+		split[0].rows.map((row) => row.name),
+		['베토벤', 'Beethoven']
+	);
+	assert.equal(split[0].count, 16);
+});
+
+test('groups come most combined plays first, rows in the answer’s order', () => {
+	const composers = envelopeOf([
+		{ id: 3, name: 'J.S. Bach', count: 30 },
+		{ id: 1, name: 'Beethoven', count: 20 },
+		{ id: 5, name: 'Mozart', count: 18 },
+		{ id: 6, name: 'mozart', count: 17 },
+		{ id: 2, name: '베토벤', count: 16 },
+		{ id: 4, name: 'J. S. Bach', count: 2 }
+	]);
+	const split = splitSpellings(dupGroups, composers);
+	assert.deepEqual(
+		split.map((group) => [group.count, group.rows.map((row) => row.id)]),
+		[
+			[36, [1, 2]],
+			[35, [5, 6]],
+			[32, [3, 4]]
+		]
+	);
+});
+
+const groupOf = (...pairs) => ({
+	rows: pairs.map(([name, count], i) => ({ id: i, name, count })),
+	count: pairs.reduce((sum, [, count]) => sum + count, 0)
+});
+
+test('the note names each split group with this view’s counts', () => {
+	assert.equal(splitSpellingNote([]), '');
+	assert.equal(splitSpellingNote(undefined), '');
+	assert.equal(
+		splitSpellingNote([groupOf(['Beethoven', 40], ['베토벤', 12])]),
+		'표기만 다른 이름은 따로 셉니다: ‘Beethoven’ 40회 + ‘베토벤’ 12회'
+	);
+	assert.equal(
+		splitSpellingNote([
+			groupOf(['Beethoven', 1200], ['베토벤', 12]),
+			groupOf(['J.S. Bach', 5], ['J. S. Bach', 3], ['J S Bach', 1]),
+			groupOf(['Mozart', 2], ['mozart', 1])
+		]),
+		'표기만 다른 이름은 따로 셉니다: ‘Beethoven’ 1,200회 + ‘베토벤’ 12회; ' +
+			'‘J.S. Bach’ 5회 + ‘J. S. Bach’ 3회 + ‘J S Bach’ 1회; ‘Mozart’ 2회 + ‘mozart’ 1회'
+	);
+});
+
+test('the note lists three groups, then how many more', () => {
+	const groups = [5, 4, 3, 2, 1].map((n) => groupOf([`A${n}`, n], [`B${n}`, 1]));
+	assert.equal(
+		splitSpellingNote(groups),
+		'표기만 다른 이름은 따로 셉니다: ‘A5’ 5회 + ‘B5’ 1회; ‘A4’ 4회 + ‘B4’ 1회; ‘A3’ 3회 + ‘B3’ 1회 외 2묶음'
+	);
+	assert.equal(
+		splitSpellingNote(groups, 4),
+		'표기만 다른 이름은 따로 셉니다: ‘A5’ 5회 + ‘B5’ 1회; ‘A4’ 4회 + ‘B4’ 1회; ‘A3’ 3회 + ‘B3’ 1회; ‘A2’ 2회 + ‘B2’ 1회 외 1묶음'
+	);
 });

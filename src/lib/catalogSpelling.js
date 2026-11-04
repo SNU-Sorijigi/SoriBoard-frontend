@@ -189,3 +189,69 @@ export function variantHistoryHref(filter, target, id) {
 	);
 	return historyHref({ ...filter, targets });
 }
+
+/**
+ * @typedef {{ id: number | string, name: string, count: number }} SplitRow
+ * @typedef {{ rows: SplitRow[], count: number }} SplitGroup
+ */
+
+// 통계의 많이 튼 작곡가: 한 순위 응답(items: id·name·count, 상위 100까지)에 같은 표기 정리 묶음의 이름이
+// 둘 이상 들어 수가 갈린 묶음들. 행은 이 보기의 이름과 수를 응답의 순서(많이 튼 것부터)로, 묶음의 count 는
+// 그 합(이름을 합쳤다면 막대가 될 수). 합이 큰 묶음부터(같으면 응답에서 먼저 나온 묶음). id 는 문자열로
+// 견준다. 이 보기에 한 표기만 든 묶음은 수가 갈리지 않으므로 뺀다. 응답이 없거나 틀렸으면 [].
+/**
+ * @param {{ groups?: SpellingGroup[] | null } | null | undefined} duplicates
+ * @param {{ items?: SplitRow[] | null } | null | undefined} envelope
+ * @returns {SplitGroup[]}
+ */
+export function splitSpellings(duplicates, envelope) {
+	const groups = duplicates?.groups;
+	const items = envelope?.items;
+	if (!Array.isArray(groups) || !Array.isArray(items)) return [];
+	/** @type {Map<string, number>} 응답의 id → 그 위치 */
+	const position = new Map();
+	items.forEach((item, i) => {
+		const key = String(item?.id);
+		if (item?.id != null && !position.has(key)) position.set(key, i);
+	});
+	/** @type {Set<number>} 한 행은 한 묶음에만 */
+	const used = new Set();
+	/** @type {{ rows: SplitRow[], count: number, first: number }[]} */
+	const split = [];
+	for (const group of groups) {
+		const rows = Array.isArray(group?.rows) ? group.rows : [];
+		const found = [
+			...new Set(
+				rows.map((row) => position.get(String(row?.id))).filter((i) => i != null && !used.has(i))
+			)
+		].sort((a, b) => a - b);
+		if (found.length < 2) continue;
+		found.forEach((i) => used.add(i));
+		const members = found.map((i) => {
+			const { id, name, count } = items[i];
+			return { id, name, count: Number(count) || 0 };
+		});
+		const count = members.reduce((sum, row) => sum + row.count, 0);
+		split.push({ rows: members, count, first: found[0] });
+	}
+	split.sort((a, b) => b.count - a.count || a.first - b.first);
+	return split.map(({ rows, count }) => ({ rows, count }));
+}
+
+// 그 묶음들을 카드의 한 줄로: '표기만 다른 이름은 따로 셉니다: ‘A’ 40회 + ‘B’ 12회; ‘C’ 5회 + ‘D’ 2회'.
+// max 묶음까지 적고 나머지는 ' 외 N묶음'. 없으면 ''.
+/**
+ * @param {SplitGroup[]} groups
+ * @param {number} [max]
+ */
+export function splitSpellingNote(groups, max = 3) {
+	if (!groups?.length) return '';
+	const shown = groups
+		.slice(0, max)
+		.map((group) =>
+			group.rows.map((row) => `‘${row.name}’ ${row.count.toLocaleString()}회`).join(' + ')
+		)
+		.join('; ');
+	const rest = groups.length - Math.min(groups.length, max);
+	return `표기만 다른 이름은 따로 셉니다: ${shown}${rest > 0 ? ` 외 ${rest.toLocaleString()}묶음` : ''}`;
+}

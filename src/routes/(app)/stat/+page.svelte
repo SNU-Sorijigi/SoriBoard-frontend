@@ -93,6 +93,13 @@
 	import { hasPeriodStart, firstsSubtitle, firstsEmptyText, byCount } from '$lib/statFirsts.js';
 	import { memberFileText } from '$lib/statFileName.js';
 	import { pageTitle, periodTitle } from '$lib/statTitle.js';
+	import {
+		splitSpellings,
+		splitSpellingNote,
+		duplicatesSearch,
+		catalogViewHref,
+		DEFAULT_KIND
+	} from '$lib/catalogSpelling.js';
 
 	// 범위·지기·견습 포함·기간·주별/월별·열린 drill-down 패널은 URL에도 둔다(링크로 같은 보기를 연다). 페이지가 시작될 때 한 번만 읽는다.
 	const initial = readStatQuery($page.url.searchParams);
@@ -495,6 +502,21 @@
 	}
 
 	onMount(loadAll);
+
+	// 표기 정리의 묶음(catalog/duplicates/, 전체 기간): 기간·지기와 상관없으므로 처음 한 번만 부르고,
+	// 많이 튼 작곡가에 한 묶음의 표기가 둘 이상 들면 그 카드의 줄에 알린다. 못 받으면 줄을 두지 않는다.
+	let duplicates = null;
+	async function loadDuplicates() {
+		try {
+			const res = await fetch(`/api/catalog/duplicates${duplicatesSearch('composer')}`);
+			if (!res.ok) throw new Error(`catalog/duplicates ${res.status}`);
+			duplicates = await res.json();
+		} catch (e) {
+			console.error('표기만 다른 이름 로딩 실패', e);
+		}
+	}
+	onMount(loadDuplicates);
+	$: composerSplit = splitSpellingNote(splitSpellings(duplicates, composers));
 
 	function onScopeChange(e) {
 		scope = e.detail;
@@ -974,7 +996,15 @@
 			<ChartCard
 				showTable={allTables}
 				title="많이 튼 작곡가"
-				note={rankCapNote(composers, WORKS_LIMIT, summary?.composers, ['작곡가', '명'])}
+				note={[
+					rankCapNote(composers, WORKS_LIMIT, summary?.composers, ['작곡가', '명']),
+					composerSplit
+				]
+					.filter(Boolean)
+					.join(' · ')}
+				noteLink={composerSplit
+					? { href: catalogViewHref('', DEFAULT_KIND), text: '표기 정리' }
+					: null}
 				chartNote={chartTieNote(composers, LIMITS.composers, WORKS_LIMIT, '작곡가가', '명')}
 				option={composerOpt}
 				data={composers}
