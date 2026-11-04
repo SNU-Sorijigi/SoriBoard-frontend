@@ -56,7 +56,13 @@
 		MUSIC_SPLIT_LEAD
 	} from '$lib/catalogSpelling.js';
 	import { hasPeriodStart, firstsSubtitle, firstsEmptyText, byCount } from '$lib/statFirsts.js';
-	import { readTableView, writeTableView, tableViewHref } from '$lib/statQuery.js';
+	import {
+		readTableView,
+		writeTableView,
+		tableViewHref,
+		readFirstsByCount,
+		writeFirstsByCount
+	} from '$lib/statQuery.js';
 	import { loadStatusText, withPreviousFailure, withFailedLines } from '$lib/statCards.js';
 	import {
 		readComposerId,
@@ -315,6 +321,7 @@
 		({ period, start: customStart, end: customEnd } = readComposerPeriod($page.url.searchParams));
 		({ userId, includeMentees } = readComposerMember($page.url.searchParams));
 		allTables = readTableView($page.url.searchParams);
+		firstWorksByCount = firstWorksByCountKey = readFirstsByCount($page.url.searchParams).works;
 		loadAll();
 	});
 
@@ -546,7 +553,19 @@
 	// 링크는 모두 같은 기간·지기를 연다. 곡 이름은 그 곡의 선곡 기록으로 간다.
 	$: worksLinks = works ? works.items.map((item) => composerWorkHref(item.id, filter)) : [];
 	// 처음 튼 곡의 '많이 튼 순'(TableCard, 통계와 같다). 기간·지기를 바꿔도 남는다. 표와 링크는 같은 보이는 목록에서 만든다.
-	let firstWorksByCount = false;
+	// 통계처럼 URL의 by_count=works 에 둔다(composers 는 이 페이지에 없어 읽지 않는다). 누를 때만 URL에 쓴다:
+	// firstWorksByCountKey 는 URL에 있는 값이고, afterNavigate 가 둘을 함께 URL에서 읽는다.
+	let firstWorksByCount = readFirstsByCount($page.url.searchParams).works;
+	let firstWorksByCountKey = firstWorksByCount;
+	$: if (firstWorksByCount !== firstWorksByCountKey) {
+		firstWorksByCountKey = firstWorksByCount;
+		syncFirstWorksByCount();
+	}
+	function syncFirstWorksByCount() {
+		const url = new URL($page.url);
+		writeFirstsByCount(url.searchParams, { composers: false, works: firstWorksByCount });
+		goto(url, { replaceState: true, keepFocus: true, noScroll: true });
+	}
 	$: shownFirstWorks = firstWorksByCount ? byCount(firstWorks) : firstWorks;
 	$: firstWorkLinks = shownFirstWorks
 		? shownFirstWorks.items.map((item) => composerWorkHref(item.id, filter))

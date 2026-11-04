@@ -12,7 +12,7 @@
 		topOf,
 		PERFORMER_EMPTY
 	} from '$lib/statTable.js';
-	import { tableViewHref } from '$lib/statQuery.js';
+	import { tableViewHref, readFirstsByCount, writeFirstsByCount } from '$lib/statQuery.js';
 	import { sortSemesters, semesterLabel, currentSemesterRange } from '$lib/statPeriod.js';
 	import { composerHref } from '$lib/composerStats.js';
 	import {
@@ -239,7 +239,7 @@
 		if (!picked) return;
 		// 링크의 학기가 목록에 없으면 가장 최근의 시작한 학기를 보이고, URL 에서 그 id 를 뺀다.
 		if (initialId != null && String(picked.id) !== initialId) {
-			goto(reportHref(null), { replaceState: true, keepFocus: true, noScroll: true });
+			goto(reportUrl(null), { replaceState: true, keepFocus: true, noScroll: true });
 		}
 		choose(picked);
 	}
@@ -266,7 +266,7 @@
 
 	// 학기를 보이고 URL 의 semester_id 를 바꾼다(학기 select 와 '… 결산 보기' 단추).
 	function show(next) {
-		goto(reportHref(next.id), { replaceState: true, keepFocus: true, noScroll: true });
+		goto(reportUrl(next.id), { replaceState: true, keepFocus: true, noScroll: true });
 		choose(next);
 	}
 
@@ -507,8 +507,29 @@
 				(sorted ? ' · 많이 튼 순' : '')
 		};
 	};
-	// 학기를 바꿔도 남는다(URL 에는 없다). $: firstsCards 가 이 객체를 읽으므로 누르면 다시 만든다.
-	let firstsByCount = { firstComposers: false, firstWorks: false };
+	// 통계처럼 URL 의 by_count(composers, works)에 둔다. 학기를 바꿔도 남는다(reportUrl).
+	// $: firstsCards 가 이 객체를 읽으므로 누르면 다시 만든다.
+	const urlFirsts = readFirstsByCount($page.url.searchParams);
+	let firstsByCount = { firstComposers: urlFirsts.composers, firstWorks: urlFirsts.works };
+	/** @param {URLSearchParams} params */
+	const writeFirsts = (params) =>
+		writeFirstsByCount(params, {
+			composers: firstsByCount.firstComposers,
+			works: firstsByCount.firstWorks
+		});
+	// 학기의 URL(reportHref 는 semester_id 만 쓴다)에 by_count 를 잇는다.
+	function reportUrl(id) {
+		const url = new URL(reportHref(id), $page.url);
+		writeFirsts(url.searchParams);
+		return url;
+	}
+	// 누르면 지금 URL 의 by_count 만 고친다.
+	function toggleFirstsByCount(key) {
+		firstsByCount[key] = !firstsByCount[key];
+		const url = new URL($page.url);
+		writeFirsts(url.searchParams);
+		goto(url, { replaceState: true, keepFocus: true, noScroll: true });
+	}
 	$: firstsCards = [
 		firstsCard(
 			'firstComposers',
@@ -921,7 +942,7 @@
 								class="tool-btn sort-btn"
 								class:active={card.sorted}
 								aria-pressed={card.sorted}
-								on:click={() => (firstsByCount[card.key] = !firstsByCount[card.key])}
+								on:click={() => toggleFirstsByCount(card.key)}
 								title="많이 튼 순으로 보기"
 								aria-label={`${card.title} 많이 튼 순으로 보기`}
 							>
