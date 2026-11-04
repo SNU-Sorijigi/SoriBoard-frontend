@@ -52,7 +52,7 @@
 		composerVariants,
 		duplicatesSearch
 	} from '$lib/catalogSpelling.js';
-	import { hasPeriodStart, firstsSubtitle, firstsEmptyText } from '$lib/statFirsts.js';
+	import { hasPeriodStart, firstsSubtitle, firstsEmptyText, byCount } from '$lib/statFirsts.js';
 	import { readTableView, writeTableView, tableViewHref } from '$lib/statQuery.js';
 	import { loadStatusText, withPreviousFailure, withFailedLines } from '$lib/statCards.js';
 	import {
@@ -511,8 +511,11 @@
 	}
 	// 링크는 모두 같은 기간·지기를 연다. 곡 이름은 그 곡의 선곡 기록으로 간다.
 	$: worksLinks = works ? works.items.map((item) => composerWorkHref(item.id, filter)) : [];
-	$: firstWorkLinks = firstWorks
-		? firstWorks.items.map((item) => composerWorkHref(item.id, filter))
+	// 처음 튼 곡의 '많이 튼 순'(TableCard, 통계와 같다). 기간·지기를 바꿔도 남는다. 표와 링크는 같은 보이는 목록에서 만든다.
+	let firstWorksByCount = false;
+	$: shownFirstWorks = firstWorksByCount ? byCount(firstWorks) : firstWorks;
+	$: firstWorkLinks = shownFirstWorks
+		? shownFirstWorks.items.map((item) => composerWorkHref(item.id, filter))
 		: [];
 	$: firstsAsked = asksFirsts(period, customStart);
 	// 독주자·지휘자·오케스트라는 이 작곡가의 곡을 그 사람(악단)과 튼 선곡 기록으로 간다(표의 이름, 차트의 막대).
@@ -924,8 +927,12 @@
 								'곡',
 								previousFirstWorks
 							)}
-							table={firstWorks?.items.length ? composerFirstsTable(firstWorks, composer) : null}
+							table={shownFirstWorks?.items.length
+								? composerFirstsTable(shownFirstWorks, composer)
+								: null}
 							links={firstWorkLinks}
+							sortLabel="많이 튼 순"
+							bind:sorted={firstWorksByCount}
 							loading={loading.firstWorks}
 							error={errors.firstWorks}
 							retry={() => retry('firstWorks')}

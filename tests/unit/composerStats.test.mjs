@@ -28,6 +28,7 @@ import {
 import { readHistoryQuery, workHistoryHref } from '../../src/lib/playHistory.js';
 import { toCsvTable, tableCsv } from '../../src/lib/csvTable.js';
 import { WORKS_LIMIT } from '../../src/lib/statDrill.js';
+import { byCount } from '../../src/lib/statFirsts.js';
 
 test('the route id must be a positive integer', () => {
 	assert.equal(readComposerId('12'), '12');
@@ -147,6 +148,34 @@ test("the 처음 튼 곡 table drops the composer's name and keeps the backend's
 		composerFirstsTable(firsts, null).rows.map((row) => row[0]),
 		['가상 C - 교향곡 1번', '가상 C - 서곡', '무제']
 	);
+});
+
+test('the 처음 튼 곡 table 많이 튼 순 goes by 횟수, each name with its own row, ties in received order', () => {
+	const composer = { id: 3, name: '가상 C' };
+	const firsts = {
+		items: [
+			{ id: 11, name: '가상 C - 교향곡 1번', count: 1, first_played: '2025-09-02' },
+			{ id: 12, name: '가상 C - 서곡', count: 4, first_played: '2025-09-10' },
+			{ id: 13, name: '가상 C - 소나타', count: 2, first_played: '2025-10-01' },
+			{ id: 14, name: '가상 C - 협주곡', count: 4, first_played: '2025-10-15' },
+			{ id: 15, name: '무제', count: 1, first_played: '2025-11-01' }
+		]
+	};
+	const before = structuredClone(firsts);
+	const shown = byCount(firsts);
+	assert.deepEqual(composerFirstsTable(shown, composer).rows, [
+		['서곡', '2025-09-10', '4'],
+		['협주곡', '2025-10-15', '4'],
+		['소나타', '2025-10-01', '2'],
+		['교향곡 1번', '2025-09-02', '1'],
+		['무제', '2025-11-01', '1']
+	]);
+	// 이름의 링크는 같은 보이는 목록에서 만든다: 행마다 그 곡의 id 다.
+	assert.deepEqual(
+		shown.items.map((item) => item.id),
+		[12, 14, 13, 11, 15]
+	);
+	assert.deepEqual(firsts, before);
 });
 
 test('the works table ranks ties together and shows each work’s first and last play', () => {
