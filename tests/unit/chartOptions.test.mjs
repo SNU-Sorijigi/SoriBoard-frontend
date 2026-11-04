@@ -183,6 +183,18 @@ test('bar tooltips add each bar’s note under its name and count, 1위 on the t
 	assert.ok(!html.includes('<1>'), html);
 });
 
+test('많이 튼 bars stay as thin as a 7-name card’s (22 px inside the outline), however few names', () => {
+	const few = horizontalBarOption(bars, '많이 튼 오케스트라', '2026-1학기 · 전체');
+	// ECharts 의 막대 폭은 1px 윤곽선까지 잰다: 25px 이면 안쪽 색은 22px.
+	assert.equal(few.series[0].barMaxWidth, 25);
+	// 굵기를 고정하지 않는다: 이름이 많은 카드는 지금처럼 더 가늘게 그려진다.
+	assert.equal(few.series[0].barWidth, undefined);
+	// 세로 선곡 수 막대는 그대로.
+	const count = countBarOption({ labels, values: [3, 1, 4, 1] }, '월별 선곡 수', '전체');
+	assert.equal(count.series[0].barMaxWidth, undefined);
+	assert.equal(count.series[0].barWidth, undefined);
+});
+
 test('bar names are cut at 160 px, or at the nameWidth given (많이 튼 곡: 220)', () => {
 	const plain = horizontalBarOption(bars, '많이 튼 작곡가', '2026-1학기 · 전체');
 	assert.equal(plain.yAxis.axisLabel.width, 160);

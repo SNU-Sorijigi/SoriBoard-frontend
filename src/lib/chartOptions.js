@@ -15,6 +15,9 @@ const GRID = '#D5D5D8'; // Nimbus Cloud 13-4108 TCX (= --gray-gray-300)
 const PANEL = '#F0EEE9'; // Cloud Dancer 11-4201 TCX (= --secondary-secondary-100)
 const OUTLINE = TEXT; // 옅은 파스텔 막대·조각이 흰 배경에서 보이도록 1px 윤곽선
 const FONT = "'Noto Sans KR', sans-serif";
+// 이름이 적은 카드도 가로 막대가 카드 높이만큼 두꺼워지지 않게, 이름 7개 카드의 굵기로 묶는다
+// (윤곽선까지 25px, 안쪽 색 22px).
+const BAR_MAX = 25;
 
 // 시대/다계열 차트용 카테고리 팔레트: Powdered Pastels 8색.
 // 서로 가장 잘 구분되는 5색을 앞에 둔다(5계열 이하 도넛에서 비슷한 색이 이웃하지 않도록).
@@ -142,6 +145,7 @@ export function horizontalBarOption(
 			{
 				type: 'bar',
 				data: vals,
+				barMaxWidth: BAR_MAX,
 				itemStyle: {
 					color: ACCENT,
 					borderColor: OUTLINE,
