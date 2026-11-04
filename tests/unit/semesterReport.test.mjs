@@ -29,6 +29,7 @@ import {
 } from '../../src/lib/semesterReport.js';
 import { rankTable } from '../../src/lib/statTable.js';
 import { eraDistribution, genreDistribution } from '../../src/lib/statCards.js';
+import { byCount } from '../../src/lib/statFirsts.js';
 
 // sortSemesters 순서(최신 학기 먼저)
 const sorted = [
@@ -459,6 +460,27 @@ test('firstsTable lists name, first play and count in backend order', () => {
 		['H - 협주곡', '2026-09-07', '3'],
 		['A - 모음곡', '2026-09-14', '1,200']
 	]);
+});
+
+test('firstsTable 많이 튼 순 goes by 횟수, and ties keep 처음 튼 날 order', () => {
+	const firsts = {
+		items: [
+			{ id: 21, name: 'H - 협주곡', count: 3, first_played: '2026-09-07' },
+			{ id: 22, name: 'A - 모음곡', count: 1, first_played: '2026-09-08' },
+			{ id: 23, name: 'B - 서곡', count: 1200, first_played: '2026-09-14' },
+			{ id: 24, name: 'C - 교향곡', count: 3, first_played: '2026-10-02' },
+			{ id: 25, name: 'D - 소나타', count: 1, first_played: '2026-10-20' }
+		]
+	};
+	const before = structuredClone(firsts);
+	assert.deepEqual(firstsTable(byCount(firsts), '곡').rows, [
+		['B - 서곡', '2026-09-14', '1,200'],
+		['H - 협주곡', '2026-09-07', '3'],
+		['C - 교향곡', '2026-10-02', '3'],
+		['A - 모음곡', '2026-09-08', '1'],
+		['D - 소나타', '2026-10-20', '1']
+	]);
+	assert.deepEqual(firsts, before);
 });
 
 test('loadWithPrevious keeps this 학기 when only the previous one fails', async () => {

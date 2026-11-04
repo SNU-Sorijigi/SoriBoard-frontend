@@ -27,6 +27,7 @@
 	import { downloadCsvTable, tableCsv } from '$lib/csvTable.js';
 	import { downloadName } from '$lib/statFileName.js';
 	import { todayStamp } from '$lib/csv.js';
+	import { byCount } from '$lib/statFirsts.js';
 	import {
 		reportHref,
 		pickSemester,
@@ -437,16 +438,25 @@
 
 	// 처음 튼 작곡가·곡: 클럽 전체에서 처음 튼 날이 이 학기인 것. 부제는 그 개수와, 지난 학기의
 	// 같은 목록(before)을 받았으면 그 개수(통계의 부제처럼 '… 18곡 · 지난 학기 12곡').
-	const firstsCard = (key, title, firsts, before, nameHeader, unit, semesterId) => ({
-		key,
-		title,
-		table: firsts?.items.length ? firstsTable(firsts, nameHeader) : null,
-		links: nameHeader === '작곡가' ? linksOf(firsts, semesterId) : workLinksOf(firsts, semesterId),
-		subtitle:
-			`클럽에서 이 학기에 처음 튼 ${nameHeader}` +
-			(firsts ? ` · ${firsts.items.length.toLocaleString()}${unit}` : '') +
-			(firsts && before ? ` · 지난 학기 ${before.items.length.toLocaleString()}${unit}` : '')
-	});
+	// 카드마다 '많이 튼 순'(통계와 같다): 눌리면(sorted) 표와 링크를 횟수가 많은 것부터의 같은 목록에서
+	// 만들고, 부제 끝에 ' · 많이 튼 순' 을 붙인다. CSV 저장은 card.table 을 읽으므로 보이는 순서 그대로다.
+	const firstsCard = (key, title, firsts, before, nameHeader, unit, semesterId, sorted) => {
+		const shown = sorted ? byCount(firsts) : firsts;
+		return {
+			key,
+			title,
+			sorted,
+			table: shown?.items.length ? firstsTable(shown, nameHeader) : null,
+			links: nameHeader === '작곡가' ? linksOf(shown, semesterId) : workLinksOf(shown, semesterId),
+			subtitle:
+				`클럽에서 이 학기에 처음 튼 ${nameHeader}` +
+				(firsts ? ` · ${firsts.items.length.toLocaleString()}${unit}` : '') +
+				(firsts && before ? ` · 지난 학기 ${before.items.length.toLocaleString()}${unit}` : '') +
+				(sorted ? ' · 많이 튼 순' : '')
+		};
+	};
+	// 학기를 바꿔도 남는다(URL 에는 없다). $: firstsCards 가 이 객체를 읽으므로 누르면 다시 만든다.
+	let firstsByCount = { firstComposers: false, firstWorks: false };
 	$: firstsCards = [
 		firstsCard(
 			'firstComposers',
@@ -455,9 +465,19 @@
 			previousFirstComposers,
 			'작곡가',
 			'명',
-			semesterId
+			semesterId,
+			firstsByCount.firstComposers
 		),
-		firstsCard('firstWorks', '처음 튼 곡', firstWorks, previousFirstWorks, '곡', '곡', semesterId)
+		firstsCard(
+			'firstWorks',
+			'처음 튼 곡',
+			firstWorks,
+			previousFirstWorks,
+			'곡',
+			'곡',
+			semesterId,
+			firstsByCount.firstWorks
+		)
 	];
 
 	// 월별 선곡: 달마다 선곡 수와 곡 수. 진행 중인 달은 통계의 차트처럼 '(진행 중)' 을 붙이고,
@@ -836,6 +856,19 @@
 
 				{#each firstsCards as card}
 					<section class="card wide breakable" tabindex="-1" aria-labelledby={`report-${card.key}`}>
+						<!-- 표가 보일 때만(불러오는 중·실패·빈 카드에는 없다). 인쇄에서는 숨고 부제가 순서를 밝힌다 -->
+						{#if !loading[card.key] && !errors[card.key] && card.table}
+							<button
+								class="tool-btn sort-btn"
+								class:active={card.sorted}
+								aria-pressed={card.sorted}
+								on:click={() => (firstsByCount[card.key] = !firstsByCount[card.key])}
+								title="많이 튼 순으로 보기"
+								aria-label={`${card.title} 많이 튼 순으로 보기`}
+							>
+								많이 튼 순
+							</button>
+						{/if}
 						<button
 							class="tool-btn csv-btn"
 							on:click={() => saveCsv(card)}
@@ -1076,6 +1109,19 @@
 		top: 12px;
 		right: 12px;
 		padding: 3px 8px;
+	}
+	/* 처음 튼 카드의 '많이 튼 순': TableCard 의 .view-toggle 과 같은 자리(왼쪽 위)·모양. 눌린 상태는
+	   포인터가 올라가 있어도 유지한다 */
+	.sort-btn {
+		position: absolute;
+		top: 12px;
+		left: 12px;
+		padding: 3px 8px;
+	}
+	.sort-btn.active,
+	.sort-btn.active:hover:not(:disabled) {
+		background: var(--action-bg);
+		color: var(--action-fg);
 	}
 	/* 차트 제목·부제(chartOptions.js 의 titleBlock)와 같은 글꼴·색 */
 	h2 {
