@@ -98,7 +98,8 @@
 		splitSpellingNote,
 		duplicatesSearch,
 		catalogViewHref,
-		DEFAULT_KIND
+		DEFAULT_KIND,
+		MUSIC_SPLIT_LEAD
 	} from '$lib/catalogSpelling.js';
 
 	// 범위·지기·견습 포함·기간·주별/월별·열린 drill-down 패널은 URL에도 둔다(링크로 같은 보기를 연다). 페이지가 시작될 때 한 번만 읽는다.
@@ -504,7 +505,8 @@
 	onMount(loadAll);
 
 	// 표기 정리의 묶음(catalog/duplicates/, 전체 기간): 기간·지기와 상관없으므로 처음 한 번만 부르고,
-	// 많이 튼 작곡가·독주자·지휘자·오케스트라에 한 묶음의 표기가 둘 이상 들면 그 카드의 줄에 알린다.
+	// 많이 튼 작곡가·독주자·지휘자·오케스트라에 한 묶음의 표기가 둘 이상 들면(많이 튼 곡은 작곡가와 작품 번호가
+	// 같은 곡이 둘 이상 들면) 그 카드의 줄에 알린다.
 	// 종류마다 따로 부르고, 못 받은 종류만 줄을 두지 않는다.
 	/** @type {Record<string, any>} */
 	let duplicates = {};
@@ -519,11 +521,13 @@
 			console.error(`표기만 다른 이름 로딩 실패 (${kind})`, e);
 		}
 	}
-	onMount(() => ['composer', 'player', 'conductor', 'orchestra'].forEach(loadDuplicates));
+	onMount(() => ['composer', 'player', 'conductor', 'orchestra', 'music'].forEach(loadDuplicates));
 	$: composerSplit = splitSpellingNote(splitSpellings(duplicates.composer, composers));
 	$: soloistSplit = splitSpellingNote(splitSpellings(duplicates.player, soloists));
 	$: conductorSplit = splitSpellingNote(splitSpellings(duplicates.conductor, conductors));
 	$: orchestraSplit = splitSpellingNote(splitSpellings(duplicates.orchestra, orchestras));
+	// 곡 이름(작곡가 - 곡)은 길어서 2묶음까지.
+	$: worksSplit = splitSpellingNote(splitSpellings(duplicates.music, works), 2, MUSIC_SPLIT_LEAD);
 	// 카드의 줄: 상위 N위 줄 뒤에 표기 줄을 ' · '로 잇고, 표기 줄이 있으면 그 종류의 표기 정리로 잇는다.
 	const withSplit = (capNote, split) => [capNote, split].filter(Boolean).join(' · ');
 	const splitLink = (split, kind) =>
@@ -1136,7 +1140,8 @@
 			<ChartCard
 				showTable={allTables}
 				title="많이 튼 곡"
-				note={rankCapNote(works, WORKS_LIMIT, summary?.works, ['곡', '곡'])}
+				note={withSplit(rankCapNote(works, WORKS_LIMIT, summary?.works, ['곡', '곡']), worksSplit)}
+				noteLink={splitLink(worksSplit, 'music')}
 				chartNote={chartTieNote(works, LIMITS.works, WORKS_LIMIT, '곡이', '곡')}
 				option={worksOpt}
 				data={works}

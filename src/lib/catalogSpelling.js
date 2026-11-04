@@ -36,6 +36,9 @@ export const SPELLING_KINDS = [
 	{ kind: 'music', label: '곡', empty: '작품 번호가 같은 곡이 없습니다', param: 'music_id' }
 ];
 
+// 곡(kind=music)의 묶음은 작곡가와 작품 번호가 같은 곡이라, 제목이 표기만 다르다고는 할 수 없다.
+export const MUSIC_SPLIT_LEAD = '작품 번호가 같은 곡은';
+
 /**
  * @typedef {{ id: number, name: string, count: number, instrument?: string,
  *   composer_id?: number | null, composer_name?: string | null }} SpellingRow
@@ -239,12 +242,13 @@ export function splitSpellings(duplicates, envelope) {
 }
 
 // 그 묶음들을 카드의 한 줄로: '표기만 다른 이름은 따로 셉니다: ‘A’ 40회 + ‘B’ 12회; ‘C’ 5회 + ‘D’ 2회'.
-// max 묶음까지 적고 나머지는 ' 외 N묶음'. 없으면 ''.
+// max 묶음까지 적고 나머지는 ' 외 N묶음'. 없으면 ''. lead 는 '따로 셉니다' 앞의 말(곡은 MUSIC_SPLIT_LEAD).
 /**
  * @param {SplitGroup[]} groups
  * @param {number} [max]
+ * @param {string} [lead]
  */
-export function splitSpellingNote(groups, max = 3) {
+export function splitSpellingNote(groups, max = 3, lead = '표기만 다른 이름은') {
 	if (!groups?.length) return '';
 	const shown = groups
 		.slice(0, max)
@@ -253,5 +257,5 @@ export function splitSpellingNote(groups, max = 3) {
 		)
 		.join('; ');
 	const rest = groups.length - Math.min(groups.length, max);
-	return `표기만 다른 이름은 따로 셉니다: ${shown}${rest > 0 ? ` 외 ${rest.toLocaleString()}묶음` : ''}`;
+	return `${lead} 따로 셉니다: ${shown}${rest > 0 ? ` 외 ${rest.toLocaleString()}묶음` : ''}`;
 }

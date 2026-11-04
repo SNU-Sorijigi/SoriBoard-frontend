@@ -15,7 +15,8 @@ import {
 	spellingVariants,
 	variantHistoryHref,
 	splitSpellings,
-	splitSpellingNote
+	splitSpellingNote,
+	MUSIC_SPLIT_LEAD
 } from '../../src/lib/catalogSpelling.js';
 import { readHistoryQuery } from '../../src/lib/playHistory.js';
 import { readCatalogQuery } from '../../src/lib/composerCatalog.js';
@@ -606,4 +607,92 @@ test('a conductor group with string ids matches a ranking with number ids', () =
 		splitSpellingNote(splitSpellings(conductors, ranking)),
 		'표기만 다른 이름은 따로 셉니다: ‘가상 지휘자-002’ 3회 + ‘가상 지휘자 002’ 6회'
 	);
+});
+
+// 곡(kind=music): 묶음은 작곡가와 작품 번호가 같은 곡(행의 name 은 제목), 많이 튼 곡의 응답은 '작곡가 - 곡'.
+const musicRow = (id, title, count, composer_id, composer_name) => ({
+	id,
+	name: title,
+	count,
+	composer_id,
+	composer_name
+});
+
+test('a music group splits 많이 튼 곡 with its labels and counts, not the catalog titles', () => {
+	const music = {
+		kind: 'music',
+		groups: [
+			{
+				key: 'op21',
+				count: 30,
+				rows: [
+					musicRow(301, 'Symphony No. 3, Op. 21', 20, 501, 'Gasang Kim'),
+					musicRow(302, '교향곡 3번 op.21', 10, 501, 'Gasang Kim')
+				]
+			},
+			{
+				key: 'bwv2002',
+				count: 12,
+				rows: [
+					musicRow(303, 'Cello Suite No. 2, BWV 2002', 9, 502, 'Nara Park'),
+					musicRow(304, '무반주 첼로 모음곡 2번 BWV2002', 3, 502, 'Nara Park')
+				]
+			}
+		]
+	};
+	const works = envelopeOf([
+		{ id: 301, name: 'Gasang Kim - Symphony No. 3, Op. 21', count: 9, composer_id: 501 },
+		{ id: 303, name: 'Nara Park - Cello Suite No. 2, BWV 2002', count: 7, composer_id: 502 },
+		{ id: 302, name: 'Gasang Kim - 교향곡 3번 op.21', count: 4, composer_id: 501 }
+	]);
+	const split = splitSpellings(music, works);
+	assert.deepEqual(split, [
+		{
+			rows: [
+				{ id: 301, name: 'Gasang Kim - Symphony No. 3, Op. 21', count: 9 },
+				{ id: 302, name: 'Gasang Kim - 교향곡 3번 op.21', count: 4 }
+			],
+			count: 13
+		}
+	]);
+	assert.equal(
+		splitSpellingNote(split, 2, MUSIC_SPLIT_LEAD),
+		'작품 번호가 같은 곡은 따로 셉니다: ‘Gasang Kim - Symphony No. 3, Op. 21’ 9회 + ‘Gasang Kim - 교향곡 3번 op.21’ 4회'
+	);
+});
+
+test('a work with two catalog numbers joins only the first group it splits', () => {
+	const both = musicRow(310, 'Sonata Op. 5 (K. 550)', 6, 503, 'Dana Lee');
+	const music = {
+		kind: 'music',
+		groups: [
+			{ key: 'op5', count: 10, rows: [both, musicRow(311, '소나타 op.5', 4, 503, 'Dana Lee')] },
+			{ key: 'k550', count: 8, rows: [both, musicRow(312, 'Serenade KV 550', 2, 503, 'Dana Lee')] }
+		]
+	};
+	const all = envelopeOf([
+		{ id: 310, name: 'Dana Lee - Sonata Op. 5 (K. 550)', count: 6 },
+		{ id: 311, name: 'Dana Lee - 소나타 op.5', count: 4 },
+		{ id: 312, name: 'Dana Lee - Serenade KV 550', count: 2 }
+	]);
+	assert.deepEqual(
+		splitSpellings(music, all).map((group) => group.rows.map((row) => row.id)),
+		[[310, 311]]
+	);
+	// op.5 의 다른 곡이 이 보기에 없으면 첫 묶음은 갈리지 않으므로, 그 곡은 K. 550 묶음에 든다.
+	const without = envelopeOf(all.items.filter((item) => item.id !== 311));
+	assert.deepEqual(
+		splitSpellings(music, without).map((group) => group.rows.map((row) => row.id)),
+		[[310, 312]]
+	);
+});
+
+test('the 곡 note leads with 작품 번호가 같은 곡은, lists two groups, then how many more', () => {
+	const groups = [5, 4, 3, 2].map((n) => groupOf([`A${n}`, n], [`B${n}`, 1]));
+	assert.equal(MUSIC_SPLIT_LEAD, '작품 번호가 같은 곡은');
+	assert.equal(
+		splitSpellingNote(groups, 2, MUSIC_SPLIT_LEAD),
+		'작품 번호가 같은 곡은 따로 셉니다: ‘A5’ 5회 + ‘B5’ 1회; ‘A4’ 4회 + ‘B4’ 1회 외 2묶음'
+	);
+	assert.equal(splitSpellingNote([], 2, MUSIC_SPLIT_LEAD), '');
 });
