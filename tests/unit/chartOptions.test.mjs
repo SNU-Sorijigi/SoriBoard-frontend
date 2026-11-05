@@ -149,6 +149,22 @@ test('pie slices and their labels show the arrow (they open nothing); bars keep 
 	assert.equal(bar.yAxis.triggerEvent, true);
 });
 
+test('time charts open a bucket from its date too, as a bar opens from its name', () => {
+	// 날짜 이름의 클릭은 그 점·막대와 같은 dataIndex(카테고리 순서)로 itemclick 이 된다.
+	for (const option of [
+		timelineOption({ labels, values: [3, 1, 4, 1] }, '학기별 선곡 추이', '전체'),
+		countBarOption({ labels, values: [3, 1, 4, 1] }, '월별 선곡 수', '전체'),
+		diversityLineOption(labels, series, '월별 다양성 추이', '0%=편중 · 100%=고름')
+	]) {
+		assert.equal(option.xAxis.triggerEvent, true, option.title.text);
+		// 값 축의 숫자는 아무것도 열지 않으므로 그대로 둔다.
+		assert.equal(option.yAxis.triggerEvent, undefined, option.title.text);
+	}
+	// 도넛(#96)은 그대로 화살표다.
+	const pie = eraPieOption({ labels: ['바로크', '고전'], values: [3, 1] }, '시대별 분포', '');
+	assert.equal(pie.series[0].cursor, 'default');
+});
+
 // 막대 툴팁의 글자들(태그를 떼고 줄마다). ECharts 축 툴팁은 params 를 배열로 준다.
 const tooltipLines = (option, dataIndex) => {
 	const { data } = option.yAxis;

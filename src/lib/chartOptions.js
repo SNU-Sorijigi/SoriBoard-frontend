@@ -173,6 +173,7 @@ export function timelineOption({ labels, values }, title, subtitle) {
 			type: 'category',
 			data: labels,
 			boundaryGap: false,
+			triggerEvent: true, // 날짜를 눌러도 그 점·막대를 누른 것으로(그 기간의 선곡 기록)
 			axisLine: AXIS_LINE,
 			axisLabel: {
 				fontFamily: FONT,
@@ -224,6 +225,7 @@ export function countBarOption({ labels, values }, title, subtitle) {
 		xAxis: {
 			type: 'category',
 			data: labels,
+			triggerEvent: true, // 날짜를 눌러도 그 점·막대를 누른 것으로(그 기간의 선곡 기록)
 			axisLine: AXIS_LINE,
 			axisLabel: {
 				fontFamily: FONT,
@@ -281,6 +283,7 @@ export function diversityLineOption(labels, series, title, subtitle) {
 			type: 'category',
 			data: labels,
 			boundaryGap: false,
+			triggerEvent: true, // 날짜를 눌러도 그 점·막대를 누른 것으로(그 기간의 선곡 기록)
 			axisLine: AXIS_LINE,
 			axisLabel: {
 				fontFamily: FONT,
