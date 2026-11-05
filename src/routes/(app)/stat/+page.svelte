@@ -771,6 +771,9 @@
 	$: historyLink = historyHref(historyFilter);
 	// 신청곡 칸의 숫자: 같은 목록에서 신청곡만.
 	$: requestedLink = historyHref({ ...historyFilter, requested: 'true' });
+	// 처음·마지막 튼 날 칸의 날짜: 그 하루(직접 지정)의 선곡 기록. 지기는 그대로 둔다(그 지기 기준으로 구한 날짜다).
+	$: dayLink = (/** @type {string} */ date) =>
+		historyHref({ ...historyFilter, period: CUSTOM, start: date, end: date });
 	// drill-down 패널의 'N곡 모두 보기': stats/works 에 보낸 것과 같은 기간·지기·id 필터.
 	$: drillHistoryLink =
 		drill &&
@@ -980,10 +983,27 @@
 			</div>
 			<div class="kpi span2">
 				<div class="kpi-value small">
-					<!-- 좁은 칸에서는 '~' 뒤에서만 줄을 바꾼다 -->
+					<!-- 좁은 칸에서는 '~' 뒤에서만 줄을 바꾼다. 두 날짜는 저마다 그날의 선곡 기록을 연다 -->
 					{#if summary && summary.date_start}
-						<span class="date">{summary.date_start}</span> ~
-						<span class="date">{summary.date_end}</span>
+						<span class="date"
+							><a
+								class="kpi-link"
+								href={dayLink(summary.date_start)}
+								title="그날의 선곡 기록 보기"
+								aria-label="처음 튼 날 {summary.date_start} 선곡 기록에서 보기"
+								>{summary.date_start}</a
+							></span
+						>
+						~
+						<span class="date"
+							><a
+								class="kpi-link"
+								href={dayLink(summary.date_end)}
+								title="그날의 선곡 기록 보기"
+								aria-label="마지막으로 튼 날 {summary.date_end} 선곡 기록에서 보기"
+								>{summary.date_end}</a
+							></span
+						>
 					{:else}
 						—
 					{/if}
