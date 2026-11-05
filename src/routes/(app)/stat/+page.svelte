@@ -416,6 +416,10 @@
 	let drillWorks = null;
 	let drillLoading = false;
 	let drillError = '';
+	// 상한(WORKS_LIMIT)까지 실린 패널이면 그 대상의 곡 수(stats/summary 의 works)를 따로 불러 '(150곡 중)'을 붙인다.
+	// 그보다 적게 실린 패널은 부르지 않는다. 불러오는 중이거나 실패하면 null('상위 100곡'만).
+	/** @type {number | null} */
+	let drillTotal = null;
 	/** @type {HTMLElement | null} */
 	let drillOpener = null; // 패널을 연 표의 단추. 닫으면 포커스를 돌려준다.
 	// URL로 연 패널(drill·drill_id): 그 카드가 처음 불러와지면 id 로 항목을 찾아 연다.
@@ -454,13 +458,17 @@
 	async function loadDrill() {
 		if (!drill || (scope === 'individual' && !userId)) return;
 		loadPreviousDrill();
-		const id = requests.begin(['drill']);
+		const id = requests.begin(['drill', 'drillTotal']);
 		drillWorks = null;
+		drillTotal = null;
 		drillLoading = true;
 		drillError = '';
 		try {
 			const result = await getJson('works', drillParams(drill));
-			if (requests.isLatest('drill', id)) drillWorks = result;
+			if (requests.isLatest('drill', id)) {
+				drillWorks = result;
+				if (result.items.length >= WORKS_LIMIT) loadDrillTotal(drill, id);
+			}
 		} catch (e) {
 			if (requests.isLatest('drill', id)) {
 				console.error('통계 로딩 실패 (works)', e);
@@ -468,6 +476,15 @@
 			}
 		} finally {
 			if (requests.isLatest('drill', id)) drillLoading = false;
+		}
+	}
+	async function loadDrillTotal(target, id) {
+		try {
+			// buildQuery 가 기간·지기를 works 요청과 같게 넣는다.
+			const result = await getJson('summary', { [target.param]: String(target.id) });
+			if (requests.isLatest('drillTotal', id)) drillTotal = result.works;
+		} catch (e) {
+			if (requests.isLatest('drillTotal', id)) console.error('통계 로딩 실패 (drill summary)', e);
 		}
 	}
 	function openDrill(card, index) {
@@ -494,9 +511,10 @@
 			barItemIndex(e.detail.dataIndex, Math.min(data[card]?.labels?.length ?? 0, LIMITS[card]))
 		);
 	async function closeDrill() {
-		requests.begin(['drill', 'previousDrill']); // 진행 중인 응답은 버린다.
+		requests.begin(['drill', 'previousDrill', 'drillTotal']); // 진행 중인 응답은 버린다.
 		drill = null;
 		drillWorks = null;
+		drillTotal = null;
 		previousDrillWorks = null;
 		previousDrillFailed = false;
 		syncUrl();
@@ -1173,6 +1191,7 @@
 				<DrillPanel
 					target={drill}
 					works={drillWorks}
+					worksTotal={drillTotal}
 					previous={previousDrillWorks}
 					loading={drillLoading}
 					error={drillError}

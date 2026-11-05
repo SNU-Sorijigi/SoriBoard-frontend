@@ -488,6 +488,46 @@ test('drillSubtitle: 대상 · 범위 · 총 N곡, with 지난 학기 N곡 right
 		);
 });
 
+test("drillSubtitle says how many pieces a capped panel leaves out once the target's total is known", () => {
+	const target = { noun: '작곡가' };
+	const scope = '2025-2학기 · 전체';
+	const works = (total, n) => ({
+		total_plays: total,
+		items: Array.from({ length: n }, (_, i) => ({ id: i + 1, count: 1 }))
+	});
+	const dates = ' · 처음·마지막은 전체 기록 기준';
+	assert.equal(
+		drillSubtitle(target, scope, works(412, WORKS_LIMIT), null, 150),
+		`작곡가 · 2025-2학기 · 전체 · 총 412곡 · 상위 ${WORKS_LIMIT}곡 (150곡 중)${dates}`
+	);
+	assert.equal(
+		drillSubtitle(target, scope, works(412, WORKS_LIMIT), { total_plays: 300, items: [] }, 150),
+		`작곡가 · 2025-2학기 · 전체 · 총 412곡 · 지난 학기 300곡 · 상위 ${WORKS_LIMIT}곡 (150곡 중)${dates}`
+	);
+	assert.equal(
+		drillSubtitle(target, scope, works(5000, WORKS_LIMIT), null, 1234),
+		`작곡가 · 2025-2학기 · 전체 · 총 5,000곡 · 상위 ${WORKS_LIMIT}곡 (1,234곡 중)${dates}`
+	);
+	// exactly 100 pieces: nothing is cut, so no 상위 clause
+	assert.equal(
+		drillSubtitle(target, scope, works(412, WORKS_LIMIT), null, WORKS_LIMIT),
+		`작곡가 · 2025-2학기 · 전체 · 총 412곡${dates}`
+	);
+	// the total still loading or failed: today's bare clause
+	for (const total of [null, undefined, NaN, '150'])
+		assert.equal(
+			drillSubtitle(target, scope, works(412, WORKS_LIMIT), null, total),
+			`작곡가 · 2025-2학기 · 전체 · 총 412곡 · 상위 ${WORKS_LIMIT}곡${dates}`
+		);
+	// a panel under the cap: no clause, whatever the total
+	assert.equal(
+		drillSubtitle(target, scope, works(34, 3), null, 3),
+		`작곡가 · 2025-2학기 · 전체 · 총 34곡${dates}`
+	);
+	// still loading the list: the target and the scope only
+	assert.equal(drillSubtitle(target, scope, null, null, 150), '작곡가 · 2025-2학기 · 전체');
+});
+
 test('drillStatusText is empty while the panel loads', () => {
 	const works = { items: [{ id: 1 }] };
 	assert.equal(drillStatusText('브람스', { loading: true, error: '', works: null }), '');
@@ -515,10 +555,56 @@ test("drillStatusText counts the table's rows once loaded", () => {
 		drillStatusText('가상 관현악단 01', { works: works(1) }),
 		'가상 관현악단 01의 곡 1개를 불러왔습니다.'
 	);
+	// thousands: a whole list (its total known), and a list at or over the cap with no total (#151: '상위')
 	assert.equal(
-		drillStatusText('브람스', { works: works(1200) }),
+		drillStatusText('브람스', { works: works(1200), total: 1200 }),
 		`브람스의 곡 ${(1200).toLocaleString()}개를 불러왔습니다.`
 	);
+	assert.equal(
+		drillStatusText('브람스', { works: works(1200) }),
+		`브람스의 곡 상위 ${(1200).toLocaleString()}개를 불러왔습니다.`
+	);
+});
+
+test('drillStatusText says a capped panel loaded the top pieces, and of how many once known', () => {
+	const works = (n) => ({
+		total_plays: n * 3,
+		items: Array.from({ length: n }, (_, i) => ({ id: i }))
+	});
+	assert.equal(
+		drillStatusText('브람스', { loading: false, error: '', works: works(100), total: 150 }),
+		'브람스의 곡 상위 100개를 불러왔습니다 (150곡 중).'
+	);
+	assert.equal(
+		drillStatusText('브람스', { works: works(100), total: 1234 }),
+		'브람스의 곡 상위 100개를 불러왔습니다 (1,234곡 중).'
+	);
+	// the total still loading or failed
+	assert.equal(
+		drillStatusText('브람스', { works: works(100), total: null }),
+		'브람스의 곡 상위 100개를 불러왔습니다.'
+	);
+	assert.equal(
+		drillStatusText('브람스', { works: works(100) }),
+		'브람스의 곡 상위 100개를 불러왔습니다.'
+	);
+	// exactly 100 pieces: the whole list
+	assert.equal(
+		drillStatusText('브람스', { works: works(100), total: 100 }),
+		'브람스의 곡 100개를 불러왔습니다.'
+	);
+	// under the cap: unchanged
+	assert.equal(
+		drillStatusText('브람스', { works: works(12), total: 12 }),
+		'브람스의 곡 12개를 불러왔습니다.'
+	);
+	// the failed 지난 학기 still follows
+	assert.equal(
+		drillStatusText('브람스', { works: works(100), total: 150, previousError: '2026-1학기' }),
+		'브람스의 곡 상위 100개를 불러왔습니다 (150곡 중). 지난 학기(2026-1학기) 횟수를 불러오지 못했습니다.'
+	);
+	// loading and errors win, as before
+	assert.equal(drillStatusText('브람스', { loading: true, works: works(100), total: 150 }), '');
 });
 
 test('drillStatusText says when the period has no plays', () => {

@@ -12,6 +12,7 @@
 	export let target;
 	export let works = null; // stats/works 응답
 	export let previous = null; // 앞 학기의 같은 대상·범위의 stats/works 응답. 주면 표에 지난 학기 칸이, 부제에 그 학기의 총 곡 수가 붙는다.
+	export let worksTotal = null; // 그 대상의 곡 수(stats/summary 의 works). 주면 잘린 목록의 부제·상태에 '(150곡 중)'이 붙는다.
 	export let loading = false;
 	export let error = '';
 	export let scopeLabel = '';
@@ -58,11 +59,17 @@
 
 	$: title = `${target.name}의 곡`;
 	$: items = works ? works.items : [];
-	$: subtitle = drillSubtitle(target, scopeLabel, works, previous);
+	$: subtitle = drillSubtitle(target, scopeLabel, works, previous, worksTotal);
 	$: table = items.length > 0 && drillWorksTable(works, target, previous);
 	$: links = workLink ? items.map(workLink) : [];
 	// 화면 낭독기에 알리는 로드 상태. 줄은 처음부터(불러오는 중이라 빈 채로) 있어야 뒤의 문장이 읽힌다.
-	$: statusText = drillStatusText(target.name, { loading, error, works, previousError });
+	$: statusText = drillStatusText(target.name, {
+		loading,
+		error,
+		works,
+		previousError,
+		total: worksTotal
+	});
 </script>
 
 <!-- 포커스가 패널 안에 있으면 Escape 도 닫기와 같다. -->

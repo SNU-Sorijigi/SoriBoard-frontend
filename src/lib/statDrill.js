@@ -1,6 +1,6 @@
 // 통계 drill-down: 순위 카드(작곡가·독주자·지휘자·오케스트라)의 막대나 표의 행에서 그 뒤의 곡으로.
 // 막대·행의 위치를 응답의 items[i] 로 되돌리고, 이름이 아니라 id 로 거른다(이름은 겹칠 수 있다).
-import { formatCount, rankTable } from './statTable.js';
+import { formatCount, rankCapSubtitle, rankTable } from './statTable.js';
 
 /** @typedef {{ card: string, param: string, noun: string, id: number, name: string }} DrillTarget */
 
@@ -91,13 +91,16 @@ export function previousWorkValue(previous, item, start) {
 
 // 패널의 부제(표의 caption·aria-describedby): 대상 · 기간·범위 · 총 N곡, 앞 학기 목록(previous)이 오면
 // 그 total_plays 를 '지난 학기 N곡'으로 바로 뒤에 둔다. works 가 아직 없으면(불러오는 중) 대상 · 범위만.
+// 상한까지 실렸으면 '상위 100곡', 대상의 곡 수(total, stats/summary 의 works)를 알면 '(150곡 중)'도 붙이고,
+// 그 수가 실린 곡 수를 넘지 않으면(잘리지 않았으면) 붙이지 않는다(rankCapSubtitle).
 /**
  * @param {{ noun: string }} target
  * @param {string} scopeLabel
  * @param {{ total_plays: number, items: unknown[] } | null} works
  * @param {{ total_plays?: unknown } | null} [previous]
+ * @param {number | null} [total]
  */
-export function drillSubtitle(target, scopeLabel, works, previous = null) {
+export function drillSubtitle(target, scopeLabel, works, previous = null, total = null) {
 	if (!works) return `${target.noun} · ${scopeLabel}`;
 	const count = works.items.length;
 	const before = previous?.total_plays;
@@ -106,7 +109,7 @@ export function drillSubtitle(target, scopeLabel, works, previous = null) {
 		(typeof before === 'number' && Number.isFinite(before)
 			? ` · 지난 학기 ${before.toLocaleString()}곡`
 			: '') +
-		(count >= WORKS_LIMIT ? ` · 상위 ${WORKS_LIMIT}곡` : '') +
+		rankCapSubtitle(works, WORKS_LIMIT, total, '곡') +
 		(count > 0 ? ' · 처음·마지막은 전체 기록 기준' : '')
 	);
 }
@@ -114,20 +117,28 @@ export function drillSubtitle(target, scopeLabel, works, previous = null) {
 // 화면 낭독기에 알리는 패널의 로드 상태(role="status"): 불러오는 중이면 빈 줄, 다 오면 곡 수·없음·실패를
 // 한 문장으로. 지난 학기 횟수를 못 불렀으면(previousError: 그 학기 이름) 표가 있을 때만 덧붙인다(그 알림이
 // 표 아래에만 보인다). works 가 없고 불러오는 중도 실패도 아니면(개인 범위에 지기 미선택) 빈 줄.
-// 제목 '…의 곡'은 늘 '곡'으로 끝나므로 조사는 '을'이다.
+// 제목 '…의 곡'은 늘 '곡'으로 끝나므로 조사는 '을'이다. 부제처럼 잘렸으면 '상위 100개', 대상의 곡 수(total)를
+// 알면 '(150곡 중)'도 붙인다.
 /**
  * @param {string} name
- * @param {{ loading?: boolean, error?: string, works?: { items: unknown[] } | null, previousError?: string }} state
+ * @param {{ loading?: boolean, error?: string, works?: { items: unknown[] } | null, previousError?: string,
+ *   total?: number | null }} state
  */
-export function drillStatusText(name, { loading, error, works, previousError }) {
+export function drillStatusText(name, { loading, error, works, previousError, total = null }) {
 	const title = `${name}의 곡`;
 	if (loading) return '';
 	if (error) return `${title}을 불러오지 못했습니다. 다시 시도로 다시 부를 수 있습니다.`;
 	if (!works) return '';
 	const count = works.items.length;
 	if (count === 0) return `${title}: 이 기간에는 선곡이 없습니다.`;
+	// 부제와 같은 판단: 꼬리가 붙으면 잘린 목록이다.
+	const cut = rankCapSubtitle(works, WORKS_LIMIT, total, '곡') !== '';
+	const known = typeof total === 'number' && Number.isFinite(total);
 	return (
-		`${title} ${count.toLocaleString()}개를 불러왔습니다.` +
+		(cut
+			? `${title} 상위 ${count.toLocaleString()}개를 불러왔습니다` +
+				(known ? ` (${formatCount(total)}곡 중).` : '.')
+			: `${title} ${count.toLocaleString()}개를 불러왔습니다.`) +
 		(previousError ? ` 지난 학기(${previousError}) 횟수를 불러오지 못했습니다.` : '')
 	);
 }
