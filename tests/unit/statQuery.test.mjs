@@ -8,7 +8,8 @@ import {
 	writeTableView,
 	tableViewHref,
 	readFirstsByCount,
-	writeFirstsByCount
+	writeFirstsByCount,
+	firstsByCountHref
 } from '../../src/lib/statQuery.js';
 import { composerHref, composerStatHref } from '../../src/lib/composerStats.js';
 import { statHref } from '../../src/lib/playHistory.js';
@@ -258,4 +259,48 @@ test('the 작곡가 page and 통계 links keep their 기간 and 지기 through t
 		tableViewHref(composerStatHref(filter), true),
 		'/stat?semester_id=7&scope=individual&user_id=12&include_mentees=true&view=table'
 	);
+});
+
+test('통계, 학기 결산 and 작곡가 links keep the 처음 튼 많이 튼 순 (by_count)', () => {
+	const none = { composers: false, works: false };
+	const works = { composers: false, works: true };
+	const both = { composers: true, works: true };
+	for (const href of [
+		'/stat/report?semester_id=3',
+		'/stat?semester_id=3&view=table',
+		'/stat/composer/5?semester_id=3&user_id=12&include_mentees=true'
+	]) {
+		assert.equal(firstsByCountHref(href, none), href);
+	}
+	assert.equal(firstsByCountHref('/stat/composer/5', works), '/stat/composer/5?by_count=works');
+	assert.equal(
+		firstsByCountHref('/stat/report?semester_id=3', works),
+		'/stat/report?semester_id=3&by_count=works'
+	);
+	const on = firstsByCountHref('/stat?semester_id=3', both);
+	assert.equal(on, '/stat?semester_id=3&by_count=composers%2Cworks');
+	assert.deepEqual(readFirstsByCount(new URL(on, 'http://localhost').searchParams), both);
+	// 이미 있는 by_count 는 고쳐 쓴다(하나만 남는다).
+	const replaced = new URL(
+		firstsByCountHref('/stat/report?semester_id=3&by_count=composers', works),
+		'http://localhost'
+	);
+	assert.deepEqual(replaced.searchParams.getAll('by_count'), ['works']);
+	// 모든 차트 표로 보기와 어느 순서로 감싸도 같은 쿼리다.
+	const href = composerHref(5, { period: '3', userId: '12', includeMentees: true });
+	const params = (h) => [...new URL(h, 'http://localhost').searchParams].sort();
+	const outer = firstsByCountHref(tableViewHref(href, true), works);
+	const inner = tableViewHref(firstsByCountHref(href, works), true);
+	assert.equal(
+		outer,
+		'/stat/composer/5?semester_id=3&user_id=12&include_mentees=true&view=table&by_count=works'
+	);
+	assert.deepEqual(params(outer), params(inner));
+	assert.deepEqual(params(outer), [
+		['by_count', 'works'],
+		['include_mentees', 'true'],
+		['semester_id', '3'],
+		['user_id', '12'],
+		['view', 'table']
+	]);
 });

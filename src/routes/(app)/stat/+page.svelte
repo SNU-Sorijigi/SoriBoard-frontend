@@ -22,7 +22,8 @@
 		writeTableView,
 		tableViewHref,
 		readFirstsByCount,
-		writeFirstsByCount
+		writeFirstsByCount,
+		firstsByCountHref
 	} from '$lib/statQuery.js';
 	import { createLatestRequests } from '$lib/latestRequest.js';
 	import {
@@ -814,15 +815,18 @@
 	$: shownFirstWorks = firstsByCount.works ? byCount(firstWorks) : firstWorks;
 	$: firstComposerLinks = shownFirstComposers
 		? shownFirstComposers.items.map((item) =>
-				tableViewHref(
-					composerHref(item.id, {
-						period,
-						start: customStart,
-						end: customEnd,
-						userId: scope === 'individual' ? userId : null,
-						includeMentees
-					}),
-					allTables
+				firstsByCountHref(
+					tableViewHref(
+						composerHref(item.id, {
+							period,
+							start: customStart,
+							end: customEnd,
+							userId: scope === 'individual' ? userId : null,
+							includeMentees
+						}),
+						allTables
+					),
+					{ composers: false, works: firstsByCount.works }
 				)
 			)
 		: [];
@@ -859,7 +863,9 @@
 			<a class="history-link" href={historyLink}>선곡 기록</a>
 			<a class="history-link" href="/stat/composers">작곡가 정리</a>
 			<!-- 기간이 학기면 그 학기의, 아니면 가장 최근 학기의 결산 -->
-			<a class="history-link" href={reportHref(period)}>학기 결산</a>
+			<a class="history-link" href={firstsByCountHref(reportHref(period), firstsByCount)}
+				>학기 결산</a
+			>
 		</div>
 		<div class="controls">
 			<PeriodSelect
@@ -1223,15 +1229,18 @@
 					historyLink={drillHistoryLink}
 					workLink={drillWorkLink}
 					composerLink={drill.card === 'composers'
-						? tableViewHref(
-								composerHref(drill.id, {
-									period,
-									start: customStart,
-									end: customEnd,
-									userId: scope === 'individual' ? userId : null,
-									includeMentees
-								}),
-								allTables
+						? firstsByCountHref(
+								tableViewHref(
+									composerHref(drill.id, {
+										period,
+										start: customStart,
+										end: customEnd,
+										userId: scope === 'individual' ? userId : null,
+										includeMentees
+									}),
+									allTables
+								),
+								{ composers: false, works: firstsByCount.works }
 							)
 						: ''}
 					on:close={closeDrill}

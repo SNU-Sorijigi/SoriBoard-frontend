@@ -91,3 +91,15 @@ export function tableViewHref(href, on) {
 	writeTableView(url.searchParams, true);
 	return url.pathname + url.search + url.hash;
 }
+
+// 처음 튼 '많이 튼 순'을 켠 페이지의 통계·학기 결산·작곡가 링크는 by_count 를 이어 간다.
+/**
+ * @param {string} href 경로와 쿼리(예: /stat/report?semester_id=3)
+ * @param {{ composers: boolean, works: boolean }} flags
+ */
+export function firstsByCountHref(href, flags) {
+	if (!flags.composers && !flags.works) return href;
+	const url = new URL(href, 'http://localhost');
+	writeFirstsByCount(url.searchParams, flags);
+	return url.pathname + url.search + url.hash;
+}

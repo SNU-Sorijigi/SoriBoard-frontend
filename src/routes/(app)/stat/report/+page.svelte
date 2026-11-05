@@ -12,7 +12,12 @@
 		topOf,
 		PERFORMER_EMPTY
 	} from '$lib/statTable.js';
-	import { tableViewHref, readFirstsByCount, writeFirstsByCount } from '$lib/statQuery.js';
+	import {
+		tableViewHref,
+		readFirstsByCount,
+		writeFirstsByCount,
+		firstsByCountHref
+	} from '$lib/statQuery.js';
 	import { sortSemesters, semesterLabel, currentSemesterRange } from '$lib/statPeriod.js';
 	import { composerHref } from '$lib/composerStats.js';
 	import {
@@ -141,7 +146,9 @@
 	$: orchestras = topOf(data.orchestras?.current, TOP);
 	// 10 행이 동점을 잘랐을 때 표 아래의 말과 링크: 통계의 그 학기를 모든 차트 표로 보기로(표가 응답 전체를 싣는다).
 	const cutNote = (envelope, noun, unit) => tieNote(envelope, TOP, WORKS_LIMIT, noun, unit);
-	$: fullListHref = semester ? tableViewHref(`/stat?semester_id=${semester.id}`, true) : '';
+	$: fullListHref = semester
+		? firstsByCountHref(tableViewHref(`/stat?semester_id=${semester.id}`, true), statFirsts)
+		: '';
 	// KPI 칸은 이 학기의 요약, 그 아래 줄은 지난 학기의 요약과 견준다(없거나 실패하면 줄을 뺀다).
 	$: summary = data.summary?.current;
 	$: previousSummary = data.summary?.previous;
@@ -302,11 +309,15 @@
 	}
 
 	// 순위 표(상위 10). 작곡가 이름은 이 학기를 고른 작곡가 페이지로, 독주자·지휘자·오케스트라·곡
-	// 이름은 이 학기에 그 대상·곡을 튼 선곡 기록으로 간다.
-	const linksOf = (envelope, semesterId) =>
+	// 이름은 이 학기에 그 대상·곡을 튼 선곡 기록으로 간다. 작곡가 페이지에는 처음 튼 곡의 '많이 튼 순'
+	// (works)을 잇는다. $: 블록이 누름에 따라 다시 만들도록 값을 인자로 받는다.
+	const linksOf = (envelope, semesterId, worksByCount) =>
 		envelope && semesterId
 			? envelope.items.map((item) =>
-					composerHref(item.id, { period: semesterId, start: '', end: '' })
+					firstsByCountHref(composerHref(item.id, { period: semesterId, start: '', end: '' }), {
+						composers: false,
+						works: worksByCount
+					})
 				)
 			: [];
 	const workLinksOf = (envelope, semesterId) =>
@@ -385,7 +396,7 @@
 						firstIdSet(firstComposers)
 					)
 				: null,
-			links: linksOf(composers, semesterId),
+			links: linksOf(composers, semesterId, firstsByCount.firstWorks),
 			note: cutNote(data.composers?.current, '작곡가가', '명'),
 			split: splits.composers,
 			splitKind: SPLIT_KINDS.composers
@@ -499,7 +510,10 @@
 			title,
 			sorted,
 			table: shown?.items.length ? firstsTable(shown, nameHeader) : null,
-			links: nameHeader === '작곡가' ? linksOf(shown, semesterId) : workLinksOf(shown, semesterId),
+			links:
+				nameHeader === '작곡가'
+					? linksOf(shown, semesterId, firstsByCount.firstWorks)
+					: workLinksOf(shown, semesterId),
 			subtitle:
 				`클럽에서 이 학기에 처음 튼 ${nameHeader}` +
 				(firsts ? ` · ${firsts.items.length.toLocaleString()}${unit}` : '') +
@@ -511,6 +525,8 @@
 	// $: firstsCards 가 이 객체를 읽으므로 누르면 다시 만든다.
 	const urlFirsts = readFirstsByCount($page.url.searchParams);
 	let firstsByCount = { firstComposers: urlFirsts.composers, firstWorks: urlFirsts.works };
+	// 통계로 가는 링크(머리의 통계, 동점 메모의 전체 목록)는 둘 다 잇는다.
+	$: statFirsts = { composers: firstsByCount.firstComposers, works: firstsByCount.firstWorks };
 	/** @param {URLSearchParams} params */
 	const writeFirsts = (params) =>
 		writeFirstsByCount(params, {
@@ -643,7 +659,10 @@
 		</div>
 		<div class="controls">
 			{#if semester}
-				<a class="page-link" href={`/stat?semester_id=${semester.id}`}>통계</a>
+				<a
+					class="page-link"
+					href={firstsByCountHref(`/stat?semester_id=${semester.id}`, statFirsts)}>통계</a
+				>
 				<a class="page-link" href={kpiLinks.total_plays}>선곡 기록</a>
 			{:else}
 				<a class="page-link" href="/stat">통계</a>
