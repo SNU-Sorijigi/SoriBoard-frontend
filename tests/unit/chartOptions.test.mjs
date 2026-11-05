@@ -189,10 +189,18 @@ test('많이 튼 bars stay as thin as a 7-name card’s (22 px inside the outlin
 	assert.equal(few.series[0].barMaxWidth, 25);
 	// 굵기를 고정하지 않는다: 이름이 많은 카드는 지금처럼 더 가늘게 그려진다.
 	assert.equal(few.series[0].barWidth, undefined);
-	// 세로 선곡 수 막대는 그대로.
+});
+
+test('선곡 수 columns stay at most 58 px wide, however few buckets', () => {
+	// 한 학기만 튼 작곡가의 학기별 선곡은 막대 하나다: 카드만큼 넓지 않게 묶는다.
+	const one = countBarOption({ labels: ['2026-2학기'], values: [12] }, '학기별 선곡', '전체 기간');
+	assert.equal(one.series[0].barMaxWidth, 58);
+	// 굵기를 고정하지 않는다: 칸이 많은 차트(한 학기 월별, 주별)는 지금처럼 더 가늘게 그려진다.
+	assert.equal(one.series[0].barWidth, undefined);
 	const count = countBarOption({ labels, values: [3, 1, 4, 1] }, '월별 선곡 수', '전체');
-	assert.equal(count.series[0].barMaxWidth, undefined);
-	assert.equal(count.series[0].barWidth, undefined);
+	assert.equal(count.series[0].barMaxWidth, 58);
+	// 가로 많이 튼 막대의 묶음은 그대로.
+	assert.equal(horizontalBarOption(bars, '많이 튼 작곡가', '전체').series[0].barMaxWidth, 25);
 });
 
 test('bar names are cut at 160 px, or at the nameWidth given (많이 튼 곡: 220)', () => {

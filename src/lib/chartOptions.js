@@ -18,6 +18,9 @@ const FONT = "'Noto Sans KR', sans-serif";
 // 이름이 적은 카드도 가로 막대가 카드 높이만큼 두꺼워지지 않게, 이름 7개 카드의 굵기로 묶는다
 // (윤곽선까지 25px, 안쪽 색 22px).
 const BAR_MAX = 25;
+// 칸이 적은 세로 선곡 수 막대가 카드만큼 넓어지지 않게 묶는다. 1280px 에서 한 학기(6개월) 월별 막대는 윤곽선까지
+// 56~57px(안쪽 색 54px)이라, 조금 넉넉한 58px 이면 그 차트는 그대로다.
+const COLUMN_MAX = 58;
 
 // 시대/다계열 차트용 카테고리 팔레트: Powdered Pastels 8색.
 // 서로 가장 잘 구분되는 5색을 앞에 둔다(5계열 이하 도넛에서 비슷한 색이 이웃하지 않도록).
@@ -240,6 +243,7 @@ export function countBarOption({ labels, values }, title, subtitle) {
 			{
 				type: 'bar',
 				data: values,
+				barMaxWidth: COLUMN_MAX,
 				itemStyle: {
 					color: ACCENT,
 					borderColor: OUTLINE,
