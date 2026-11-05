@@ -7,6 +7,9 @@
 	// 주면 행의 이름 칸이 그 주소로 가는 링크가 된다(행마다, 없는 행은 글자 그대로).
 	/** @type {(string | null)[]} */
 	export let links = [];
+	// 주면 이름이 아닌 칸도 링크가 된다: 열의 위치 → { hrefs: 행마다 주소(없는 행은 글자 그대로), title }.
+	/** @type {Record<number, { hrefs: (string | null)[], title: string }>} */
+	export let cellLinks = {};
 </script>
 
 <table aria-labelledby={labelledby || undefined} aria-describedby={describedby || undefined}>
@@ -26,7 +29,11 @@
 							{#if links[r]}<a href={links[r]}>{cell}</a>{:else}{cell}{/if}
 						</th>
 					{:else}
-						<td class:numeric={table.columns[i].numeric}>{cell}</td>
+						<td class:numeric={table.columns[i].numeric}>
+							{#if cellLinks[i]?.hrefs[r]}<a href={cellLinks[i].hrefs[r]} title={cellLinks[i].title}
+									>{cell}</a
+								>{:else}{cell}{/if}
+						</td>
 					{/if}
 				{/each}
 			</tr>
