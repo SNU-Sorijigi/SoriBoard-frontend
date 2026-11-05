@@ -79,6 +79,7 @@
 		semesterLabel
 	} from '$lib/statPeriod.js';
 	import { historyHref, drillWorkTargets, bucketHistoryLinks } from '$lib/playHistory.js';
+	import { gapNote } from '$lib/bucketGaps.js';
 	import { composerHref } from '$lib/composerStats.js';
 	import {
 		reportHref,
@@ -703,6 +704,9 @@
 	);
 	$: timelineData = timeline && timelineView(timeline, endDate);
 	$: timelineOpt = timelineData && timelineOption(timelineData, timelineTitle, viewLabel);
+	// 선곡이 없어 빠진 주·월·학기 수(bucketGaps.js). '(진행 중)'이 붙기 전의 원래 라벨로 센다.
+	$: timelineGapNote =
+		timeline && gapNote(timeline.filters?.bucket ?? timelineBucket, timeline.labels);
 	$: eraOpt = eras && eraPieOption(eras, '시대별 분포', subtitleFor(eras));
 	$: eraNote = unknownEraNote(eras);
 	$: genreOpt = genres && eraPieOption(genres, '장르별 분포', subtitleFor(genres));
@@ -743,6 +747,9 @@
 		values: diversity.timeline.plays
 	};
 	$: countOpt = countData && countBarOption(countData, `${bucketLabel} 선곡 수`, viewLabel);
+	// 선곡 수와 다양성 추이는 같은 답이라 빠진 주·월도 같다: 두 카드에 같은 줄을 붙인다.
+	$: diversityGapNote =
+		diversity && gapNote(diversity.filters?.bucket ?? diversityBucket, diversity.timeline.labels);
 	$: diversityOpt =
 		diversity &&
 		diversityLineOption(
@@ -1200,6 +1207,7 @@
 			<ChartCard
 				showTable={allTables}
 				title={timelineTitle}
+				note={timelineGapNote}
 				option={timelineOpt}
 				data={timelineData}
 				loading={loading.timeline}
@@ -1333,6 +1341,7 @@
 			<ChartCard
 				showTable={allTables}
 				title={`${bucketLabel} 선곡 수`}
+				note={diversityGapNote}
 				option={countOpt}
 				data={countData}
 				loading={loading.diversity}
@@ -1346,6 +1355,7 @@
 			<ChartCard
 				showTable={allTables}
 				title={`${bucketLabel} 다양성 추이`}
+				note={diversityGapNote}
 				option={diversityOpt}
 				data={diversityCsvData}
 				table={diversityTable}

@@ -46,6 +46,7 @@
 		upcomingText
 	} from '$lib/semesterReport.js';
 	import { catalogHref } from '$lib/composerCatalog.js';
+	import { gapNote } from '$lib/bucketGaps.js';
 	import {
 		DEFAULT_KIND,
 		catalogViewHref,
@@ -501,6 +502,8 @@
 	$: shownBucket = timeline?.filters?.bucket ?? timelineBucket;
 	$: timelineTitle = `${timelineBucketName(shownBucket)} 선곡`;
 	$: timelineData = timeline && timelineView(timeline, current.end);
+	// 선곡이 없어 빠진 달·학기 수(bucketGaps.js), 원래 라벨로 센다.
+	$: timelineGapNote = timeline && gapNote(shownBucket, timeline.labels);
 	$: timelineOpt =
 		timelineData && countBarOption(timelineData, timelineTitle, subtitleFor(timeline));
 	$: soloistOpt =
@@ -915,6 +918,7 @@
 				<ChartCard
 					showTable={allTables}
 					title={timelineTitle}
+					note={timelineGapNote}
 					option={timelineOpt}
 					data={timelineData}
 					loading={loading.timeline}
