@@ -1,6 +1,7 @@
 <script>
 	import * as echarts from 'echarts';
 	import { onMount, onDestroy, createEventDispatcher } from 'svelte';
+	import { axisLabelTipAction } from '$lib/axisLabelTip.js';
 
 	export let option = null;
 	// 주면 화면 낭독기가 차트를 이 이름의 그림으로 읽는다(캔버스에 그린 제목은 읽지 못한다).
@@ -17,6 +18,13 @@
 		if (option) chart.setOption(option);
 		// 막대·조각(축 이름은 triggerEvent 일 때)을 누르면 알린다. dataIndex 는 option 의 데이터 순서다.
 		chart.on('click', (params) => dispatch('itemclick', { dataIndex: params.dataIndex }));
+		// 축 이름·날짜를 가리키면 그 막대·점의 툴팁(잘린 이름의 전체)을 띄우고, 벗어나면 닫는다.
+		for (const kind of ['mouseover', 'mouseout']) {
+			chart.on(kind, (params) => {
+				const action = axisLabelTipAction(kind, params);
+				if (action) chart.dispatchAction(action);
+			});
+		}
 		resizeObserver = new ResizeObserver(() => chart && chart.resize());
 		resizeObserver.observe(el);
 	});
