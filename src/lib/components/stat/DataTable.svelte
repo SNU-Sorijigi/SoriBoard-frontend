@@ -16,6 +16,9 @@
 	// 주면 행의 이름 칸이 그 주소로 가는 링크가 된다(행마다, 없는 행은 글자 그대로).
 	/** @type {(string | null)[]} */
 	export let links = [];
+	// 주면 이름이 아닌 칸도 링크가 된다: 열의 위치 → { hrefs: 행마다 주소(없는 행은 글자 그대로), title }.
+	/** @type {Record<number, { hrefs: (string | null)[], title: string }>} */
+	export let cellLinks = {};
 	// 이름 단추(rowLabel)가 있는 표에서 고른 행(열린 drill-down 패널의 대상): 배경·굵은 이름, aria-current.
 	export let selectedRow = -1;
 
@@ -62,6 +65,12 @@
 								</th>
 							{:else if i === table.rowHeader}
 								<th scope="row" class:numeric={table.columns[i].numeric}>{cell}</th>
+							{:else if cellLinks[i]?.hrefs[r]}
+								<td class:numeric={table.columns[i].numeric}>
+									<a class="row-link" href={cellLinks[i].hrefs[r]} title={cellLinks[i].title}
+										>{cell}</a
+									>
+								</td>
 							{:else}
 								<td class:numeric={table.columns[i].numeric}>{cell}</td>
 							{/if}

@@ -12,6 +12,8 @@
 	export let table = null; // 행이 없으면 null(빈 카드)
 	/** @type {(string | null)[]} */
 	export let links = []; // 행마다 이름 칸의 링크(DataTable 의 links)
+	/** @type {Record<number, { hrefs: (string | null)[], title: string }>} */
+	export let cellLinks = {}; // 이름이 아닌 칸의 링크: 열 → 행마다 주소와 title(DataTable 의 cellLinks)
 	export let loading = false;
 	export let error = ''; // 불러오기 실패 문구
 	/** @type {(() => void) | null} */
@@ -82,7 +84,7 @@
 				{/if}
 			</div>
 		{:else}
-			<DataTable {table} {title} subtitle={shownSubtitle} {links} />
+			<DataTable {table} {title} subtitle={shownSubtitle} {links} {cellLinks} />
 		{/if}
 	</div>
 </div>

@@ -95,7 +95,13 @@
 		ongoingText,
 		upcomingText
 	} from '$lib/semesterReport.js';
-	import { hasPeriodStart, firstsSubtitle, firstsEmptyText, byCount } from '$lib/statFirsts.js';
+	import {
+		hasPeriodStart,
+		firstsSubtitle,
+		firstsEmptyText,
+		byCount,
+		firstDayHref
+	} from '$lib/statFirsts.js';
 	import { memberFileText } from '$lib/statFileName.js';
 	import { pageTitle, periodTitle } from '$lib/statTitle.js';
 	import {
@@ -851,6 +857,14 @@
 				historyHref({ ...historyFilter, targets: [{ param: 'music_id', id: String(item.id) }] })
 			)
 		: [];
+	// 처음 튼 날마다: 그 날 처음 튼 선곡(지기 없이, statFirsts.js 의 firstDayHref). 보이는 순서의 행마다.
+	$: firstComposerDayLinks = shownFirstComposers
+		? shownFirstComposers.items.map((item) => firstDayHref('composer', item.id, item.first_played))
+		: [];
+	$: firstWorkDayLinks = shownFirstWorks
+		? shownFirstWorks.items.map((item) => firstDayHref('work', item.id, item.first_played))
+		: [];
+	const firstDayTitle = '이 날 처음 튼 선곡 보기';
 	// 시계열 카드의 주·월·학기마다: 같은 지기의 그 기간 선곡 기록(표의 기간, 차트의 막대·점).
 	$: timelineLinks = bucketHistoryLinks(historyFilter, timeline, semesters);
 	$: diversityLinks = bucketHistoryLinks(
@@ -1382,6 +1396,7 @@
 					? firstsTable(shownFirstComposers, '작곡가')
 					: null}
 				links={firstComposerLinks}
+				cellLinks={{ 1: { hrefs: firstComposerDayLinks, title: firstDayTitle } }}
 				sortLabel="많이 튼 순"
 				bind:sorted={firstsByCount.composers}
 				loading={loading.firstComposers}
@@ -1399,6 +1414,7 @@
 				subtitle={firstsSubtitle(viewLabel, firstWorks, '곡', '곡', previousFirstWorks)}
 				table={shownFirstWorks?.items.length ? firstsTable(shownFirstWorks, '곡') : null}
 				links={firstWorkLinks}
+				cellLinks={{ 1: { hrefs: firstWorkDayLinks, title: firstDayTitle } }}
 				sortLabel="많이 튼 순"
 				bind:sorted={firstsByCount.works}
 				loading={loading.firstWorks}
