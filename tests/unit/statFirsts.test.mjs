@@ -4,8 +4,10 @@ import {
 	hasPeriodStart,
 	firstsSubtitle,
 	firstsEmptyText,
-	byCount
+	byCount,
+	firstDayHref
 } from '../../src/lib/statFirsts.js';
+import { readHistoryQuery } from '../../src/lib/playHistory.js';
 
 test('a view has a period start for a 학기, and for 이번 학기 or 직접 지정 with a start', () => {
 	assert.equal(hasPeriodStart({ period: 'current', start: '2026-09-01' }), true);
@@ -132,4 +134,43 @@ test('많이 튼 순 has nothing to sort before the list is there, and an empty 
 	assert.equal(byCount(null), null);
 	assert.equal(byCount(undefined), null);
 	assert.deepEqual(byCount({ items: [] }), { items: [] });
+});
+
+test('a 처음 튼 날 opens that one day of the composer or piece in 선곡 기록, with every 지기', () => {
+	const work = firstDayHref('work', 20, '2026-03-12');
+	const url = new URL(work, 'http://x');
+	assert.equal(url.pathname, '/stat/history');
+	assert.deepEqual(Object.fromEntries(url.searchParams), {
+		start: '2026-03-12',
+		end: '2026-03-12',
+		music_id: '20'
+	});
+	const read = readHistoryQuery(url.searchParams);
+	assert.equal(read.period, 'custom');
+	assert.equal(read.start, '2026-03-12');
+	assert.equal(read.end, '2026-03-12');
+	assert.equal(read.userId, null);
+	assert.deepEqual(read.targets, [{ param: 'music_id', id: '20' }]);
+
+	const composer = new URL(firstDayHref('composer', 7, '2025-09-01'), 'http://x').searchParams;
+	assert.equal(composer.get('composer_id'), '7');
+	assert.equal(composer.has('music_id'), false);
+	assert.equal(composer.get('start'), '2025-09-01');
+	assert.equal(composer.get('end'), '2025-09-01');
+
+	for (const params of [url.searchParams, composer]) {
+		for (const key of ['user_id', 'include_mentees', 'q', 'requested', 'semester_id', 'period']) {
+			assert.equal(params.has(key), false, key);
+		}
+	}
+});
+
+test('a 처음 튼 날 without a known kind, a positive id or a YYYY-MM-DD date stays text', () => {
+	assert.equal(firstDayHref('player', 20, '2026-03-12'), null);
+	for (const id of [0, -1, 1.5, '20', null, undefined, NaN, Number.MAX_SAFE_INTEGER + 1]) {
+		assert.equal(firstDayHref('work', id, '2026-03-12'), null, String(id));
+	}
+	for (const date of ['', '2026-3-12', 'None', undefined, null, '2026-02-30', 20260312]) {
+		assert.equal(firstDayHref('composer', 7, date), null, String(date));
+	}
 });
