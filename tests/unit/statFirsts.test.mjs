@@ -5,7 +5,8 @@ import {
 	firstsSubtitle,
 	firstsEmptyText,
 	byCount,
-	firstDayHref
+	firstDayHref,
+	workDateLinks
 } from '../../src/lib/statFirsts.js';
 import { readHistoryQuery } from '../../src/lib/playHistory.js';
 
@@ -173,4 +174,45 @@ test('a 처음 튼 날 without a known kind, a positive id or a YYYY-MM-DD date 
 	for (const date of ['', '2026-3-12', 'None', undefined, null, '2026-02-30', 20260312]) {
 		assert.equal(firstDayHref('composer', 7, date), null, String(date));
 	}
+});
+
+test('a piece table links each 처음 and 마지막 date to that day of the piece, with every 지기', () => {
+	const items = [
+		{ id: 20, first_played: '2025-09-01', last_played: '2026-03-10' },
+		{ id: 21, first_played: '2026-03-20', last_played: '2026-04-22' }
+	];
+	const links = workDateLinks(items);
+	assert.deepEqual(Object.keys(links), ['3', '4']);
+	assert.deepEqual(links[3].hrefs, [
+		firstDayHref('work', 20, '2025-09-01'),
+		firstDayHref('work', 21, '2026-03-20')
+	]);
+	assert.deepEqual(links[4].hrefs, [
+		firstDayHref('work', 20, '2026-03-10'),
+		firstDayHref('work', 21, '2026-04-22')
+	]);
+	assert.equal(links[3].title, '이 날 처음 튼 선곡 보기');
+	assert.equal(links[4].title, '이 날 마지막으로 튼 선곡 보기');
+
+	const last = new URL(links[4].hrefs[1], 'http://x');
+	assert.equal(last.pathname, '/stat/history');
+	assert.deepEqual(Object.fromEntries(last.searchParams), {
+		start: '2026-04-22',
+		end: '2026-04-22',
+		music_id: '21'
+	});
+	assert.equal(last.searchParams.has('user_id'), false);
+
+	const plain = workDateLinks([
+		{ id: 20, first_played: null, last_played: undefined },
+		{ id: 20, first_played: '—', last_played: '2026-02-30' },
+		{ id: 0, first_played: '2026-03-20', last_played: '2026-04-22' },
+		{ id: '20', first_played: '2026-03-20', last_played: '2026-04-22' }
+	]);
+	assert.deepEqual(plain[3].hrefs, [null, null, null, null]);
+	assert.deepEqual(plain[4].hrefs, [null, null, null, null]);
+
+	const none = workDateLinks([]);
+	assert.deepEqual(none[3].hrefs, []);
+	assert.deepEqual(none[4].hrefs, []);
 });

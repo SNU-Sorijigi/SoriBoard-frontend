@@ -79,3 +79,22 @@ export function firstDayHref(kind, id, date) {
 		targets: [{ param, id: String(id) }]
 	});
 }
+
+// 곡 표(statDrill.js 의 drillWorksTable, composerStats.js 의 composerWorksTable: 순위·곡·횟수·처음·마지막
+// [·지난 학기])의 처음(3)·마지막(4) 칸 → 그 하루, 그 곡의 선곡 기록(DataTable 의 cellLinks, firstDayHref).
+/**
+ * @param {{ id: unknown, first_played?: unknown, last_played?: unknown }[]} items
+ * @returns {Record<number, { hrefs: (string | null)[], title: string }>}
+ */
+export function workDateLinks(items) {
+	return {
+		3: {
+			hrefs: items.map((item) => firstDayHref('work', item.id, item.first_played)),
+			title: '이 날 처음 튼 선곡 보기'
+		},
+		4: {
+			hrefs: items.map((item) => firstDayHref('work', item.id, item.last_played)),
+			title: '이 날 마지막으로 튼 선곡 보기'
+		}
+	};
+}

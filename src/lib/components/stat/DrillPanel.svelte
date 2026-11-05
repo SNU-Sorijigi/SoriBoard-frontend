@@ -2,6 +2,7 @@
 	import { onMount, createEventDispatcher } from 'svelte';
 	import DataTable from './DataTable.svelte';
 	import { drillStatusText, drillSubtitle, drillWorksTable } from '$lib/statDrill.js';
+	import { workDateLinks } from '$lib/statFirsts.js';
 	import { closeOnEscape } from '$lib/escapeKey.js';
 	import { downloadCsvTable, tableCsv } from '$lib/csvTable.js';
 	import { todayStamp } from '$lib/csv.js';
@@ -62,6 +63,8 @@
 	$: subtitle = drillSubtitle(target, scopeLabel, works, previous, worksTotal);
 	$: table = items.length > 0 && drillWorksTable(works, target, previous);
 	$: links = workLink ? items.map(workLink) : [];
+	// 처음·마지막 날 → 그 하루, 그 곡의 선곡 기록(지기 없이: 날짜가 클럽 전체 기준이다).
+	$: dateLinks = workDateLinks(items);
 	// 화면 낭독기에 알리는 로드 상태. 줄은 처음부터(불러오는 중이라 빈 채로) 있어야 뒤의 문장이 읽힌다.
 	$: statusText = drillStatusText(target.name, {
 		loading,
@@ -111,7 +114,7 @@
 		</button>
 	</div>
 	{#if !loading && !error && table}
-		<DataTable {table} {title} {subtitle} {links} />
+		<DataTable {table} {title} {subtitle} {links} cellLinks={dateLinks} />
 		{#if previousError}
 			<p class="previous-error">
 				지난 학기({previousError}) 횟수를 불러오지 못했습니다.
