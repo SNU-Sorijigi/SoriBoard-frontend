@@ -219,3 +219,19 @@ export function writeDrillQuery(params, target) {
 export function drillItemIndex(envelope, id) {
 	return envelope?.items?.findIndex((item) => item.id === id) ?? -1;
 }
+
+// 열린 패널의 대상을 그 카드에 표시할 자리: 표로 보기의 행(items 의 위치)과 차트의 막대(dataIndex).
+// 차트는 앞 limit 개만 1위가 맨 위에 오도록 뒤집어 그리므로(barItemIndex 의 역), 그 밖의 행은 막대가 없다(-1).
+// 패널이 없거나, 다른 카드의 패널이거나, 응답에 그 id 가 없으면 둘 다 -1.
+/**
+ * @param {{ card: string, id: number } | null | undefined} drill
+ * @param {string} card
+ * @param {{ items?: { id: number | null }[] } | null | undefined} envelope
+ * @param {number} limit
+ * @returns {{ row: number, bar: number }}
+ */
+export function drillMark(drill, card, envelope, limit) {
+	const row = drill?.card === card ? drillItemIndex(envelope, drill.id) : -1;
+	const n = Math.min(envelope?.items?.length ?? 0, limit);
+	return { row, bar: row >= 0 && row < n ? n - 1 - row : -1 };
+}

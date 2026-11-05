@@ -5,7 +5,8 @@ import {
 	countBarOption,
 	diversityLineOption,
 	eraPieOption,
-	horizontalBarOption
+	horizontalBarOption,
+	markBar
 } from '../../src/lib/chartOptions.js';
 import { shareTable, SHARE_PRECISION } from '../../src/lib/statTable.js';
 
@@ -171,10 +172,12 @@ test('time charts open a bucket from its date too, as a bar opens from its name'
 });
 
 // 막대 툴팁의 글자들(태그를 떼고 줄마다). ECharts 축 툴팁은 params 를 배열로 준다.
+// ECharts 는 { value, itemStyle } 항목(markBar)의 툴팁에도 그 value 만 넘긴다.
 const tooltipLines = (option, dataIndex) => {
 	const { data } = option.yAxis;
+	const item = option.series[0].data[dataIndex];
 	const html = option.tooltip.formatter([
-		{ name: data[dataIndex], value: option.series[0].data[dataIndex], dataIndex, marker: '<i></i>' }
+		{ name: data[dataIndex], value: item?.value ?? item, dataIndex, marker: '<i></i>' }
 	]);
 	return html
 		.split(/<[^>]+>/)
@@ -238,4 +241,42 @@ test('bar names are cut at 160 px, or at the nameWidth given (많이 튼 곡: 22
 	assert.equal(noted.yAxis.axisLabel.overflow, 'truncate');
 	assert.deepEqual(tooltipLines(noted, 2), ['브람스 &#60;1&#62;', '1,234', '지난 학기 3위']);
 	assert.deepEqual(tooltipLines(noted, 1), ['바흐', '5']);
+});
+
+test('markBar leaves the option as it is for no bar or a bar out of range', () => {
+	const option = horizontalBarOption(bars, '많이 튼 작곡가', '2026-1학기 · 전체');
+	for (const index of [-1, 3, 99, 1.5, undefined, null])
+		assert.equal(markBar(option, index), option);
+});
+
+test('markBar fills only the open name’s bar Micron, keeping its value and the series’ look', () => {
+	const option = horizontalBarOption(bars, '많이 튼 작곡가', '2026-1학기 · 전체');
+	const before = structuredClone(option);
+	// 막대는 뒤집혀 있다: dataIndex 2 가 맨 위의 1위(1234).
+	const marked = markBar(option, 2);
+	assert.notEqual(marked, option);
+	assert.deepEqual(option, before, 'the input option is not changed');
+	const [series] = marked.series;
+	assert.deepEqual(series.data, [3, 5, { value: 1234, itemStyle: { color: '#656667' } }]);
+	assert.deepEqual(series.itemStyle, before.series[0].itemStyle);
+	assert.deepEqual(series.label, before.series[0].label);
+	assert.equal(series.barMaxWidth, before.series[0].barMaxWidth);
+	assert.deepEqual(series.emphasis, before.series[0].emphasis);
+	assert.deepEqual(marked.yAxis, before.yAxis);
+	assert.deepEqual(marked.title, before.title);
+	assert.deepEqual(markBar(option, 0).series[0].data, [
+		{ value: 3, itemStyle: { color: '#656667' } },
+		5,
+		1234
+	]);
+});
+
+test('a marked bar’s tooltip still reads its name, count and note', () => {
+	const notes = ['지난 학기 3위', '', '지난 학기 첫 선곡'];
+	const marked = markBar(
+		horizontalBarOption(bars, '많이 튼 작곡가', '2026-1학기 · 전체', notes),
+		2
+	);
+	assert.deepEqual(tooltipLines(marked, 2), ['브람스 &#60;1&#62;', '1,234', '지난 학기 3위']);
+	assert.deepEqual(tooltipLines(marked, 0), ['가상 작곡가', '3', '지난 학기 첫 선곡']);
 });

@@ -163,6 +163,17 @@ export function horizontalBarOption(
 	};
 }
 
+// 막대 하나(dataIndex)를 Micron 으로 칠한 사본: 통계에서 drill-down 패널이 보이는 대상의 막대. 범위 밖이면 그대로.
+// 항목의 itemStyle 은 계열의 것에 덧씌워지므로 윤곽선·모서리·값 표시는 다른 막대와 같다.
+export function markBar(option, dataIndex) {
+	const series = option?.series?.[0];
+	if (!Array.isArray(series?.data) || !Number.isInteger(dataIndex)) return option;
+	if (dataIndex < 0 || dataIndex >= series.data.length) return option;
+	const data = [...series.data];
+	data[dataIndex] = { value: data[dataIndex], itemStyle: { color: SUBTEXT } };
+	return { ...option, series: [{ ...series, data }, ...option.series.slice(1)] };
+}
+
 // 추이 라인 (timeline)
 export function timelineOption({ labels, values }, title, subtitle) {
 	return {

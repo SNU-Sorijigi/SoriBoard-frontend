@@ -14,7 +14,8 @@ import {
 	drillStatusText,
 	readDrillQuery,
 	writeDrillQuery,
-	drillItemIndex
+	drillItemIndex,
+	drillMark
 } from '../../src/lib/statDrill.js';
 import { tableCsv } from '../../src/lib/csvTable.js';
 
@@ -642,4 +643,52 @@ test('drillStatusText is empty with no answer, no load and no error', () => {
 	// 개인 범위에 지기를 고르지 않으면 패널은 부르지 않는다.
 	assert.equal(drillStatusText('브람스', { loading: false, error: '', works: null }), '');
 	assert.equal(drillStatusText('브람스', { works: null, previousError: '2026-1학기' }), '');
+});
+
+// 이름 n개의 순위 응답(id 101, 102, …, 1위부터).
+const ranked = (n) => ({
+	items: Array.from({ length: n }, (_, i) => ({ id: 101 + i, name: `가상 작곡가 ${i + 1}` }))
+});
+
+test('drillMark marks nothing with no panel, a panel of another card, or no answer', () => {
+	const none = { row: -1, bar: -1 };
+	assert.deepEqual(drillMark(null, 'composers', ranked(12), 12), none);
+	assert.deepEqual(drillMark(undefined, 'composers', ranked(12), 12), none);
+	assert.deepEqual(drillMark({ card: 'soloists', id: 101 }, 'composers', ranked(12), 12), none);
+	assert.deepEqual(drillMark({ card: 'composers', id: 999 }, 'composers', ranked(12), 12), none);
+	assert.deepEqual(drillMark({ card: 'composers', id: 101 }, 'composers', null, 12), none);
+	assert.deepEqual(drillMark({ card: 'composers', id: 101 }, 'composers', undefined, 12), none);
+});
+
+test('drillMark finds the open name’s row and its bar, 1위 on the top bar', () => {
+	const card = ranked(12);
+	assert.deepEqual(drillMark({ card: 'composers', id: 101 }, 'composers', card, 12), {
+		row: 0,
+		bar: 11
+	});
+	assert.deepEqual(drillMark({ card: 'composers', id: 112 }, 'composers', card, 12), {
+		row: 11,
+		bar: 0
+	});
+	// 이름이 3개면 차트도 막대 3개: 1위는 dataIndex 2.
+	assert.deepEqual(drillMark({ card: 'conductors', id: 101 }, 'conductors', ranked(3), 10), {
+		row: 0,
+		bar: 2
+	});
+	// barItemIndex 의 역이다.
+	for (let row = 0; row < 12; row++) {
+		const { bar } = drillMark({ card: 'composers', id: 101 + row }, 'composers', card, 12);
+		assert.equal(barItemIndex(bar, 12), row);
+	}
+});
+
+test('drillMark marks only the row of a name below the chart’s top N', () => {
+	assert.deepEqual(drillMark({ card: 'composers', id: 130 }, 'composers', ranked(100), 12), {
+		row: 29,
+		bar: -1
+	});
+	assert.deepEqual(drillMark({ card: 'orchestras', id: 111 }, 'orchestras', ranked(11), 10), {
+		row: 10,
+		bar: -1
+	});
 });
