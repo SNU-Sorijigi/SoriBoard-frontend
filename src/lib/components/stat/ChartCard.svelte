@@ -1,4 +1,5 @@
 <script>
+	import { tick } from 'svelte';
 	import EChart from './EChart.svelte';
 	import DataTable from './DataTable.svelte';
 	import { seriesTable, chartLabel, placeholderText } from '$lib/statTable.js';
@@ -35,6 +36,16 @@
 	export let showTable = false;
 	let viewToggle;
 
+	let cardEl;
+
+	// 페이지가 이 카드의 표를 연다(통계의 KPI 숫자): 표를 켜고, 카드로 스크롤해 표(없으면 표로 보기 단추)에 포커스를 둔다.
+	export async function openTable() {
+		showTable = true;
+		await tick();
+		cardEl.scrollIntoView({ block: 'start' });
+		(cardEl.querySelector('.table-scroll') ?? viewToggle).focus({ preventScroll: true });
+	}
+
 	// 누르면 단추가 사라지므로, 포커스가 본문으로 떨어지지 않도록 먼저 이 카드의 '표로 보기'로 옮긴다.
 	function onRetry() {
 		viewToggle?.focus();
@@ -63,7 +74,7 @@
 	}
 </script>
 
-<div class="card">
+<div class="card" bind:this={cardEl}>
 	<button
 		bind:this={viewToggle}
 		class="tool-btn view-toggle"
