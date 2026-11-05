@@ -56,7 +56,13 @@
 		splitSpellingNote,
 		MUSIC_SPLIT_LEAD
 	} from '$lib/catalogSpelling.js';
-	import { hasPeriodStart, firstsSubtitle, firstsEmptyText, byCount } from '$lib/statFirsts.js';
+	import {
+		hasPeriodStart,
+		firstsSubtitle,
+		firstsEmptyText,
+		byCount,
+		firstDayHref
+	} from '$lib/statFirsts.js';
 	import {
 		readTableView,
 		writeTableView,
@@ -575,6 +581,10 @@
 	$: firstWorkLinks = shownFirstWorks
 		? shownFirstWorks.items.map((item) => composerWorkHref(item.id, filter))
 		: [];
+	// 처음 튼 날마다: 그 날 처음 튼 선곡(지기 없이, statFirsts.js 의 firstDayHref). 보이는 순서의 행마다.
+	$: firstWorkDayLinks = shownFirstWorks
+		? shownFirstWorks.items.map((item) => firstDayHref('work', item.id, item.first_played))
+		: [];
 	$: firstsAsked = asksFirsts(period, customStart);
 	// 독주자·지휘자·오케스트라는 이 작곡가의 곡을 그 사람(악단)과 튼 선곡 기록으로 간다(표의 이름, 차트의 막대).
 	$: soloistLinks = composerRankLinks(composerId, 'soloists', soloists, filter);
@@ -1064,6 +1074,7 @@
 								? composerFirstsTable(shownFirstWorks, composer)
 								: null}
 							links={firstWorkLinks}
+							cellLinks={{ 1: { hrefs: firstWorkDayLinks, title: '이 날 처음 튼 선곡 보기' } }}
 							sortLabel="많이 튼 순"
 							bind:sorted={firstWorksByCount}
 							loading={loading.firstWorks}

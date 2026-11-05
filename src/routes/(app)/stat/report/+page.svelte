@@ -32,7 +32,7 @@
 	import { downloadCsvTable, tableCsv } from '$lib/csvTable.js';
 	import { downloadName } from '$lib/statFileName.js';
 	import { todayStamp } from '$lib/csv.js';
-	import { byCount } from '$lib/statFirsts.js';
+	import { byCount, firstDayHref } from '$lib/statFirsts.js';
 	import {
 		splitSpellings,
 		splitSpellingNote,
@@ -514,6 +514,21 @@
 				nameHeader === '작곡가'
 					? linksOf(shown, semesterId, firstsByCount.firstWorks)
 					: workLinksOf(shown, semesterId),
+			// 처음 튼 날마다: 그 날 처음 튼 선곡(지기 없이, statFirsts.js 의 firstDayHref). 보이는 순서의 행마다.
+			cellLinks: {
+				1: {
+					hrefs: shown
+						? shown.items.map((item) =>
+								firstDayHref(
+									nameHeader === '작곡가' ? 'composer' : 'work',
+									item.id,
+									item.first_played
+								)
+							)
+						: [],
+					title: '이 날 처음 튼 선곡 보기'
+				}
+			},
 			subtitle:
 				`클럽에서 이 학기에 처음 튼 ${nameHeader}` +
 				(firsts ? ` · ${firsts.items.length.toLocaleString()}${unit}` : '') +
@@ -998,6 +1013,7 @@
 							<ReportTable
 								table={card.table}
 								links={card.links}
+								cellLinks={card.cellLinks}
 								labelledby={`report-${card.key}`}
 								describedby={`report-${card.key}-sub`}
 							/>
