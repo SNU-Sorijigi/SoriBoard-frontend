@@ -289,6 +289,7 @@
 		retry(key);
 	}
 	let summaryRow;
+	let cards = {}; // 많이 튼 작곡가·곡·지휘자·오케스트라 카드: 위 KPI 숫자가 그 카드의 표를 연다(openTable).
 	let tilesRow;
 	const loadAll = () => {
 		timelineBucket = nextTimelineBucket();
@@ -978,7 +979,20 @@
 				{/if}
 			</div>
 			<div class="kpi">
-				<div class="kpi-value">{summary ? summary.composers.toLocaleString() : '—'}</div>
+				<div class="kpi-value">
+					{#if summary?.composers > 0}
+						<button
+							type="button"
+							class="kpi-link kpi-open"
+							on:click={() => cards.composers?.openTable()}
+							title="많이 튼 작곡가 표로 보기"
+							aria-label="작곡가 {summary.composers.toLocaleString()} 명 — 많이 튼 작곡가 표로 보기"
+							>{summary.composers.toLocaleString()}</button
+						>
+					{:else}
+						{summary ? summary.composers.toLocaleString() : '—'}
+					{/if}
+				</div>
 				<div class="kpi-label">작곡가</div>
 				{#if changes.composers}
 					<div class="kpi-change">
@@ -988,7 +1002,20 @@
 				{/if}
 			</div>
 			<div class="kpi">
-				<div class="kpi-value">{summary ? summary.works.toLocaleString() : '—'}</div>
+				<div class="kpi-value">
+					{#if summary?.works > 0}
+						<button
+							type="button"
+							class="kpi-link kpi-open"
+							on:click={() => cards.works?.openTable()}
+							title="많이 튼 곡 표로 보기"
+							aria-label="곡 {summary.works.toLocaleString()} 곡 — 많이 튼 곡 표로 보기"
+							>{summary.works.toLocaleString()}</button
+						>
+					{:else}
+						{summary ? summary.works.toLocaleString() : '—'}
+					{/if}
+				</div>
 				<div class="kpi-label">곡</div>
 				{#if changes.works}
 					<div class="kpi-change">
@@ -998,7 +1025,20 @@
 				{/if}
 			</div>
 			<div class="kpi">
-				<div class="kpi-value">{summary ? summary.conductors.toLocaleString() : '—'}</div>
+				<div class="kpi-value">
+					{#if summary?.conductors > 0}
+						<button
+							type="button"
+							class="kpi-link kpi-open"
+							on:click={() => cards.conductors?.openTable()}
+							title="많이 튼 지휘자 표로 보기"
+							aria-label="지휘자 {summary.conductors.toLocaleString()} 명 — 많이 튼 지휘자 표로 보기"
+							>{summary.conductors.toLocaleString()}</button
+						>
+					{:else}
+						{summary ? summary.conductors.toLocaleString() : '—'}
+					{/if}
+				</div>
 				<div class="kpi-label">지휘자</div>
 				{#if changes.conductors}
 					<div class="kpi-change">
@@ -1008,7 +1048,20 @@
 				{/if}
 			</div>
 			<div class="kpi">
-				<div class="kpi-value">{summary ? summary.orchestras.toLocaleString() : '—'}</div>
+				<div class="kpi-value">
+					{#if summary?.orchestras > 0}
+						<button
+							type="button"
+							class="kpi-link kpi-open"
+							on:click={() => cards.orchestras?.openTable()}
+							title="많이 튼 오케스트라 표로 보기"
+							aria-label="오케스트라 {summary.orchestras.toLocaleString()} 곳 — 많이 튼 오케스트라 표로 보기"
+							>{summary.orchestras.toLocaleString()}</button
+						>
+					{:else}
+						{summary ? summary.orchestras.toLocaleString() : '—'}
+					{/if}
+				</div>
 				<div class="kpi-label">오케스트라</div>
 				{#if changes.orchestras}
 					<div class="kpi-change">
@@ -1095,6 +1148,7 @@
 		<!-- 차트 그리드 -->
 		<div class="chart-grid">
 			<ChartCard
+				bind:this={cards.composers}
 				showTable={allTables}
 				title="많이 튼 작곡가"
 				note={withSplit(
@@ -1141,6 +1195,7 @@
 				csvHeaders={['연주자', '횟수']}
 			/>
 			<ChartCard
+				bind:this={cards.conductors}
 				showTable={allTables}
 				title="많이 튼 지휘자"
 				emptyText={PERFORMER_EMPTY.conductors}
@@ -1166,6 +1221,7 @@
 				csvHeaders={['지휘자', '횟수']}
 			/>
 			<ChartCard
+				bind:this={cards.orchestras}
 				showTable={allTables}
 				title="많이 튼 오케스트라"
 				emptyText={PERFORMER_EMPTY.orchestras}
@@ -1233,6 +1289,7 @@
 				csvHeaders={['기간', '횟수']}
 			/>
 			<ChartCard
+				bind:this={cards.works}
 				showTable={allTables}
 				title="많이 튼 곡"
 				note={withSplit(rankCapNote(works, WORKS_LIMIT, summary?.works, ['곡', '곡']), worksSplit)}
@@ -1527,6 +1584,15 @@
 	.kpi-link:hover,
 	.kpi-link:focus-visible {
 		text-decoration: underline;
+	}
+	/* 카드의 표를 여는 숫자(단추)도 옆 링크와 같은 모양 */
+	.kpi-open {
+		font: inherit;
+		color: inherit;
+		background: none;
+		border: 0;
+		padding: 0;
+		cursor: pointer;
 	}
 	.kpi-value .date {
 		white-space: nowrap;
