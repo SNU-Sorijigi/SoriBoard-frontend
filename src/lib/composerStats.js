@@ -170,6 +170,26 @@ export function composerRequestedHref(id, filter = WHOLE) {
 	return historyHref({ ...composerHistoryFilter(id, [], filter), requested: 'true' });
 }
 
+// 그날 이 작곡가의 선곡 기록: 처음·마지막 튼 날 칸의 날짜가 연다. 기간은 그 하루(직접 지정)로 바꾸고 지기는 filter 의
+// 것을 둔다(그 지기 기준으로 구한 날짜다). 전체 기록 줄의 날짜는 filter 없이(지기 없이) 부른다. 날짜가 없으면 ''.
+/**
+ * @param {number | string} id
+ * @param {string | null | undefined} date YYYY-MM-DD
+ * @param {ComposerPeriod} [filter]
+ */
+export function composerDayHref(id, date, { userId = null, includeMentees = false } = WHOLE) {
+	if (!date) return '';
+	return historyHref(
+		composerHistoryFilter(id, [], {
+			period: CUSTOM,
+			start: date,
+			end: date,
+			userId,
+			includeMentees
+		})
+	);
+}
+
 // 곡 하나의 선곡 기록(같은 기간·지기). 곡의 작곡가는 하나뿐이므로 곡만 거른다.
 /**
  * @param {number | string} musicId

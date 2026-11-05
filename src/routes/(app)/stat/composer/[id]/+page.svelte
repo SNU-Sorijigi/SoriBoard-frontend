@@ -87,6 +87,7 @@
 		composerFirstsTable,
 		composerIsWholeRecord,
 		composerWholeDates,
+		composerDayHref,
 		composerHref
 	} from '$lib/composerStats.js';
 
@@ -597,6 +598,12 @@
 	$: historyLink = composerHistoryHref(composerId, [], filter);
 	// 신청곡 숫자는 그중 신청곡만 연다.
 	$: requestedLink = composerRequestedHref(composerId, filter);
+	// 처음·마지막 튼 날의 날짜는 그날 이 작곡가의 선곡 기록을 연다(같은 지기). 전체 기록 줄의 날짜는 지기 없이 연다.
+	// 날짜가 없으면 '' 이라 링크 없이 글자 그대로다.
+	$: firstDayLink = composerDayHref(composerId, summary?.date_start, filter);
+	$: lastDayLink = composerDayHref(composerId, summary?.date_end, filter);
+	$: wholeFirstLink = composerDayHref(composerId, wholeSummary?.date_start);
+	$: wholeLastLink = composerDayHref(composerId, wholeSummary?.date_end);
 	// 기간에 이 작곡가의 선곡이 없을 때 카드 대신 보이는 말. 화면 낭독기의 로드 상태도 같은 말을 한다.
 	$: emptyText = `${period === ALL ? '아직' : '이 기간에는'} ${userId ? '이 지기가 ' : ''}이 작곡가의 곡을 튼 적이 없습니다.`;
 	// 화면 낭독기에 알릴 로드 상태(통계와 같다): 작곡가 정보나 카드를 불러오는 동안과 작곡가를 찾을 수 없을 때는
@@ -762,15 +769,60 @@
 					</div>
 				{/if}
 			</div>
+			<!-- 처음·마지막 튼 날의 날짜는 그날의 선곡 기록을 연다. 전체 기록 줄은 날짜만 링크다(줄은 '전체 기록' 뒤에서 바뀐다) -->
 			<div class="kpi">
-				<div class="kpi-value small">{summary?.date_start ?? '—'}</div>
+				<div class="kpi-value small">
+					{#if firstDayLink}
+						<a
+							class="kpi-link"
+							href={firstDayLink}
+							title="그날의 선곡 기록 보기"
+							aria-label="처음 튼 날 {summary.date_start} 선곡 기록에서 보기"
+							>{summary.date_start}</a
+						>
+					{:else}
+						{summary?.date_start ?? '—'}
+					{/if}
+				</div>
 				<div class="kpi-label">처음 튼 날</div>
-				{#if wholeDates?.start}<div class="kpi-change">{wholeDates.start}</div>{/if}
+				{#if wholeDates?.start}
+					<div class="kpi-change">
+						{#if wholeFirstLink}전체 기록 <a
+								class="kpi-link"
+								href={wholeFirstLink}
+								title="그날의 선곡 기록 보기"
+								aria-label="전체 기록의 처음 튼 날 {wholeSummary.date_start} 선곡 기록에서 보기"
+								>{wholeSummary.date_start}</a
+							>{:else}{wholeDates.start}{/if}
+					</div>
+				{/if}
 			</div>
 			<div class="kpi">
-				<div class="kpi-value small">{summary?.date_end ?? '—'}</div>
+				<div class="kpi-value small">
+					{#if lastDayLink}
+						<a
+							class="kpi-link"
+							href={lastDayLink}
+							title="그날의 선곡 기록 보기"
+							aria-label="마지막으로 튼 날 {summary.date_end} 선곡 기록에서 보기"
+							>{summary.date_end}</a
+						>
+					{:else}
+						{summary?.date_end ?? '—'}
+					{/if}
+				</div>
 				<div class="kpi-label">마지막으로 튼 날</div>
-				{#if wholeDates?.end}<div class="kpi-change">{wholeDates.end}</div>{/if}
+				{#if wholeDates?.end}
+					<div class="kpi-change">
+						{#if wholeLastLink}전체 기록 <a
+								class="kpi-link"
+								href={wholeLastLink}
+								title="그날의 선곡 기록 보기"
+								aria-label="전체 기록의 마지막으로 튼 날 {wholeSummary.date_end} 선곡 기록에서 보기"
+								>{wholeSummary.date_end}</a
+							>{:else}{wholeDates.end}{/if}
+					</div>
+				{/if}
 			</div>
 		</div>
 		{#if errors.summary}

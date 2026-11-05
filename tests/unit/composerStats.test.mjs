@@ -14,6 +14,7 @@ import {
 	composerWorkHref,
 	composerHistoryHref,
 	composerRequestedHref,
+	composerDayHref,
 	composerRankLinks,
 	composerSemesterLinks,
 	composerFacts,
@@ -547,6 +548,64 @@ test('links carry a 학기 or 직접 지정 period, and keep today’s URLs with
 	assert.equal(composerStatHref({ period: 'current' }), '/stat');
 	assert.equal(composerStatHref(SEMESTER), '/stat?semester_id=7');
 	assert.equal(composerStatHref(RANGE), '/stat?start=2025-10-01&end=2025-11-30');
+});
+
+test('the 처음·마지막 튼 날 dates open that day’s plays of this composer, with the page’s 지기', () => {
+	const read = (href) => readHistoryQuery(new URL(href, 'http://x').searchParams);
+	const day = '2019-03-05';
+	const mentees = { period: '7', userId: '12', includeMentees: true };
+
+	// 학기(또는 다른 직접 지정)는 그 하루로 바뀐다.
+	assert.equal(
+		composerDayHref(7, day, SEMESTER),
+		'/stat/history?start=2019-03-05&end=2019-03-05&composer_id=7'
+	);
+	assert.equal(
+		composerDayHref(7, day, RANGE),
+		'/stat/history?start=2019-03-05&end=2019-03-05&composer_id=7'
+	);
+	assert.equal(composerDayHref(7, day, { period: 'all' }), composerDayHref(7, day, SEMESTER));
+
+	// 지기를 고르면 그 지기, 견습 포함은 고른 때만.
+	assert.equal(
+		composerDayHref(7, day, { period: '7', userId: '3', includeMentees: false }),
+		'/stat/history?start=2019-03-05&end=2019-03-05&user_id=3&composer_id=7'
+	);
+	assert.equal(
+		composerDayHref(7, day, { period: '7', userId: '3', includeMentees: true }),
+		'/stat/history?start=2019-03-05&end=2019-03-05&user_id=3&include_mentees=true&composer_id=7'
+	);
+	// 지기 없이 견습 포함만 있으면 뜻이 없다.
+	assert.equal(
+		composerDayHref(7, day, { period: '7', userId: null, includeMentees: true }),
+		'/stat/history?start=2019-03-05&end=2019-03-05&composer_id=7'
+	);
+	// 전체 기록 줄의 날짜: 지기 없이 부른다.
+	assert.equal(
+		composerDayHref(7, day),
+		'/stat/history?start=2019-03-05&end=2019-03-05&composer_id=7'
+	);
+
+	// 날짜가 없으면 링크도 없다.
+	for (const missing of ['', null, undefined]) {
+		assert.equal(composerDayHref(7, missing, SEMESTER), '', String(missing));
+		assert.equal(composerDayHref(7, missing, mentees), '', String(missing));
+	}
+
+	// 선곡 기록은 그 하루의 직접 지정으로 읽는다.
+	const opened = read(composerDayHref(7, day, mentees));
+	assert.equal(opened.period, 'custom');
+	assert.equal(opened.start, day);
+	assert.equal(opened.end, day);
+	assert.deepEqual(opened.targets, [{ param: 'composer_id', id: '7' }]);
+	assert.equal(opened.userId, '12');
+	assert.equal(opened.includeMentees, true);
+	const whole = read(composerDayHref(7, day));
+	assert.equal(whole.period, 'custom');
+	assert.equal(whole.start, day);
+	assert.equal(whole.end, day);
+	assert.equal(whole.userId, null);
+	assert.equal(whole.includeMentees, false);
 });
 
 test('the 신청곡 tile opens this composer’s 신청곡만, in the same 기간 and 지기', () => {
