@@ -25,6 +25,8 @@
 	export let fileTag = ''; // 내려받는 파일 이름에서 제목 뒤에 붙는 보기(기간, 지기 등, statFileName.js)
 	/** @type {(() => void) | null} */
 	export let retry = null; // 주면 실패한 카드에 '다시 시도' 단추가 보인다.
+	export let markedBar = -1; // 주면 차트의 그 막대(dataIndex)를 칠한다(열린 drill-down 패널의 대상, 화면에만).
+	export let markedRow = -1; // 주면 표로 보기의 그 행을 고른 행으로 보인다(DataTable 의 selectedRow).
 
 	let chartRef;
 	// 표로 보기: 캔버스는 키보드·화면 낭독기로 읽을 수 없으므로 같은 수치를 표로 보인다.
@@ -110,6 +112,7 @@
 				<EChart
 					bind:this={chartRef}
 					{option}
+					marked={markedBar}
 					label={chartLabel(title, option?.title?.subtext ?? '')}
 					on:itemclick
 				/>
@@ -121,6 +124,7 @@
 					subtitle={option?.title?.subtext ?? ''}
 					{rowLabel}
 					{links}
+					selectedRow={markedRow}
 					on:rowselect
 				/>
 			{/if}

@@ -64,6 +64,7 @@
 		readDrillQuery,
 		writeDrillQuery,
 		drillItemIndex,
+		drillMark,
 		WORKS_LIMIT
 	} from '$lib/statDrill.js';
 	import {
@@ -505,6 +506,14 @@
 		if (index >= 0) openDrill(card, index);
 		else syncUrl();
 	}
+	// 열린 패널의 대상은 그 카드의 막대(앞 LIMITS 안이면)와 표로 보기의 행에 표시한다. 기간·범위가 바뀌면
+	// 새 응답에서 같은 id 를 다시 찾고, 없으면 표시하지 않는다(statDrill.js 의 drillMark).
+	$: marks = Object.fromEntries(
+		['composers', 'soloists', 'conductors', 'orchestras'].map((card) => [
+			card,
+			drillMark(drill, card, data[card], LIMITS[card])
+		])
+	);
 	// 막대는 1위가 맨 위에 오도록 뒤집혀 그려진다. 차트는 응답의 앞 LIMITS[card]개만 그린다.
 	const openBar = (card, e) =>
 		openDrill(
@@ -1080,6 +1089,8 @@
 				retry={() => retry('composers')}
 				{fileTag}
 				rowLabel="곡 보기"
+				markedBar={marks.composers.bar}
+				markedRow={marks.composers.row}
 				on:itemclick={(e) => openBar('composers', e)}
 				on:rowselect={(e) => openDrill('composers', e.detail)}
 				table={composerTable}
@@ -1100,6 +1111,8 @@
 				retry={() => retry('soloists')}
 				{fileTag}
 				rowLabel="곡 보기"
+				markedBar={marks.soloists.bar}
+				markedRow={marks.soloists.row}
 				on:itemclick={(e) => openBar('soloists', e)}
 				on:rowselect={(e) => openDrill('soloists', e.detail)}
 				table={soloistTable}
@@ -1123,6 +1136,8 @@
 				retry={() => retry('conductors')}
 				{fileTag}
 				rowLabel="곡 보기"
+				markedBar={marks.conductors.bar}
+				markedRow={marks.conductors.row}
 				on:itemclick={(e) => openBar('conductors', e)}
 				on:rowselect={(e) => openDrill('conductors', e.detail)}
 				table={conductorTable}
@@ -1146,6 +1161,8 @@
 				retry={() => retry('orchestras')}
 				{fileTag}
 				rowLabel="곡 보기"
+				markedBar={marks.orchestras.bar}
+				markedRow={marks.orchestras.row}
 				on:itemclick={(e) => openBar('orchestras', e)}
 				on:rowselect={(e) => openDrill('orchestras', e.detail)}
 				table={orchestraTable}

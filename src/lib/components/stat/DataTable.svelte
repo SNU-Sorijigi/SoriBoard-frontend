@@ -16,6 +16,8 @@
 	// 주면 행의 이름 칸이 그 주소로 가는 링크가 된다(행마다, 없는 행은 글자 그대로).
 	/** @type {(string | null)[]} */
 	export let links = [];
+	// 이름 단추(rowLabel)가 있는 표에서 고른 행(열린 drill-down 패널의 대상): 배경·굵은 이름, aria-current.
+	export let selectedRow = -1;
 
 	const dispatch = createEventDispatcher();
 
@@ -42,13 +44,14 @@
 			</thead>
 			<tbody>
 				{#each table.rows as row, r}
-					<tr>
+					<tr class:selected={rowLabel && r === selectedRow}>
 						{#each row as cell, i}
 							{#if i === table.rowHeader && rowLabel}
 								<th scope="row" class:numeric={table.columns[i].numeric}>
 									<button
 										class="row-btn"
 										aria-label={`${cell} ${rowLabel}`}
+										aria-current={r === selectedRow ? 'true' : undefined}
 										title={rowLabel}
 										on:click={() => dispatch('rowselect', r)}>{cell}</button
 									>
@@ -141,6 +144,13 @@
 	}
 	.row-btn:hover {
 		text-decoration-thickness: 2px;
+	}
+	/* 고른 행은 눌린 단추(ChartCard 의 표로 보기)와 같은 배경에 굵은 이름 */
+	tr.selected {
+		background: var(--action-bg);
+	}
+	tr.selected .row-btn {
+		font-weight: 700;
 	}
 	/* 다른 페이지로 가는 이름(선곡 기록 등)은 PlayTable 의 링크와 같게 */
 	.row-link {
