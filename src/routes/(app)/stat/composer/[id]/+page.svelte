@@ -1,4 +1,5 @@
 <script>
+	import { tick } from 'svelte';
 	import { page } from '$app/stores';
 	import { afterNavigate, goto } from '$app/navigation';
 	import ChartCard from '$lib/components/stat/ChartCard.svelte';
@@ -550,6 +551,13 @@
 		(previousGenres ? mixTable(genres, previousGenres, '장르') : shareTable(genres, '장르'));
 	$: worksTable =
 		works && works.items.length > 0 && composerWorksTable(works, composer, previousWorks);
+	// 곡 타일의 숫자가 이 카드의 표를 연다(통계의 KPI 숫자와 같다): 카드로 스크롤해 표(없으면 카드)에 포커스를 둔다.
+	let worksCard;
+	async function openWorks() {
+		await tick();
+		worksCard?.scrollIntoView({ block: 'start' });
+		(worksCard?.querySelector('.table-scroll') ?? worksCard)?.focus({ preventScroll: true });
+	}
 	// 많이 튼 곡의 CSV 저장: 차트 카드(ChartCard)처럼, 표가 보일 때만 그 곡들을 받는다.
 	$: canExportWorks = Boolean(worksTable) && !loading.works && !errors.works;
 	function exportWorksCsv() {
@@ -780,7 +788,21 @@
 				{/if}
 			</div>
 			<div class="kpi">
-				<div class="kpi-value">{count(summary?.works)}</div>
+				<!-- 곡 숫자는 많이 튼 곡 카드의 표를 연다(0 이면 카드가 없어 글자 그대로) -->
+				<div class="kpi-value">
+					{#if summary?.works > 0}
+						<button
+							type="button"
+							class="kpi-link kpi-open"
+							on:click={openWorks}
+							title="많이 튼 곡 표 보기"
+							aria-label="곡 {count(summary.works)} 곡 — 많이 튼 곡 표 보기"
+							>{count(summary.works)}</button
+						>
+					{:else}
+						{count(summary?.works)}
+					{/if}
+				</div>
 				<div class="kpi-label">곡</div>
 				{#if changes.works}
 					<div class="kpi-change">
@@ -940,7 +962,12 @@
 					csvHeaders={[shownBucket === 'semester' ? '학기' : '월', '횟수']}
 				/>
 				<!-- 곡은 처음·마지막 날짜까지 보이도록 차트 없이 표로만 -->
-				<section class="card works-card" tabindex="-1" aria-label="많이 튼 곡">
+				<section
+					class="card works-card"
+					tabindex="-1"
+					aria-label="많이 튼 곡"
+					bind:this={worksCard}
+				>
 					<div class="toolbar">
 						<button
 							class="tool-btn"
@@ -1197,6 +1224,15 @@
 	.kpi-link:hover,
 	.kpi-link:focus-visible {
 		text-decoration: underline;
+	}
+	/* 카드의 표를 여는 숫자(단추)도 옆 링크와 같은 모양 */
+	.kpi-open {
+		font: inherit;
+		color: inherit;
+		background: none;
+		border: 0;
+		padding: 0;
+		cursor: pointer;
 	}
 	/* 날짜는 작은 글씨로, 타일 높이가 숫자 타일과 같도록 줄 높이를 맞춘다 */
 	.kpi-value.small {
