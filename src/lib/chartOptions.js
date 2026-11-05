@@ -80,11 +80,12 @@ const EDGE_LABELS_INSIDE = { alignMinLabel: 'left', alignMaxLabel: 'right' };
 // 때만 마지막 이름이 보이고, 진행 중인 버킷의 '(진행 중)' 이 숨는다. 겹치면 그 앞 이름이 빠진다.
 const LAST_NAME_SHOWN = { showMaxLabel: true };
 
-// 아직 진행 중인 버킷의 x 이름표('2026-10-26 (진행 중)')는 날짜 밑 둘째 줄에 '(진행 중)' 을 둔다.
-// 한 줄로 길어지면 ECharts 가 축 이름을 솎아 내 표시하려던 바로 그 이름이 숨는다. 그리는 이름만 바뀌고
-// 카테고리 값(툴팁, 표로 보기, CSV)은 그대로다.
+// 시간 축 x 이름표 끝의 표시('2026-10-26 (진행 중)', '2026-08-31 (8/31까지)', statBucket.js 의 timelineView)는
+// 날짜 밑 둘째 줄에 둔다. 한 줄로 길어지면 ECharts 가 축 이름을 솎아 내 표시하려던 바로 그 이름이 숨는다.
+// 그리는 이름만 바뀌고 카테고리 값(툴팁, 표로 보기, CSV)은 그대로다. 시간 축에만 쓴다(순위 막대의
+// '(피아노)' 같은 이름에는 쓰지 않는다).
 /** @param {string | number} value */
-const twoLineName = (value) => String(value).replace(/ \(진행 중\)$/, '\n(진행 중)');
+const twoLineName = (value) => String(value).replace(/ (\([^()]*\))$/, '\n$1');
 
 // 툴팁은 HTML 로 그려지므로 이름을 이스케이프한다(ECharts 의 문자열 템플릿이 하던 일).
 /** @param {string} s */

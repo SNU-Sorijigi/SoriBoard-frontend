@@ -165,11 +165,18 @@ export function clipRange(range, filters) {
 	return start <= end ? { start, end } : null;
 }
 
+// 'YYYY-MM-DD' → 'M/D'(앞의 0 없이).
+/** @param {string} date */
+const monthDay = (date) => `${Number(date.slice(5, 7))}/${Number(date.slice(8, 10))}`;
+
 // timeline 응답 → 카드 데이터. 학기 버킷이면 라벨 '2025-1' 을 '2025-1학기' 로 보인다.
 // today 를 주면 오늘이 든 버킷(아직 진행 중이라 일부만 센 것)에 ' (진행 중)' 을 붙인다:
 // '2026-2학기 (진행 중)'. 응답의 기간이 오늘 전에 끝났으면(지난 직접 지정) 진행 중인 버킷은 없다.
+// 응답의 기간(filters.start·end)이 자른 버킷에는 센 날짜를 붙인다(clipRange): '2026-08-31 (8/31까지)',
+// '2026-04 (4/15부터)', 기간이 한 버킷 안이면 '2026-04-13 (4/15~4/17)'. 진행 중인 버킷은 '(진행 중)' 만,
+// 기간 밖의 버킷(clipRange 가 null)은 아무것도 붙이지 않는다. 링크는 원래 라벨로 만든다.
 /**
- * @param {{ filters?: { bucket?: string, end?: string | null }, labels: string[] }} envelope
+ * @param {{ filters?: { bucket?: string, start?: string | null, end?: string | null }, labels: string[] }} envelope
  * @param {string} [today] YYYY-MM-DD
  */
 export function timelineView(envelope, today = '') {
@@ -181,13 +188,24 @@ export function timelineView(envelope, today = '') {
 		const range = live ? bucketRange(bucket, label) : null;
 		return Boolean(range && range.start <= today && today <= range.end);
 	};
-	if (bucket !== 'semester' && !envelope.labels.some(running)) return envelope;
+	/** @param {string} label */
+	const cut = (label) => {
+		const range = bucketRange(bucket, label);
+		const shown = clipRange(range, envelope.filters);
+		if (!range || !shown) return '';
+		const head = shown.start !== range.start;
+		const tail = shown.end !== range.end;
+		if (head && tail) return ` (${monthDay(shown.start)}~${monthDay(shown.end)})`;
+		if (head) return ` (${monthDay(shown.start)}부터)`;
+		return tail ? ` (${monthDay(shown.end)}까지)` : '';
+	};
+	/** @param {string} label */
+	const mark = (label) => (running(label) ? ' (진행 중)' : cut(label));
+	if (bucket !== 'semester' && !envelope.labels.some(mark)) return envelope;
 	/** @param {string} label */
 	const name = (label) => (bucket === 'semester' ? `${label}학기` : label);
 	return {
 		...envelope,
-		labels: envelope.labels.map((label) =>
-			running(label) ? `${name(label)} (진행 중)` : name(label)
-		)
+		labels: envelope.labels.map((label) => name(label) + mark(label))
 	};
 }

@@ -128,23 +128,24 @@ test('the bucket that holds today reads (진행 중); ended ones and past ranges
 	// the Monday of a week is in it too
 	assert.deepEqual(timelineView(week, '2026-10-26').labels, ['2026-10-19', '2026-10-26 (진행 중)']);
 
-	// a 직접 지정 range that ended before today cuts its last bucket short, but nothing is running
+	// a 직접 지정 range that ended before today: nothing is running, and its cut last bucket says so
 	const past = {
 		filters: { bucket: 'week', start: '2026-09-01', end: '2026-10-29' },
 		labels: ['2026-10-19', '2026-10-26'],
 		values: [2, 3]
 	};
-	assert.equal(timelineView(past, today), past);
+	assert.deepEqual(timelineView(past, today).labels, ['2026-10-19', '2026-10-26 (10/29까지)']);
 	const pastSemester = { ...semester, filters: { bucket: 'semester', end: '2026-10-15' } };
 	assert.deepEqual(timelineView(pastSemester, today).labels, [
 		'2025-2학기',
 		'2026-1학기',
-		'2026-2학기'
+		'2026-2학기 (10/15까지)'
 	]);
 
-	// every bucket has ended, or no today given: as before
-	assert.equal(timelineView(month, '2026-12-01'), month);
-	assert.equal(timelineView(month), month);
+	// every bucket has ended, or no today given: nothing is running; the month the end cuts says so
+	const cutMonth = ['2026-09', '2026-10', '2026-11 (11/1까지)'];
+	assert.deepEqual(timelineView(month, '2026-12-01').labels, cutMonth);
+	assert.deepEqual(timelineView(month).labels, cutMonth);
 	assert.equal(timelineView(week, '2026-10-18'), week);
 	assert.deepEqual(timelineView(semester).labels, ['2025-2학기', '2026-1학기', '2026-2학기']);
 });
@@ -159,6 +160,81 @@ test('선곡 다양성 marks its running week or month from an envelope of filte
 	// a range that ended before today: unchanged
 	const past = { filters: { ...filters, end: '2026-10-15' }, labels: ['2026-10-19', '2026-10-26'] };
 	assert.deepEqual(timelineView(past, today).labels, ['2026-10-19', '2026-10-26']);
+});
+
+test('a week, month or 학기 that the period cuts reads with the days it counts', () => {
+	const labelsOf = (bucket, start, end, labels, today) =>
+		timelineView({ filters: { bucket, start, end }, labels, values: labels.map(() => 1) }, today)
+			.labels;
+	// 2026-1학기 ends on Monday 8/31: its last week counts that day only
+	assert.deepEqual(
+		labelsOf('week', '2026-03-01', '2026-08-31', ['2026-08-24', '2026-08-31'], '2026-11-06'),
+		['2026-08-24', '2026-08-31 (8/31까지)']
+	);
+	// 이번 학기 from 9/1: its first week starts on 8/31, in the 1학기; the week of today stays (진행 중)
+	assert.deepEqual(
+		labelsOf(
+			'week',
+			'2026-09-01',
+			'2026-11-06',
+			['2026-08-31', '2026-09-07', '2026-11-02'],
+			'2026-11-06'
+		),
+		['2026-08-31 (9/1부터)', '2026-09-07', '2026-11-02 (진행 중)']
+	);
+	// 직접 지정 2026-04-15 ~ 2026-06-17: the first and last months, weeks; May is whole
+	assert.deepEqual(
+		labelsOf('month', '2026-04-15', '2026-06-17', ['2026-04', '2026-05', '2026-06'], '2026-11-06'),
+		['2026-04 (4/15부터)', '2026-05', '2026-06 (6/17까지)']
+	);
+	assert.deepEqual(
+		labelsOf(
+			'week',
+			'2026-04-15',
+			'2026-06-17',
+			['2026-04-13', '2026-04-20', '2026-06-15'],
+			'2026-11-06'
+		),
+		['2026-04-13 (4/15부터)', '2026-04-20', '2026-06-15 (6/17까지)']
+	);
+	// a range inside one week: cut at both ends
+	assert.deepEqual(labelsOf('week', '2026-04-15', '2026-04-17', ['2026-04-13']), [
+		'2026-04-13 (4/15~4/17)'
+	]);
+	assert.deepEqual(labelsOf('month', '2026-04-15', '2026-04-17', ['2026-04']), [
+		'2026-04 (4/15~4/17)'
+	]);
+	// 학기 buckets of 직접 지정 2026-04-15 ~ 2026-10-14
+	assert.deepEqual(
+		labelsOf('semester', '2026-04-15', '2026-10-14', ['2026-1', '2026-2'], '2026-11-06'),
+		['2026-1학기 (4/15부터)', '2026-2학기 (10/14까지)']
+	);
+	// the week of today is cut by end = today too, but reads (진행 중) only
+	assert.deepEqual(
+		labelsOf('week', '2026-09-01', '2026-11-04', ['2026-10-26', '2026-11-02'], '2026-11-04'),
+		['2026-10-26', '2026-11-02 (진행 중)']
+	);
+	// a bucket wholly outside the period gets no mark
+	assert.deepEqual(labelsOf('week', '2026-09-01', '2026-10-15', ['2026-10-19']), ['2026-10-19']);
+});
+
+test('전체 기간 and whole buckets stay as they are', () => {
+	// no start or end (전체 기간): nothing is cut
+	const all = { filters: { bucket: 'month' }, labels: ['2025-09', '2026-08'], values: [1, 2] };
+	assert.equal(timelineView(all, '2026-11-06'), all);
+	assert.deepEqual(
+		timelineView({ ...all, filters: { bucket: 'semester' }, labels: ['2025-2'] }).labels,
+		['2025-2학기']
+	);
+	// a whole 학기's months (2026-1학기: 3/1 ~ 8/31): the same object
+	const months = ['2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08'];
+	const semester = {
+		filters: { bucket: 'month', start: '2026-03-01', end: '2026-08-31' },
+		labels: months,
+		values: months.map(() => 84)
+	};
+	assert.equal(timelineView(semester, '2026-11-06'), semester);
+	assert.equal(timelineView(semester), semester);
 });
 
 const readBucket = (search) => readDiversityBucket(new URLSearchParams(search));

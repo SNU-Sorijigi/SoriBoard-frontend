@@ -26,7 +26,7 @@ test('line charts keep their first and last x labels inside the canvas', () => {
 	}
 });
 
-test('the still-running bucket is drawn on two lines, (진행 중) under its date', () => {
+test('a running or cut bucket is drawn on two lines, its mark under its date', () => {
 	const marked = ['2026-10-19', '2026-10-26 (진행 중)'];
 	for (const option of [
 		timelineOption({ labels: marked, values: [3, 1] }, '주별 선곡 추이', '이번 학기'),
@@ -37,6 +37,11 @@ test('the still-running bucket is drawn on two lines, (진행 중) under its dat
 		assert.equal(name('2026-10-26 (진행 중)'), '2026-10-26\n(진행 중)');
 		assert.equal(name('2026-2학기 (진행 중)'), '2026-2학기\n(진행 중)');
 		assert.equal(name('2026-11 (진행 중)'), '2026-11\n(진행 중)');
+		// 기간이 자른 버킷(timelineView)도 같은 자리에
+		assert.equal(name('2026-04 (4/15부터)'), '2026-04\n(4/15부터)');
+		assert.equal(name('2026-08-31 (8/31까지)'), '2026-08-31\n(8/31까지)');
+		assert.equal(name('2026-04-13 (4/15~4/17)'), '2026-04-13\n(4/15~4/17)');
+		assert.equal(name('2026-2학기 (10/14까지)'), '2026-2학기\n(10/14까지)');
 		for (const plain of ['2026-10-19', '2026-1학기', '2026-09']) assert.equal(name(plain), plain);
 		// 카테고리 값(툴팁, 표로 보기, CSV 가 읽는 것)은 한 줄 그대로
 		assert.deepEqual(option.xAxis.data, marked);
