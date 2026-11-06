@@ -832,6 +832,14 @@
 		requested: ''
 	};
 	$: historyLink = historyHref(historyFilter);
+	// 머리말의 '학기 결산' 링크: 기간이 학기면 그 학기의, 아니면 가장 최근 학기의 결산(by_count 를 이어 간다).
+	// 개인에서 지기를 골랐으면 그 지기(와 견습 포함)의 결산. 지기 없는 개인 결산은 안내뿐이므로 클럽 결산을 연다.
+	$: reportLink = statQueryHref(
+		new URL(firstsByCountHref(reportHref(period), firstsByCount), 'http://localhost'),
+		scope === 'individual' && userId
+			? { scope, userId, includeMentees }
+			: { scope: 'all', userId: null, includeMentees: false }
+	);
 	// 신청곡 칸의 숫자: 같은 목록에서 신청곡만.
 	$: requestedLink = historyHref({ ...historyFilter, requested: 'true' });
 	// 처음·마지막 튼 날 칸의 날짜: 그 하루(직접 지정)의 선곡 기록. 지기는 그대로 둔다(그 지기 기준으로 구한 날짜다).
@@ -932,10 +940,8 @@
 			{#if upcoming}<span class="period">{upcoming}</span>{/if}
 			<a class="history-link" href={historyLink}>선곡 기록</a>
 			<a class="history-link" href="/stat/composers">작곡가 정리</a>
-			<!-- 기간이 학기면 그 학기의, 아니면 가장 최근 학기의 결산 -->
-			<a class="history-link" href={firstsByCountHref(reportHref(period), firstsByCount)}
-				>학기 결산</a
-			>
+			<!-- 기간이 학기면 그 학기의, 아니면 가장 최근 학기의 결산(개인이면 그 지기의) -->
+			<a class="history-link" href={reportLink}>학기 결산</a>
 		</div>
 		<div class="controls">
 			<PeriodSelect

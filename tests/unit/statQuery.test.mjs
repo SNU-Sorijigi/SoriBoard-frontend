@@ -15,6 +15,7 @@ import {
 } from '../../src/lib/statQuery.js';
 import { composerHref, composerStatHref } from '../../src/lib/composerStats.js';
 import { statHref } from '../../src/lib/playHistory.js';
+import { reportHref } from '../../src/lib/semesterReport.js';
 
 const read = (search) => readStatQuery(new URLSearchParams(search));
 const href = (url, state) => statQueryHref(new URL(url, 'http://localhost'), state);
@@ -387,4 +388,36 @@ test('statQueryHref adds a 지기 to a 학기 결산 URL and keeps its 학기 an
 		report
 	);
 	assert.equal(href('/stat/report?semester_id=12', ALL), '/stat/report?semester_id=12');
+});
+
+test("통계's 학기 결산 link opens the chosen 지기's 결산 and keeps its 학기 and by_count", () => {
+	// 통계 머리말의 링크와 같은 조합: by_count 를 이은 결산 링크에 범위·지기·견습 포함을 더한다.
+	const link = (period, flags, state) => href(firstsByCountHref(reportHref(period), flags), state);
+	const works = { composers: false, works: true };
+	const none = { composers: false, works: false };
+	const member = { scope: 'individual', userId: '5', includeMentees: true };
+	assert.equal(
+		link('12', works, member),
+		'/stat/report?semester_id=12&by_count=works&scope=individual&user_id=5&include_mentees=true'
+	);
+	assert.equal(
+		link('12', none, { ...member, includeMentees: false }),
+		'/stat/report?semester_id=12&scope=individual&user_id=5'
+	);
+	// 기간이 학기가 아니면(이번 학기·전체 기간·직접 지정) 가장 최근 학기의 그 지기 결산.
+	for (const period of ['current', 'all', 'custom']) {
+		assert.equal(
+			link(period, none, member),
+			'/stat/report?scope=individual&user_id=5&include_mentees=true',
+			period
+		);
+	}
+	assert.equal(
+		link('current', works, member),
+		'/stat/report?by_count=works&scope=individual&user_id=5&include_mentees=true'
+	);
+	// 전체면 링크는 예전과 같다.
+	assert.equal(link('12', works, ALL), firstsByCountHref(reportHref('12'), works));
+	assert.equal(link('12', works, ALL), '/stat/report?semester_id=12&by_count=works');
+	assert.equal(link('current', none, ALL), '/stat/report');
 });
