@@ -55,7 +55,10 @@
 		duplicatesSearch,
 		splitSpellings,
 		splitSpellingNote,
-		MUSIC_SPLIT_LEAD
+		MUSIC_SPLIT_LEAD,
+		firstSpellingSplits,
+		firstSpellingNote,
+		FIRST_MUSIC_LEAD
 	} from '$lib/catalogSpelling.js';
 	import {
 		hasPeriodStart,
@@ -681,6 +684,33 @@
 		goto(url, { replaceState: true, keepFocus: true, noScroll: true });
 	}
 	$: shownFirstWorks = firstWorksByCount ? byCount(firstWorks) : firstWorks;
+	// 처음 튼 곡의 표 아래 줄(통계와 같다): 작품 번호가 같은 곡이 먼저 튼 적이 있을 수 있는 곡, 보이는 순서대로
+	// 2곡까지. 이름은 표처럼 이 작곡가를 뺀다: 목록의 곡은 composerFirstsTable 처럼, 다른 곡은 '이 작곡가 - '로
+	// 시작하면 그 앞을 뺀다(다른 표기의 작곡가 아래에 든 곡은 '작곡가 - 곡' 그대로). 작곡가를 아직 못 받았으면
+	// 받은 이름 그대로.
+	$: firstWorkSpelling = firstSpellingNote(
+		firstSpellingSplits(
+			duplicates.music,
+			shownFirstWorks && composer
+				? {
+						items: shownFirstWorks.items.map((item) => ({
+							...item,
+							name: composerWorkName({ ...item, composer_id: composer.id }, composer)
+						}))
+					}
+				: shownFirstWorks
+		).map((row) =>
+			composer && row.variant.name.startsWith(`${composer.name} - `)
+				? {
+						...row,
+						variant: { ...row.variant, name: row.variant.name.slice(`${composer.name} - `.length) }
+					}
+				: row
+		),
+		2,
+		FIRST_MUSIC_LEAD,
+		'곡'
+	);
 	$: firstWorkLinks = shownFirstWorks
 		? shownFirstWorks.items.map((item) => composerWorkHref(item.id, filter))
 		: [];
@@ -1217,6 +1247,8 @@
 							error={errors.firstWorks}
 							retry={() => retry('firstWorks')}
 							{fileTag}
+							note={firstWorkSpelling}
+							noteLink={splitLink(firstWorkSpelling, 'music')}
 							emptyText={firstWorks?.items.length === 0
 								? firstsEmptyText('처음 튼 곡', '곡', previousFirstWorks)
 								: ''}

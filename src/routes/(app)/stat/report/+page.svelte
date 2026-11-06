@@ -44,7 +44,11 @@
 		spellingKindOf,
 		duplicatesSearch,
 		catalogViewHref,
-		MUSIC_SPLIT_LEAD
+		MUSIC_SPLIT_LEAD,
+		firstSpellingSplits,
+		firstSpellingNote,
+		FIRST_SPELLING_LEAD,
+		FIRST_MUSIC_LEAD
 	} from '$lib/catalogSpelling.js';
 	import {
 		reportHref,
@@ -602,6 +606,9 @@
 			key,
 			title,
 			sorted,
+			shown,
+			// 표기 정리의 종류: 처음 튼 곡은 작품 번호가 같은 곡(kind=music)
+			spellingKind: nameHeader === '작곡가' ? 'composer' : 'music',
 			table: shown?.items.length ? firstsTable(shown, nameHeader) : null,
 			links:
 				nameHeader === '작곡가'
@@ -684,6 +691,26 @@
 			member
 		)
 	];
+	// 처음 튼 작곡가·곡의 표 아래 줄(통계와 같다): 다른 표기(곡은 작품 번호가 같은 곡)가 먼저 튼 적이 있을 수
+	// 있는 행을 보이는 순서대로, 작곡가는 3명, 곡은 이름이 길어 2곡까지. 표기 정리를 못 받았으면 ''.
+	$: firstsSpelling = Object.fromEntries(
+		firstsCards.map((card) => [
+			card.key,
+			card.spellingKind === 'music'
+				? firstSpellingNote(
+						firstSpellingSplits(duplicates.music, card.shown),
+						2,
+						FIRST_MUSIC_LEAD,
+						'곡'
+					)
+				: firstSpellingNote(
+						firstSpellingSplits(duplicates.composer, card.shown),
+						3,
+						FIRST_SPELLING_LEAD,
+						'명'
+					)
+		])
+	);
 
 	// 월별 선곡: 달마다 선곡 수와 곡 수. 진행 중인 달은 통계의 차트처럼 '(진행 중)' 을 붙이고,
 	// 달 이름은 통계의 월별 막대처럼 그 달의 선곡 기록을 연다(링크는 '(진행 중)' 없는 라벨로 만든다).
@@ -1164,6 +1191,13 @@
 								labelledby={`report-${card.key}`}
 								describedby={`report-${card.key}-sub`}
 							/>
+							{#if firstsSpelling[card.key]}
+								<p class="mix-note">
+									{firstsSpelling[card.key]}<span class="note-link"
+										>&nbsp;· <a href={catalogViewHref('', card.spellingKind)}>표기 정리</a></span
+									>
+								</p>
+							{/if}
 						{/if}
 					</section>
 				{/each}
