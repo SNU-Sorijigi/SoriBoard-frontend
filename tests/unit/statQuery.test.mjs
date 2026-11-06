@@ -370,3 +370,21 @@ test("통계's URL state keeps the card hash, so a reload lands on the card agai
 	assert.equal(next, '/stat?semester_id=3&view=table&scope=individual&user_id=12#works');
 	assert.equal(readLinkedCard(new URL(next, 'http://localhost').hash), 'works');
 });
+
+test('statQueryHref adds a 지기 to a 학기 결산 URL and keeps its 학기 and by_count (학기 결산의 개인 보기)', () => {
+	const report = '/stat/report?semester_id=12&by_count=works';
+	assert.equal(
+		href(report, { scope: 'individual', userId: '5', includeMentees: true }),
+		'/stat/report?semester_id=12&by_count=works&scope=individual&user_id=5&include_mentees=true'
+	);
+	assert.equal(
+		href(report, { scope: 'individual', userId: null, includeMentees: false }),
+		'/stat/report?semester_id=12&by_count=works&scope=individual'
+	);
+	// 전체로 돌아가면 세 키를 지우고 나머지는 그대로다.
+	assert.equal(
+		href('/stat/report?semester_id=12&by_count=works&scope=individual&user_id=5', ALL),
+		report
+	);
+	assert.equal(href('/stat/report?semester_id=12', ALL), '/stat/report?semester_id=12');
+});

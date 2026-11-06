@@ -4,6 +4,8 @@
 	import { goto } from '$app/navigation';
 	import EChart from '$lib/components/stat/EChart.svelte';
 	import ReportTable from '$lib/components/stat/ReportTable.svelte';
+	import ScopeToggle from '$lib/components/stat/ScopeToggle.svelte';
+	import MemberSelect from '$lib/components/stat/MemberSelect.svelte';
 	import { eraPieOption } from '$lib/chartOptions.js';
 	import {
 		formatCount,
@@ -13,6 +15,8 @@
 		PERFORMER_EMPTY
 	} from '$lib/statTable.js';
 	import {
+		readStatQuery,
+		statQueryHref,
 		tableViewHref,
 		readFirstsByCount,
 		writeFirstsByCount,
@@ -20,7 +24,7 @@
 		cardHref
 	} from '$lib/statQuery.js';
 	import { sortSemesters, semesterLabel, currentSemesterRange } from '$lib/statPeriod.js';
-	import { composerHref } from '$lib/composerStats.js';
+	import { composerHref, composerMemberParams } from '$lib/composerStats.js';
 	import {
 		historyHref,
 		workHistoryHref,
@@ -31,7 +35,7 @@
 	import { loadStatusText, withPreviousFailure } from '$lib/statCards.js';
 	import { pageTitle } from '$lib/statTitle.js';
 	import { downloadCsvTable, tableCsv } from '$lib/csvTable.js';
-	import { downloadName } from '$lib/statFileName.js';
+	import { downloadName, memberFileText } from '$lib/statFileName.js';
 	import { todayStamp } from '$lib/csv.js';
 	import { byCount, firstDayHref } from '$lib/statFirsts.js';
 	import {
@@ -67,9 +71,23 @@
 		monthlyTable
 	} from '$lib/semesterReport.js';
 
-	// 한 학기의 결산(클럽 전체). 학기는 URL(semester_id)에 두고, 없으면 가장 최근의 시작한 학기다.
-	// 카드는 따로 불러오고, 실패하면 그 카드에만 오류를 띄운다.
+	// 한 학기의 결산(클럽 전체, 또는 개인이면 한 지기). 학기는 URL(semester_id)에 두고, 없으면 가장 최근의
+	// 시작한 학기다. 카드는 따로 불러오고, 실패하면 그 카드에만 오류를 띄운다.
 	const initialId = $page.url.searchParams.get('semester_id');
+	// 범위·지기·견습 포함은 통계와 같은 키(scope, user_id, include_mentees, statQuery.js)로 URL에 둔다.
+	// 개인에서 지기를 고르지 않았으면 카드 대신 안내 문구를 두고 아무것도 부르지 않는다.
+	const initialView = readStatQuery($page.url.searchParams);
+	let scope = initialView.scope;
+	let userId = initialView.userId;
+	let includeMentees = initialView.includeMentees;
+	// 고른 지기의 이름(MemberSelect 가 채운다. 목록을 받기 전에는 '').
+	let userName = '';
+	// 카드의 요청과 링크가 거르는 지기: 개인이면 그 지기(와 견습 포함), 전체면 없음(userId null).
+	// $: member 도 이것으로 만든다(요청은 바꾼 그 자리에서 부르므로 $: 를 기다리지 않고 이것을 부른다).
+	const memberOf = (scope, userId, includeMentees) =>
+		scope === 'individual' && userId
+			? { userId, includeMentees }
+			: { userId: null, includeMentees: false };
 
 	/** @type {{ id: number, year: number, semester_num: number }[]} */
 	let semesters = [];
@@ -80,8 +98,13 @@
 	/** @type {{ id: number, year: number, semester_num: number } | null} */
 	let previous = null;
 
+	// 지기 파라미터는 여기서 붙인다: 이 학기·지난 학기·다시 시도가 모두 같은 지기를 부른다.
 	const getJson = async (endpoint, id, extra = {}) => {
-		const params = new URLSearchParams({ semester_id: String(id), ...extra });
+		const params = new URLSearchParams({
+			semester_id: String(id),
+			...composerMemberParams(memberOf(scope, userId, includeMentees)),
+			...extra
+		});
 		const res = await fetch(`/api/stats/${endpoint}?${params}`);
 		if (!res.ok) throw new Error(`${endpoint} ${res.status}`);
 		return res.json();
@@ -151,7 +174,10 @@
 	// 동점이 없어도 목록이 10 행보다 길면 표 아래에 같은 링크를 둔다: '통계에서 모두 보기 (작곡가 30명)'.
 	const restNote = (envelope, noun, unit) => moreRowsText(envelope, TOP, WORKS_LIMIT, noun, unit);
 	$: fullListHref = semester
-		? firstsByCountHref(tableViewHref(`/stat?semester_id=${semester.id}`, true), statFirsts)
+		? statViewHref(
+				firstsByCountHref(tableViewHref(`/stat?semester_id=${semester.id}`, true), statFirsts),
+				view
+			)
 		: '';
 	// KPI 칸은 이 학기의 요약, 그 아래 줄은 지난 학기의 요약과 견준다(없거나 실패하면 줄을 뺀다).
 	$: summary = data.summary?.current;
@@ -162,7 +188,7 @@
 	// 월별 선곡: 이 학기의 다양성 응답의 timeline(선곡이 있는 달만).
 	$: monthly = data.diversity?.current;
 
-	// 다른 학기로 바꾸면 이전 학기의 늦은 응답은 버린다.
+	// 다른 학기·범위·지기로 바꾸면 이전 보기의 늦은 응답은 버린다.
 	let generation = 0;
 
 	function loadCard(key, gen) {
@@ -185,7 +211,29 @@
 		data = {};
 		errors = {};
 		loading = Object.fromEntries(CARD_KEYS.map((key) => [key, true]));
+		// 개인에서 지기를 고르지 않았으면 부르지 않는다(카드 대신 안내 문구).
+		if (scope === 'individual' && !userId) return;
 		for (const key of CARD_KEYS) loadCard(key, gen);
+	}
+
+	// 범위·지기·견습 포함을 바꾸면 URL 을 고치고(통계처럼) 이 학기를 다시 부른다(generation 이 늘어
+	// 이전 지기의 늦은 응답은 버린다).
+	function onScopeChange(e) {
+		scope = e.detail;
+		onViewChange();
+	}
+	function onMemberChange(e) {
+		userId = e.detail.userId;
+		includeMentees = e.detail.includeMentees;
+		onViewChange();
+	}
+	function onViewChange() {
+		goto(statQueryHref($page.url, { scope, userId, includeMentees }), {
+			replaceState: true,
+			keepFocus: true,
+			noScroll: true
+		});
+		if (semester) loadAll();
 	}
 
 	// '다시 시도': 그 카드만 다시 부른다. generation 은 그대로 두어 다른 카드의 요청을 살리고,
@@ -315,36 +363,45 @@
 	// 순위 표(상위 10). 작곡가 이름은 이 학기를 고른 작곡가 페이지로, 독주자·지휘자·오케스트라·곡
 	// 이름은 이 학기에 그 대상·곡을 튼 선곡 기록으로 간다. 작곡가 페이지에는 처음 튼 작곡가·곡의
 	// '많이 튼 순'(composers, works)을 잇는다. $: 블록이 누름에 따라 다시 만들도록 값을 인자로 받는다.
-	const linksOf = (envelope, semesterId, composersByCount, worksByCount) =>
+	// member: 개인 보기의 지기({ userId, includeMentees }). 링크도 그 지기를 고른 채로 연다.
+	const linksOf = (envelope, semesterId, composersByCount, worksByCount, member) =>
 		envelope && semesterId
 			? envelope.items.map((item) =>
-					firstsByCountHref(composerHref(item.id, { period: semesterId, start: '', end: '' }), {
-						composers: composersByCount,
-						works: worksByCount
-					})
+					firstsByCountHref(
+						composerHref(item.id, { period: semesterId, start: '', end: '', ...member }),
+						{ composers: composersByCount, works: worksByCount }
+					)
 				)
 			: [];
-	const workLinksOf = (envelope, semesterId) =>
+	const workLinksOf = (envelope, semesterId, member) =>
 		envelope && semesterId
-			? envelope.items.map((item) => workHistoryHref(item.id, semesterId))
+			? envelope.items.map((item) => workHistoryHref(item.id, semesterId, member))
 			: [];
 	// card: 'soloists' | 'conductors' | 'orchestras' (선곡 기록의 id 필터는 DRILL_CARDS 의 것).
-	const performerLinksOf = (card, envelope, semesterId) =>
+	const performerLinksOf = (card, envelope, semesterId, member) =>
 		envelope && semesterId
 			? envelope.items.map((item) =>
-					targetHistoryHref(DRILL_CARDS[card].param, item.id, semesterId)
+					targetHistoryHref(DRILL_CARDS[card].param, item.id, semesterId, member)
 				)
 			: [];
 	$: semesterId = semester ? String(semester.id) : '';
-	// 머리말의 '선곡 기록' 링크와 총 선곡 칸의 숫자: 이 학기의 선곡 목록(통계와 같은 링크).
+	// 보기(범위·지기·견습 포함)와, 카드의 링크가 거르는 지기(요청과 같다).
+	$: view = { scope, userId, includeMentees };
+	$: member = memberOf(scope, userId, includeMentees);
+	// 통계로 가는 링크(머리의 통계, 통계에서 모두 보기)는 개인 보기의 지기를 잇는다.
+	const statViewHref = (href, state) => statQueryHref(new URL(href, 'http://localhost'), state);
+	// 개인 보기의 지기: 머리말(인쇄에도 남는다), 탭 제목, CSV 이름에 둔다. 전체면 ''.
+	$: memberText =
+		scope === 'individual' ? memberFileText({ userId, name: userName, includeMentees }) : '';
+	// 머리말의 '선곡 기록' 링크와 총 선곡 칸의 숫자: 이 학기의(개인이면 그 지기의) 선곡 목록(통계와 같은 링크).
 	// 신청곡 칸의 숫자는 같은 목록에서 신청곡만. 학기가 없으면(목록을 불러오는 중·실패) 링크도 없다.
 	$: historyFilter = semester && {
 		period: String(semester.id),
 		start: '',
 		end: '',
 		q: '',
-		userId: null,
-		includeMentees: false,
+		userId: member.userId,
+		includeMentees: member.includeMentees,
 		requested: ''
 	};
 	$: kpiLinks = historyFilter
@@ -414,7 +471,13 @@
 						firstIdSet(firstComposers)
 					)
 				: null,
-			links: linksOf(composers, semesterId, firstsByCount.firstComposers, firstsByCount.firstWorks),
+			links: linksOf(
+				composers,
+				semesterId,
+				firstsByCount.firstComposers,
+				firstsByCount.firstWorks,
+				member
+			),
 			note: cutNote(data.composers?.current, '작곡가가', '명'),
 			more: restNote(data.composers?.current, '작곡가', '명'),
 			split: splits.composers,
@@ -426,7 +489,7 @@
 			table: soloists?.labels.length
 				? rankChangeTable(soloists, data.soloists.previous, '연주자', WORKS_LIMIT)
 				: null,
-			links: performerLinksOf('soloists', soloists, semesterId),
+			links: performerLinksOf('soloists', soloists, semesterId, member),
 			note: cutNote(data.soloists?.current, '독주자가', '명'),
 			more: restNote(data.soloists?.current, '독주자', '명'),
 			split: splits.soloists,
@@ -439,7 +502,7 @@
 			table: works?.labels.length
 				? rankChangeTable(works, data.works.previous, '곡', WORKS_LIMIT, firstIdSet(firstWorks))
 				: null,
-			links: workLinksOf(works, semesterId),
+			links: workLinksOf(works, semesterId, member),
 			note: cutNote(data.works?.current, '곡이', '곡'),
 			more: restNote(data.works?.current, '곡', '곡'),
 			split: worksSplit,
@@ -452,7 +515,7 @@
 			table: conductors?.labels.length
 				? rankChangeTable(conductors, data.conductors.previous, '지휘자', WORKS_LIMIT)
 				: null,
-			links: performerLinksOf('conductors', conductors, semesterId),
+			links: performerLinksOf('conductors', conductors, semesterId, member),
 			note: cutNote(data.conductors?.current, '지휘자가', '명'),
 			more: restNote(data.conductors?.current, '지휘자', '명'),
 			split: splits.conductors,
@@ -465,7 +528,7 @@
 			table: orchestras?.labels.length
 				? rankChangeTable(orchestras, data.orchestras.previous, '오케스트라', WORKS_LIMIT)
 				: null,
-			links: performerLinksOf('orchestras', orchestras, semesterId),
+			links: performerLinksOf('orchestras', orchestras, semesterId, member),
 			note: cutNote(data.orchestras?.current, '오케스트라가', '곳'),
 			more: restNote(data.orchestras?.current, '오케스트라', '곳'),
 			split: splits.orchestras,
@@ -533,7 +596,7 @@
 	// 같은 목록(before)을 받았으면 그 개수(통계의 부제처럼 '… 18곡 · 지난 학기 12곡').
 	// 카드마다 '많이 튼 순'(통계와 같다): 눌리면(sorted) 표와 링크를 횟수가 많은 것부터의 같은 목록에서
 	// 만들고, 부제 끝에 ' · 많이 튼 순' 을 붙인다. CSV 저장은 card.table 을 읽으므로 보이는 순서 그대로다.
-	const firstsCard = (key, title, firsts, before, nameHeader, unit, semesterId, sorted) => {
+	const firstsCard = (key, title, firsts, before, nameHeader, unit, semesterId, sorted, member) => {
 		const shown = sorted ? byCount(firsts) : firsts;
 		return {
 			key,
@@ -542,8 +605,14 @@
 			table: shown?.items.length ? firstsTable(shown, nameHeader) : null,
 			links:
 				nameHeader === '작곡가'
-					? linksOf(shown, semesterId, firstsByCount.firstComposers, firstsByCount.firstWorks)
-					: workLinksOf(shown, semesterId),
+					? linksOf(
+							shown,
+							semesterId,
+							firstsByCount.firstComposers,
+							firstsByCount.firstWorks,
+							member
+						)
+					: workLinksOf(shown, semesterId, member),
 			// 처음 튼 날마다: 그 날 처음 튼 선곡(지기 없이, statFirsts.js 의 firstDayHref). 보이는 순서의 행마다.
 			cellLinks: {
 				1: {
@@ -578,11 +647,11 @@
 			composers: firstsByCount.firstComposers,
 			works: firstsByCount.firstWorks
 		});
-	// 학기의 URL(reportHref 는 semester_id 만 쓴다)에 by_count 를 잇는다.
+	// 학기의 URL(reportHref 는 semester_id 만 쓴다)에 by_count 와 보기(범위·지기·견습 포함)를 잇는다.
 	function reportUrl(id) {
 		const url = new URL(reportHref(id), $page.url);
 		writeFirsts(url.searchParams);
-		return url;
+		return statQueryHref(url, { scope, userId, includeMentees });
 	}
 	// 누르면 지금 URL 의 by_count 만 고친다.
 	function toggleFirstsByCount(key) {
@@ -600,7 +669,8 @@
 			'작곡가',
 			'명',
 			semesterId,
-			firstsByCount.firstComposers
+			firstsByCount.firstComposers,
+			member
 		),
 		firstsCard(
 			'firstWorks',
@@ -610,7 +680,8 @@
 			'곡',
 			'곡',
 			semesterId,
-			firstsByCount.firstWorks
+			firstsByCount.firstWorks,
+			member
 		)
 	];
 
@@ -632,12 +703,12 @@
 	};
 
 	// 'CSV 저장': 카드의 표를 보이는 그대로(횟수만 쉼표 없이) 내려받는다. 파일 이름은 통계처럼
-	// 학기결산_2025-2학기_많이 튼 작곡가_20261030.csv.
+	// 학기결산_2025-2학기_많이 튼 작곡가_20261030.csv, 개인이면 학기 뒤에 지기(학기결산_2025-2학기_가상이_…).
 	function saveCsv(card) {
 		if (!card.table) return;
 		const { headers, rows } = tableCsv(card.table);
 		downloadCsvTable(
-			downloadName(['학기결산', label, card.title, todayStamp()], 'csv'),
+			downloadName(['학기결산', label, memberText, card.title, todayStamp()], 'csv'),
 			headers,
 			rows
 		);
@@ -687,7 +758,7 @@
 </script>
 
 <svelte:head>
-	<title>{pageTitle(label, '학기 결산')}</title>
+	<title>{pageTitle(memberText, label, '학기 결산')}</title>
 </svelte:head>
 
 <div class="report-page">
@@ -697,6 +768,7 @@
 			<h1>학기 결산</h1>
 			{#if semester}
 				<span class="semester">{label}</span>
+				{#if memberText}<span class="semester">{memberText}</span>{/if}
 				<span class="range">{rangeText}</span>
 				{#if ongoing}<span class="range">{ongoing}</span>{/if}
 				{#if upcoming}<span class="range">{upcoming}</span>{/if}
@@ -706,7 +778,10 @@
 			{#if semester}
 				<a
 					class="page-link"
-					href={firstsByCountHref(`/stat?semester_id=${semester.id}`, statFirsts)}>통계</a
+					href={statViewHref(
+						firstsByCountHref(`/stat?semester_id=${semester.id}`, statFirsts),
+						view
+					)}>통계</a
 				>
 				<a class="page-link" href={kpiLinks.total_plays}>선곡 기록</a>
 			{:else}
@@ -723,6 +798,10 @@
 					<option value={String(s.id)}>{semesterOptionLabel(s, today)}</option>
 				{/each}
 			</select>
+			<ScopeToggle bind:scope on:change={onScopeChange} />
+			{#if scope === 'individual'}
+				<MemberSelect bind:userId bind:includeMentees bind:userName on:change={onMemberChange} />
+			{/if}
 			<button class="print-btn" on:click={() => window.print()} disabled={!semester}> 인쇄 </button>
 		</div>
 	</header>
@@ -740,6 +819,8 @@
 		</div>
 	{:else if semestersLoaded && !semester}
 		<div class="empty-hint">학기가 없습니다.</div>
+	{:else if semester && scope === 'individual' && !userId}
+		<div class="empty-hint">지기를 선택하면 개인 결산을 볼 수 있습니다.</div>
 	{:else if semester}
 		<div class="kpi-row" tabindex="-1" bind:this={kpiRow}>
 			<!-- 총 선곡·신청곡의 숫자는 그 선곡의 선곡 기록을 연다(0 이나 '—' 이면 글자 그대로) -->
@@ -1107,10 +1188,13 @@
 		clip: rect(0 0 0 0);
 		white-space: nowrap;
 	}
+	/* 개인 보기의 지기 목록까지 한 줄에 다 들어가지 않으면 컨트롤을 다음 줄 오른쪽에 둔다(통계와 같다). */
 	.page-header {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: center;
 		justify-content: space-between;
+		gap: 12px 16px;
 		margin-bottom: 20px;
 	}
 	.title-group {
@@ -1138,8 +1222,11 @@
 	}
 	.controls {
 		display: flex;
+		flex-wrap: wrap;
+		justify-content: flex-end;
 		align-items: center;
-		gap: 16px;
+		gap: 12px 16px;
+		margin-left: auto;
 	}
 	.page-link {
 		font-family: var(--small-medium-font-family, 'Noto Sans KR', sans-serif);
