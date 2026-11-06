@@ -278,6 +278,21 @@ function rankPlace(envelope, composerId) {
 	return items.length >= RANK_LIMIT ? { place: `${RANK_LIMIT}위 밖`, count: null } : null;
 }
 
+/** @param {string} place */
+const rankLeadText = (place) => `많이 튼 작곡가 ${place}`;
+
+// 순위 줄의 첫머리 '많이 튼 작곡가 3위'(공동이면 '공동 3위'): 통계의 많이 튼 작곡가 표로 가는 링크의 글.
+// 이 작곡가가 목록(그 표의 행)에 있을 때만이다. '100위 밖'이거나 목록에 없으면 ''(링크 없이 줄 그대로).
+/**
+ * @param {{ items?: { id: number | null, count: number }[] } | null | undefined} envelope
+ * @param {number | string | null} composerId
+ */
+export function composerRankLead(envelope, composerId) {
+	if (composerId == null) return '';
+	const current = rankPlace(envelope, composerId);
+	return current && current.count != null ? rankLeadText(current.place) : '';
+}
+
 // KPI 칸 아래의 순위 줄: 같은 기간·지기의 많이 튼 작곡가에서 이 작곡가의 자리(rankPlace)와 기간 선곡 중 몫.
 // '100위 밖'의 횟수는 이 페이지의 요약 plays. 선곡이 없거나, 짧은 목록에 없으면(요약과 어긋난 답) ''(줄이 없다).
 // previous(지난 학기의 같은 목록, 같은 지기)에 선곡이 있으면 자리 뒤에 '(지난 학기 3위)'를 붙인다. 그 짧은
@@ -300,7 +315,7 @@ export function composerRankNote(envelope, composerId, plays, previous = null) {
 		before = ` (지난 학기${last ? ` ${last.place}` : '에는 틀지 않음'})`;
 	}
 	const share = formatShare((count / total) * 100);
-	return `많이 튼 작곡가 ${current.place}${before} · 이 기간 선곡 ${formatCount(total)}곡 중 ${formatCount(count)}곡 (${share})`;
+	return `${rankLeadText(current.place)}${before} · 이 기간 선곡 ${formatCount(total)}곡 중 ${formatCount(count)}곡 (${share})`;
 }
 
 // 머리말의 '시대 · 출생 연도'. composers/<id>/ 의 era 는 출생 연도와 보정값으로 정한 시대다.

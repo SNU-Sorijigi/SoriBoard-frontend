@@ -71,7 +71,8 @@
 		tableViewHref,
 		readFirstsByCount,
 		writeFirstsByCount,
-		firstsByCountHref
+		firstsByCountHref,
+		cardHref
 	} from '$lib/statQuery.js';
 	import { loadStatusText, withPreviousFailure, withFailedLines } from '$lib/statCards.js';
 	import {
@@ -100,6 +101,7 @@
 		composerDayHref,
 		composerHref,
 		composerRankNote,
+		composerRankLead,
 		RANK_LIMIT
 	} from '$lib/composerStats.js';
 
@@ -240,6 +242,8 @@
 		}
 	}
 	$: rankNote = composerRankNote(rank, composerId, summary?.total_plays, previousRank);
+	// 줄의 첫머리(많이 튼 작곡가 3위)는 통계의 그 표로 가는 링크다. 표에 없는 '100위 밖'은 글 그대로 둔다.
+	$: rankLead = composerRankLead(rank, composerId);
 
 	// 카드만 다시 부른다(기간이나 지기가 바뀌면 작곡가 정보는 그대로다).
 	function loadCards() {
@@ -631,6 +635,11 @@
 	// 처음 튼 작곡가의 by_count=composers 는 이 페이지가 쓰지 않고, 통계로 돌려주려고 URL과 링크에 잇기만 한다.
 	let firstComposersByCount = readFirstsByCount($page.url.searchParams).composers;
 	let firstWorksByCountKey = firstWorksByCount;
+	// 머리말의 통계 링크(같은 기간·지기, 모든 차트 표로 보기와 처음 튼 많이 튼 순까지). 순위 줄의 링크도 이것에 #composers 를 붙인다.
+	$: statLink = firstsByCountHref(tableViewHref(composerStatHref(filter), allTables), {
+		composers: firstComposersByCount,
+		works: firstWorksByCount
+	});
 	$: if (firstWorksByCount !== firstWorksByCountKey) {
 		firstWorksByCountKey = firstWorksByCount;
 		syncFirstWorksByCount();
@@ -736,13 +745,7 @@
 				{#if ongoing}<span class="facts">{ongoing}</span>{/if}
 				{#if upcoming}<span class="facts">{upcoming}</span>{/if}
 			{/if}
-			<a
-				class="page-link"
-				href={firstsByCountHref(tableViewHref(composerStatHref(filter), allTables), {
-					composers: firstComposersByCount,
-					works: firstWorksByCount
-				})}>통계</a
-			>
+			<a class="page-link" href={statLink}>통계</a>
 			{#if composerId && !notFound}
 				<a class="page-link" href={historyLink}>선곡 기록</a>
 			{/if}
@@ -962,7 +965,15 @@
 			</p>
 		{/if}
 		<!-- 많이 튼 작곡가 중 이 작곡가의 순위와 기간 선곡 중 몫(같은 기간·지기, 통계의 많이 튼 작곡가와 같은 셈) -->
-		{#if rankNote}
+		{#if rankLead && rankNote.startsWith(rankLead)}
+			<p class="kpi-note">
+				<a
+					class="page-link"
+					href={cardHref(statLink, 'composers')}
+					title="통계의 많이 튼 작곡가 표에서 보기">{rankLead}</a
+				>{rankNote.slice(rankLead.length)}
+			</p>
+		{:else if rankNote}
 			<p class="kpi-note">{rankNote}</p>
 		{/if}
 		<!-- 표기만 다른 이름(표기 정리의 묶음): 그 선곡은 이 페이지에 들지 않으므로, 기간·지기와 상관없이 알린다.

@@ -17,6 +17,7 @@ import {
 	composerDayHref,
 	composerRankLinks,
 	composerRankNote,
+	composerRankLead,
 	RANK_LIMIT,
 	composerSemesterLinks,
 	composerFacts,
@@ -958,6 +959,69 @@ test('rank note: no line when the answer disagrees or there is nothing to rank',
 		composerRankNote({ total_plays: 5, items: [{ id: null, name: '', count: 5 }] }, 'null', 5),
 		''
 	);
+});
+
+test("rank lead: the line's opening, the words that link to 통계's 많이 튼 작곡가 table", () => {
+	assert.equal(composerRankLead(SEM2, '1'), '많이 튼 작곡가 1위');
+	assert.equal(composerRankLead(SEM2, 4), '많이 튼 작곡가 3위');
+	assert.equal(composerRankLead(SEM2, '7'), '많이 튼 작곡가 공동 5위');
+	assert.equal(composerRankLead(SEM2, '9'), '많이 튼 작곡가 공동 8위');
+	// 목록에 없거나(짧은 목록, 요약과 어긋난 답) 물을 것이 없으면 링크가 없다
+	assert.equal(composerRankLead(SEM2, '42'), '');
+	assert.equal(composerRankLead(SEM2, null), '');
+	assert.equal(composerRankLead(null, '1'), '');
+	assert.equal(composerRankLead(undefined, '1'), '');
+	assert.equal(composerRankLead(ranking(0, []), '1'), '');
+	assert.equal(
+		composerRankLead({ total_plays: 5, items: [{ id: null, name: '', count: 5 }] }, 'null'),
+		''
+	);
+});
+
+test('rank lead: 100위 밖 is not in the table, so it has no lead', () => {
+	const full = ranking(
+		1970,
+		Array.from({ length: RANK_LIMIT }, (_, i) => [1000 + i, 30 - Math.floor(i / 10)])
+	);
+	assert.equal(composerRankLead(full, '1'), '');
+	// 100번째 행과 같은 횟수로 묶여도 표에 있으니 링크가 있다
+	assert.equal(composerRankLead(full, '1099'), '많이 튼 작곡가 공동 91위');
+	assert.equal(composerRankNote(full, '1', 3).startsWith('많이 튼 작곡가 100위 밖'), true);
+});
+
+test('rank lead: every rank note starts with its lead', () => {
+	const cases = [
+		[SEM2, '1', 39],
+		[SEM2, 4, 32],
+		[SEM2, '5', 12],
+		[SEM2, '6', 18],
+		[SEM2, '9', 16],
+		[
+			ranking(1970, [
+				[1, 1234],
+				[2, 736]
+			]),
+			'1',
+			1234
+		]
+	];
+	for (const [envelope, id, plays] of cases) {
+		const lead = composerRankLead(envelope, id);
+		const note = composerRankNote(envelope, id, plays);
+		assert.ok(lead && note, `${id}: both non-empty`);
+		assert.ok(note.startsWith(lead), `${note} starts with ${lead}`);
+		// 지난 학기 자리가 붙어도 첫머리는 같다
+		const withPrevious = composerRankNote(
+			envelope,
+			id,
+			plays,
+			ranking(180, [
+				[4, 30],
+				[1, 21]
+			])
+		);
+		assert.ok(withPrevious.startsWith(lead), `${withPrevious} starts with ${lead}`);
+	}
 });
 
 // 지난 학기(같은 지기)의 stats/composers 답.
