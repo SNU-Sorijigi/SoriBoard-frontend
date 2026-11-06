@@ -114,7 +114,8 @@
 		</button>
 	</div>
 	{#if !loading && !error && table}
-		<DataTable {table} {title} {subtitle} {links} cellLinks={dateLinks} />
+		<!-- 표는 행만큼만 높다(DataTable 의 fit). 곡이 적은 이름의 패널이 빈 틀이 되지 않는다. -->
+		<DataTable {table} {title} {subtitle} {links} cellLinks={dateLinks} fit />
 		{#if previousError}
 			<p class="previous-error">
 				지난 학기({previousError}) 횟수를 불러오지 못했습니다.
