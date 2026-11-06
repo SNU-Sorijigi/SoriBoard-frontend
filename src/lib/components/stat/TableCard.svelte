@@ -26,6 +26,10 @@
 	export let sortLabel = '';
 	export let sorted = false;
 	export let headingLevel = 2; // 화면 낭독기만 읽는 카드 제목의 수준(h2, 페이지의 소제목 아래면 3)
+	// 표가 보이는 동안 카드 아래에 붙는 한 줄(ChartCard 의 note·noteLink 와 같다). 비우면 없다.
+	export let note = '';
+	/** @type {{ href: string, text: string } | null} */
+	export let noteLink = null; // 줄 뒤에 붙는 링크(예: 표기 정리)
 
 	let card;
 
@@ -92,6 +96,12 @@
 			<DataTable {table} {title} subtitle={shownSubtitle} {links} {cellLinks} fit />
 		{/if}
 	</div>
+
+	{#if note && fit}
+		<div class="note">
+			{note}{#if noteLink}&nbsp;· <a href={noteLink.href}>{noteLink.text}</a>{/if}
+		</div>
+	{/if}
 </div>
 
 <style>
@@ -180,6 +190,18 @@
 	}
 	.placeholder.error {
 		color: var(--secondary-secondary-800, #95560d);
+	}
+	/* ChartCard 의 .note 와 같다 */
+	.note {
+		margin-top: 4px;
+		font-family: var(--small-medium-font-family, 'Noto Sans KR', sans-serif);
+		font-size: var(--small-medium-font-size, 13px);
+		color: var(--secondary-secondary-800, #95560d);
+		text-align: center;
+	}
+	.note a {
+		color: inherit;
+		text-underline-offset: 3px;
 	}
 	/* 통계 페이지의 .sr-only 와 같다: 보이지 않고 화면 낭독기만 읽는다. */
 	.sr-only {

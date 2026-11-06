@@ -259,3 +259,77 @@ export function splitSpellingNote(groups, max = 3, lead = '표기만 다른 이�
 	const rest = groups.length - Math.min(groups.length, max);
 	return `${lead} 따로 셉니다: ${shown}${rest > 0 ? ` 외 ${rest.toLocaleString()}묶음` : ''}`;
 }
+
+// 통계의 처음 튼 작곡가·곡 줄의 머리. 곡은 작곡가와 작품 번호가 같은 곡이라 '표기만 다른'이라고 하지 않는다.
+export const FIRST_SPELLING_LEAD = '표기만 다른 이름이 있어 처음이 아닐 수 있습니다:';
+export const FIRST_MUSIC_LEAD = '작품 번호가 같은 곡이 있어 처음이 아닐 수 있습니다:';
+
+/**
+ * @typedef {{ id: number | string, name: string, count?: number, first_played?: string }} FirstItem
+ * @typedef {{ name: string, variant: { name: string, count: number }, more: number }} FirstSplit
+ */
+
+// 표기 정리의 행을 처음 튼 목록처럼 쓴다: 곡은 '작곡가 - 곡'(작곡가가 없으면 곡만, 백엔드의 stats/firsts 와 같다).
+/** @param {SpellingRow} row */
+const listedName = (row) =>
+	row.composer_name ? `${row.composer_name} - ${row.name}` : String(row.name ?? '');
+
+// 통계의 처음 튼 작곡가·곡(stats/firsts: items 의 id·name·count·first_played): 이 목록의 행 X 마다, X 가 든
+// 표기 정리 묶음의 다른 행 Y 중 처음이 아닐 수 있게 하는 것. Y 는 선곡이 있어야 하고(count > 0), 같은 목록에
+// 있으면서 X 보다 늦게 처음 튼 Y 는 세지 않는다(X 가 진짜 처음이다). 같은 날이거나 더 이른 Y, 이 목록에 없는 Y
+// (기간 밖에서, 또는 개인이면 다른 지기가 튼 것)는 센다. 행은 목록의 순서대로(보이는 순서: 많이 튼 순이면 그
+// 순서), variant 는 그런 Y 중 첫째(백엔드의 순서: 가장 많이 튼 것)의 이름과 전체 기간 선곡 수, more 는 그 밖의
+// Y 수. 응답이 없거나 틀렸으면 [].
+/**
+ * @param {{ groups?: SpellingGroup[] | null } | null | undefined} duplicates
+ * @param {{ items?: FirstItem[] | null } | null | undefined} firsts
+ * @returns {FirstSplit[]}
+ */
+export function firstSpellingSplits(duplicates, firsts) {
+	const items = firsts?.items;
+	if (!Array.isArray(duplicates?.groups) || !Array.isArray(items)) return [];
+	/** @type {Map<string, string>} 목록의 id → 처음 튼 날 */
+	const firstDay = new Map();
+	for (const item of items) {
+		if (item?.id != null && !firstDay.has(String(item.id)))
+			firstDay.set(String(item.id), String(item.first_played ?? ''));
+	}
+	/** @type {FirstSplit[]} */
+	const rows = [];
+	for (const item of items) {
+		if (item?.id == null) continue;
+		const day = firstDay.get(String(item.id)) ?? '';
+		const counted = spellingVariants(duplicates, item.id).filter((row) => {
+			if (!(Number(row.count) > 0)) return false;
+			const other = firstDay.get(String(row.id));
+			// 날짜를 모르면(어느 쪽이든) 처음이 아닐 수 있다고 본다.
+			return !(other && day && other > day);
+		});
+		if (!counted.length) continue;
+		const [first] = counted;
+		rows.push({
+			name: String(item.name ?? ''),
+			variant: { name: listedName(first), count: Number(first.count) },
+			more: counted.length - 1
+		});
+	}
+	return rows;
+}
+
+// 그 행들을 카드의 한 줄로: '표기만 다른 이름이 있어 처음이 아닐 수 있습니다: ‘X’(‘Y’ 6회), ‘Z’(‘W’ 2회)'.
+// max 행까지 적고 나머지는 ' 외 N명'(unit, 곡은 '곡'). 없으면 ''.
+/**
+ * @param {FirstSplit[]} rows
+ * @param {number} [max]
+ * @param {string} [lead]
+ * @param {string} [unit]
+ */
+export function firstSpellingNote(rows, max = 3, lead = FIRST_SPELLING_LEAD, unit = '명') {
+	if (!rows?.length) return '';
+	const shown = rows
+		.slice(0, max)
+		.map(({ name, variant }) => `‘${name}’(‘${variant.name}’ ${variant.count.toLocaleString()}회)`)
+		.join(', ');
+	const rest = rows.length - Math.min(rows.length, max);
+	return `${lead} ${shown}${rest > 0 ? ` 외 ${rest.toLocaleString()}${unit}` : ''}`;
+}

@@ -111,7 +111,11 @@
 		duplicatesSearch,
 		catalogViewHref,
 		DEFAULT_KIND,
-		MUSIC_SPLIT_LEAD
+		MUSIC_SPLIT_LEAD,
+		firstSpellingSplits,
+		firstSpellingNote,
+		FIRST_SPELLING_LEAD,
+		FIRST_MUSIC_LEAD
 	} from '$lib/catalogSpelling.js';
 
 	// 범위·지기·견습 포함·기간·주별/월별·열린 drill-down 패널은 URL에도 둔다(링크로 같은 보기를 연다). 페이지가 시작될 때 한 번만 읽는다.
@@ -592,6 +596,20 @@
 	const withSplit = (capNote, split) => [capNote, split].filter(Boolean).join(' · ');
 	const splitLink = (split, kind) =>
 		split ? { href: catalogViewHref('', kind), text: '표기 정리' } : null;
+	// 처음 튼 작곡가·곡: 다른 표기(곡은 작품 번호가 같은 곡)가 먼저 튼 적이 있을 수 있는 행. 보이는 순서대로
+	// 작곡가는 3명, 곡은 이름이 길어 2곡까지.
+	$: firstComposerSpelling = firstSpellingNote(
+		firstSpellingSplits(duplicates.composer, shownFirstComposers),
+		3,
+		FIRST_SPELLING_LEAD,
+		'명'
+	);
+	$: firstWorkSpelling = firstSpellingNote(
+		firstSpellingSplits(duplicates.music, shownFirstWorks),
+		2,
+		FIRST_MUSIC_LEAD,
+		'곡'
+	);
 
 	function onScopeChange(e) {
 		scope = e.detail;
@@ -1510,6 +1528,8 @@
 				cellLinks={{ 1: { hrefs: firstComposerDayLinks, title: firstDayTitle } }}
 				sortLabel="많이 튼 순"
 				bind:sorted={firstsByCount.composers}
+				note={firstComposerSpelling}
+				noteLink={splitLink(firstComposerSpelling, DEFAULT_KIND)}
 				loading={loading.firstComposers}
 				error={errors.firstComposers}
 				retry={() => retry('firstComposers')}
@@ -1529,6 +1549,8 @@
 				cellLinks={{ 1: { hrefs: firstWorkDayLinks, title: firstDayTitle } }}
 				sortLabel="많이 튼 순"
 				bind:sorted={firstsByCount.works}
+				note={firstWorkSpelling}
+				noteLink={splitLink(firstWorkSpelling, 'music')}
 				loading={loading.firstWorks}
 				error={errors.firstWorks}
 				retry={() => retry('firstWorks')}

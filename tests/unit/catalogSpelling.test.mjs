@@ -16,7 +16,11 @@ import {
 	variantHistoryHref,
 	splitSpellings,
 	splitSpellingNote,
-	MUSIC_SPLIT_LEAD
+	MUSIC_SPLIT_LEAD,
+	firstSpellingSplits,
+	firstSpellingNote,
+	FIRST_SPELLING_LEAD,
+	FIRST_MUSIC_LEAD
 } from '../../src/lib/catalogSpelling.js';
 import { readHistoryQuery } from '../../src/lib/playHistory.js';
 import { readCatalogQuery } from '../../src/lib/composerCatalog.js';
@@ -695,4 +699,194 @@ test('the 곡 note leads with 작품 번호가 같은 곡은, lists two groups, 
 		'작품 번호가 같은 곡은 따로 셉니다: ‘A5’ 5회 + ‘B5’ 1회; ‘A4’ 4회 + ‘B4’ 1회 외 2묶음'
 	);
 	assert.equal(splitSpellingNote([], 2, MUSIC_SPLIT_LEAD), '');
+});
+
+// 처음 튼 작곡가·곡(stats/firsts)의 표기 줄
+const firstsOf = (...items) => ({
+	items: items.map(([id, name, count, first_played]) => ({ id, name, count, first_played }))
+});
+const composerGroups = (...groups) => ({
+	kind: 'composer',
+	groups: groups.map((rows) => ({
+		key: rows[0][1],
+		count: rows.reduce((sum, [, , count]) => sum + count, 0),
+		rows: rows.map(([id, name, count]) => ({ id, name, count }))
+	}))
+});
+
+test('a first whose other spelling is not in the list may not be new', () => {
+	const duplicates = composerGroups([
+		[40, '가상 작곡가 40', 5],
+		[41, '가상작곡가 40', 3]
+	]);
+	const firsts = firstsOf(
+		[7, '가상 작곡가 7', 2, '2026-09-01'],
+		[41, '가상작곡가 40', 3, '2026-10-06']
+	);
+	const rows = firstSpellingSplits(duplicates, firsts);
+	assert.deepEqual(rows, [
+		{ name: '가상작곡가 40', variant: { name: '가상 작곡가 40', count: 5 }, more: 0 }
+	]);
+	assert.equal(
+		firstSpellingNote(rows),
+		'표기만 다른 이름이 있어 처음이 아닐 수 있습니다: ‘가상작곡가 40’(‘가상 작곡가 40’ 5회)'
+	);
+});
+
+test('a spelling first played later in the list does not count against the earlier one', () => {
+	const duplicates = composerGroups([
+		[32, '가상 작곡가 32', 6],
+		[37, '가상작곡가 32', 1]
+	]);
+	const firsts = firstsOf(
+		[32, '가상 작곡가 32', 6, '2026-09-02'],
+		[37, '가상작곡가 32', 1, '2026-09-29']
+	);
+	assert.deepEqual(firstSpellingSplits(duplicates, firsts), [
+		{ name: '가상작곡가 32', variant: { name: '가상 작곡가 32', count: 6 }, more: 0 }
+	]);
+	// 목록의 순서가 바뀌어도(많이 튼 순) 날짜로 가린다.
+	const reversed = { items: [...firsts.items].reverse() };
+	assert.deepEqual(
+		firstSpellingSplits(duplicates, reversed).map((row) => row.name),
+		['가상작곡가 32']
+	);
+});
+
+test('spellings first played the same day count both ways', () => {
+	const duplicates = composerGroups([
+		[1, 'A. Kim', 2],
+		[2, 'A Kim', 1]
+	]);
+	const firsts = firstsOf([2, 'A Kim', 1, '2026-09-02'], [1, 'A. Kim', 2, '2026-09-02']);
+	assert.deepEqual(firstSpellingSplits(duplicates, firsts), [
+		{ name: 'A Kim', variant: { name: 'A. Kim', count: 2 }, more: 0 },
+		{ name: 'A. Kim', variant: { name: 'A Kim', count: 1 }, more: 0 }
+	]);
+});
+
+test('a spelling never played does not make a first less new', () => {
+	const duplicates = composerGroups([
+		[34, '가상 작곡가 34', 5],
+		[38, '가상작곡가 34', 0]
+	]);
+	const firsts = firstsOf([34, '가상 작곡가 34', 5, '2026-09-04']);
+	assert.deepEqual(firstSpellingSplits(duplicates, firsts), []);
+	assert.equal(firstSpellingNote(firstSpellingSplits(duplicates, firsts)), '');
+});
+
+test('the most played counted spelling is named, the others counted in more', () => {
+	const duplicates = composerGroups([
+		[1, 'J. S. Kim', 1],
+		[2, 'J.S. Kim', 9],
+		[3, 'JS Kim', 4],
+		[4, 'J S Kim', 0]
+	]);
+	const firsts = firstsOf([1, 'J. S. Kim', 1, '2026-09-10'], [3, 'JS Kim', 4, '2026-09-20']);
+	assert.deepEqual(firstSpellingSplits(duplicates, firsts), [
+		// 3 은 이 목록에서 1 보다 늦게 처음 튼 것이라 1 에는 세지 않는다.
+		{ name: 'J. S. Kim', variant: { name: 'J.S. Kim', count: 9 }, more: 0 },
+		{ name: 'JS Kim', variant: { name: 'J.S. Kim', count: 9 }, more: 1 }
+	]);
+});
+
+test('a work in two groups gives one variant, the most played, written 작곡가 - 곡', () => {
+	const both = musicRow(310, 'Sonata Op. 5 (K. 550)', 1, 503, 'Dana Lee');
+	const music = {
+		kind: 'music',
+		groups: [
+			{ key: 'op5', count: 5, rows: [musicRow(311, '소나타 op.5', 4, 503, 'Dana Lee'), both] },
+			{ key: 'k550', count: 7, rows: [musicRow(312, 'Serenade KV 550', 6, 503, 'Dana Lee'), both] }
+		]
+	};
+	const firsts = firstsOf([310, 'Dana Lee - Sonata Op. 5 (K. 550)', 1, '2026-10-01']);
+	const rows = firstSpellingSplits(music, firsts);
+	assert.deepEqual(rows, [
+		{
+			name: 'Dana Lee - Sonata Op. 5 (K. 550)',
+			variant: { name: 'Dana Lee - Serenade KV 550', count: 6 },
+			more: 1
+		}
+	]);
+	assert.equal(FIRST_MUSIC_LEAD, '작품 번호가 같은 곡이 있어 처음이 아닐 수 있습니다:');
+	assert.equal(
+		firstSpellingNote(rows, 2, FIRST_MUSIC_LEAD, '곡'),
+		'작품 번호가 같은 곡이 있어 처음이 아닐 수 있습니다: ‘Dana Lee - Sonata Op. 5 (K. 550)’(‘Dana Lee - Serenade KV 550’ 6회)'
+	);
+});
+
+test('a work without a composer is written as its title, as stats/firsts writes it', () => {
+	const music = {
+		kind: 'music',
+		groups: [
+			{
+				key: 'bwv1',
+				count: 3,
+				rows: [
+					musicRow(1, 'Prelude BWV 1', 2, null, null),
+					musicRow(2, 'Prelude BWV.1', 1, null, null)
+				]
+			}
+		]
+	};
+	const firsts = firstsOf([2, 'Prelude BWV.1', 1, '2026-10-01']);
+	assert.deepEqual(firstSpellingSplits(music, firsts)[0].variant, {
+		name: 'Prelude BWV 1',
+		count: 2
+	});
+});
+
+test('the line names rows in the list’s order up to the cap, then how many more', () => {
+	const rows = ['A', 'B', 'C', 'D', 'E'].map((name, i) => ({
+		name,
+		variant: { name: `${name}′`, count: 1000 + i },
+		more: 0
+	}));
+	assert.equal(FIRST_SPELLING_LEAD, '표기만 다른 이름이 있어 처음이 아닐 수 있습니다:');
+	assert.equal(
+		firstSpellingNote(rows),
+		'표기만 다른 이름이 있어 처음이 아닐 수 있습니다: ‘A’(‘A′’ 1,000회), ‘B’(‘B′’ 1,001회), ‘C’(‘C′’ 1,002회) 외 2명'
+	);
+	assert.equal(
+		firstSpellingNote(rows.slice(0, 3), 2, FIRST_MUSIC_LEAD, '곡'),
+		'작품 번호가 같은 곡이 있어 처음이 아닐 수 있습니다: ‘A’(‘A′’ 1,000회), ‘B’(‘B′’ 1,001회) 외 1곡'
+	);
+	assert.equal(firstSpellingNote(rows.slice(0, 3)).endsWith('1,002회)'), true);
+});
+
+test('string and number ids match between the list and the groups', () => {
+	const duplicates = composerGroups([
+		[40, '가상 작곡가 40', 5],
+		[41, '가상작곡가 40', 3]
+	]);
+	const firsts = {
+		items: [{ id: '41', name: '가상작곡가 40', count: 3, first_played: '2026-10-06' }]
+	};
+	assert.equal(firstSpellingSplits(duplicates, firsts).length, 1);
+});
+
+test('no answer, a malformed one or an empty one gives no rows and no line', () => {
+	const duplicates = composerGroups([
+		[40, '가상 작곡가 40', 5],
+		[41, '가상작곡가 40', 3]
+	]);
+	const firsts = firstsOf([41, '가상작곡가 40', 3, '2026-10-06']);
+	for (const [dup, list] of [
+		[null, firsts],
+		[undefined, firsts],
+		[{}, firsts],
+		[{ groups: 'x' }, firsts],
+		[{ groups: [] }, firsts],
+		[{ groups: [null, { rows: null }] }, firsts],
+		[duplicates, null],
+		[duplicates, {}],
+		[duplicates, { items: 'x' }],
+		[duplicates, { items: [] }],
+		[duplicates, { items: [null, { name: 'no id' }] }]
+	]) {
+		assert.deepEqual(firstSpellingSplits(dup, list), []);
+	}
+	assert.equal(firstSpellingNote([]), '');
+	assert.equal(firstSpellingNote(null), '');
+	assert.equal(firstSpellingNote(undefined), '');
 });
