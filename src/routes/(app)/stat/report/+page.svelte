@@ -353,6 +353,20 @@
 				requested: historyHref({ ...historyFilter, requested: 'true' })
 			}
 		: {};
+	// 작곡가·곡·지휘자·오케스트라의 숫자(통계의 KPI 칸처럼)와 시대·장르 다양성은 아래의 그 카드로 간다:
+	// 카드(제목으로 이름이 붙은 section)를 위로 올리고 포커스를 둔다. [카드 제목, 단위]
+	const KPI_CARDS = {
+		composers: ['많이 튼 작곡가', '명'],
+		works: ['많이 튼 곡', '곡'],
+		conductors: ['많이 튼 지휘자', '명'],
+		orchestras: ['많이 튼 오케스트라', '곳']
+	};
+	/** @type {Record<string, HTMLElement>} */
+	let cardEls = {};
+	function openCard(key) {
+		cardEls[key]?.scrollIntoView({ block: 'start' });
+		cardEls[key]?.focus({ preventScroll: true });
+	}
 	// 표기 정리의 묶음(catalog/duplicates/, 전체 기간): 학기와 상관없으므로 처음 한 번만 부르고(통계처럼),
 	// 많이 튼 작곡가·독주자·지휘자·오케스트라의 응답(상위 100 전체, 표의 10 행만이 아니다)에 한 묶음의
 	// 표기가 둘 이상 들면 그 카드의 표 아래에 알린다. 많이 튼 곡은 작품 번호가 같은 곡(kind=music)으로 같다.
@@ -498,14 +512,21 @@
 
 	// 선곡 다양성: 통계의 시대·장르 다양성 칸과 같은 정수 %와 지난 학기와 견준 줄(%p).
 	const pct = (v) => (v == null ? '—' : `${Math.round(v * 100)}%`);
-	const diversityTile = (name, now, before) => ({
-		name,
+	// key: 숫자가 여는 분포 카드(mixCards). [칸 이름, 카드 제목]
+	const TILE_NAMES = {
+		eras: ['시대 다양성', '시대별 분포'],
+		genres: ['장르 다양성', '장르별 분포']
+	};
+	const diversityTile = (key, now, before) => ({
+		key,
+		name: TILE_NAMES[key][0],
+		title: TILE_NAMES[key][1],
 		value: pct(groupEvenness(now)),
 		change: evennessChangeText(groupEvenness(now), groupEvenness(before))
 	});
 	$: diversityTiles = [
-		diversityTile('시대 다양성', diversity?.era, previousDiversity?.era),
-		diversityTile('장르 다양성', diversity?.genre, previousDiversity?.genre)
+		diversityTile('eras', diversity?.era, previousDiversity?.era),
+		diversityTile('genres', diversity?.genre, previousDiversity?.genre)
 	];
 
 	// 처음 튼 작곡가·곡: 클럽 전체에서 처음 튼 날이 이 학기인 것. 부제는 그 개수와, 지난 학기의
@@ -722,6 +743,7 @@
 	{:else if semester}
 		<div class="kpi-row" tabindex="-1" bind:this={kpiRow}>
 			<!-- 총 선곡·신청곡의 숫자는 그 선곡의 선곡 기록을 연다(0 이나 '—' 이면 글자 그대로) -->
+			<!-- 작곡가·곡·지휘자·오케스트라의 숫자는 아래의 많이 튼 … 카드로 간다(타임은 세는 카드가 없다) -->
 			{#each KPIS as [key, name]}
 				{@const change = kpiChangeText(summary?.[key], previousSummary?.[key])}
 				<div class="kpi">
@@ -733,6 +755,16 @@
 								title="선곡 기록에서 보기"
 								aria-label="{name} {count(summary[key])} 곡 선곡 기록에서 보기"
 								>{count(summary[key])}</a
+							>
+						{:else if KPI_CARDS[key] && summary?.[key] > 0}
+							{@const [title, unit] = KPI_CARDS[key]}
+							<button
+								type="button"
+								class="kpi-link kpi-open"
+								on:click={() => openCard(key)}
+								title="{title} 보기"
+								aria-label="{name} {count(summary[key])} {unit} — {title} 보기"
+								>{count(summary[key])}</button
 							>
 						{:else}
 							{count(summary?.[key])}
@@ -796,6 +828,7 @@
 						class:wide={card.wide}
 						tabindex="-1"
 						aria-labelledby={`report-${card.key}`}
+						bind:this={cardEls[card.key]}
 					>
 						<button
 							class="tool-btn csv-btn"
@@ -856,7 +889,12 @@
 				{/each}
 
 				{#each mixCards as card}
-					<section class="card wide" tabindex="-1" aria-labelledby={`report-${card.key}`}>
+					<section
+						class="card wide"
+						tabindex="-1"
+						aria-labelledby={`report-${card.key}`}
+						bind:this={cardEls[card.key]}
+					>
 						<button
 							class="tool-btn csv-btn"
 							on:click={() => saveCsv(card)}
@@ -929,7 +967,21 @@
 						<div class="kpi-row diversity-row">
 							{#each diversityTiles as tile}
 								<div class="kpi">
-									<div class="kpi-value">{tile.value}</div>
+									<!-- 다양성 % 는 위의 시대별·장르별 분포 카드로 간다('—' 이면 글자 그대로) -->
+									<div class="kpi-value">
+										{#if tile.value !== '—'}
+											<button
+												type="button"
+												class="kpi-link kpi-open"
+												on:click={() => openCard(tile.key)}
+												title="{tile.title} 보기"
+												aria-label="{tile.name} {tile.value} — {tile.title} 보기"
+												>{tile.value}</button
+											>
+										{:else}
+											{tile.value}
+										{/if}
+									</div>
 									<div class="kpi-label">{tile.name}</div>
 									{#if tile.change}
 										{@const [diff, before] = tile.change.split(' · ')}
@@ -1184,6 +1236,15 @@
 	.kpi-link:hover,
 	.kpi-link:focus-visible {
 		text-decoration: underline;
+	}
+	/* 카드로 가는 숫자(단추)도 옆 링크와 같은 모양(통계의 .kpi-open) */
+	.kpi-open {
+		font: inherit;
+		color: inherit;
+		background: none;
+		border: 0;
+		padding: 0;
+		cursor: pointer;
 	}
 	.kpi-label {
 		margin-top: 4px;
