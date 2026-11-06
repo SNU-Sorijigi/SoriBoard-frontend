@@ -57,6 +57,7 @@
 		mixTable,
 		mixSubtitle,
 		rankChangeTable,
+		previousRankHrefs,
 		tieNote,
 		moreRowsText,
 		firstIdSet,
@@ -180,6 +181,13 @@
 	$: fullListHref = semester
 		? statViewHref(
 				firstsByCountHref(tableViewHref(`/stat?semester_id=${semester.id}`, true), statFirsts),
+				view
+			)
+		: '';
+	// 상위 10 표의 지난 학기 칸('23위')은 지난 학기(previous, 그 칸을 셈한 학기)의 같은 목록을 연다.
+	$: previousListHref = previous
+		? statViewHref(
+				firstsByCountHref(tableViewHref(`/stat?semester_id=${previous.id}`, true), statFirsts),
 				view
 			)
 		: '';
@@ -539,7 +547,20 @@
 			splitKind: SPLIT_KINDS.orchestras,
 			empty: PERFORMER_EMPTY.orchestras
 		}
-	];
+	].map((card) => ({
+		...card,
+		cellLinks: previousCellLinks(card, previousListHref, previousLabel)
+	}));
+	// 상위 10 표의 지난 학기 칸: 순위('23위')인 칸만 통계의 지난 학기, 같은 카드의 표로 가는 링크(없음·첫 선곡은 글자).
+	const previousCellLinks = (card, listHref, prevLabel) =>
+		card.table && listHref
+			? {
+					[card.table.columns.length - 1]: {
+						hrefs: previousRankHrefs(card.table, cardHref(listHref, card.key)),
+						title: `통계에서 지난 학기(${prevLabel})의 ${card.title} 표 보기`
+					}
+				}
+			: {};
 
 	// 시대·장르: 작은 도넛(크기 고정, 인쇄에서도 같은 크기)과 지난 학기와 견준 표.
 	// 수치는 옆의 표에 있으므로 도넛은 이름표 없이 범례만 둔다.
@@ -970,6 +991,7 @@
 							<ReportTable
 								table={card.table}
 								links={card.links}
+								cellLinks={card.cellLinks}
 								labelledby={`report-${card.key}`}
 								describedby={`report-${card.key}-sub`}
 							/>

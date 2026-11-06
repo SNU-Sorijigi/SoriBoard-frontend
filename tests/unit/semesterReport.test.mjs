@@ -11,6 +11,7 @@ import {
 	mixTable,
 	mixSubtitle,
 	rankChangeTable,
+	previousRankHrefs,
 	rankNotes,
 	tieNote,
 	moreRowsText,
@@ -424,6 +425,50 @@ test('rankChangeTable reads 첫 선곡 over 없음 for a row first played this �
 		rankChangeTable(now, before, '곡', 100, new Set([4])).rows.map((row) => row[3]),
 		['첫 선곡', '없음']
 	);
+});
+
+test('previousRankHrefs links only the 지난 학기 cells that are a rank', () => {
+	const href = '/stat?semester_id=11&view=table#works';
+	const now = ranking([
+		[1, '브람스', 42],
+		[2, '바흐', 30],
+		[3, '모차르트', 20],
+		[4, '하이든', 12],
+		[5, '가상 작곡가', 9]
+	]);
+	// 지난 학기 목록이 limit(100)만큼 왔으니 잘린 것이다: 목록에 없는 행은 '100위 밖'.
+	const cut = ranking([[2, '바흐', 70], ...filler(99, 100)]);
+	const table = rankChangeTable(now, cut, '작곡가', 100, new Set([5]));
+	assert.deepEqual(
+		table.rows.map((row) => row[3]),
+		['100위 밖', '1위', '100위 밖', '100위 밖', '첫 선곡']
+	);
+	assert.deepEqual(previousRankHrefs(table, href), [null, href, null, null, null]);
+	// 잘리지 않은 목록: 순위(두 자리도)만 링크, '없음'은 글자.
+	const higher = Array.from({ length: 22 }, (_, k) => [200 + k, `가상 작곡가 ${200 + k}`, 50 - k]);
+	const short = ranking([...higher, [3, '모차르트', 1]]);
+	const shortTable = rankChangeTable(now, short, '작곡가', 100);
+	assert.deepEqual(
+		shortTable.rows.map((row) => row[3]),
+		['없음', '없음', '23위', '없음', '없음']
+	);
+	assert.deepEqual(previousRankHrefs(shortTable, href), [null, null, href, null, null]);
+	// 지난 학기에 선곡이 없으면 '—': 링크 없음.
+	const empty = rankChangeTable(now, ranking([], 0), '작곡가');
+	assert.deepEqual(previousRankHrefs(empty, href), [null, null, null, null, null]);
+});
+
+test('previousRankHrefs is empty without a 지난 학기 column', () => {
+	const now = ranking([[1, '브람스', 42]]);
+	assert.deepEqual(previousRankHrefs(rankChangeTable(now, null, '작곡가'), '/stat#composers'), []);
+	assert.deepEqual(previousRankHrefs(null, '/stat#composers'), []);
+	// 다른 표(처음 튼 곡의 처음 튼 날처럼 마지막 열이 지난 학기가 아닌 표)도 건드리지 않는다.
+	const other = {
+		columns: [{ name: '곡' }, { name: '처음 튼 날' }],
+		rowHeader: 0,
+		rows: [['곡', '3위']]
+	};
+	assert.deepEqual(previousRankHrefs(other, '/stat#works'), []);
 });
 
 test('firstIdSet collects the ids of a firsts list, or null without one', () => {

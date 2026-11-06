@@ -315,6 +315,20 @@ export function rankChangeTable(current, previous, nameHeader, limit = 10, first
 	};
 }
 
+// rankChangeTable 의 지난 학기 칸 링크: 행마다, 그 칸이 순위('3위', '23위')면 href(통계의 지난 학기 표),
+// 아니면('없음', '100위 밖', '첫 선곡', '—') null. 마지막 열이 '지난 학기'가 아니면(지난 학기 없음) [].
+/**
+ * @param {import('./statTable.js').Table | null} table
+ * @param {string} href
+ * @returns {(string | null)[]}
+ */
+export function previousRankHrefs(table, href) {
+	if (!table) return [];
+	const last = table.columns.length - 1;
+	if (table.columns[last]?.name !== '지난 학기') return [];
+	return table.rows.map((row) => (/^\d+위$/.test(String(row[last])) ? href : null));
+}
+
 // 상위 10 표가 동점을 자르면 표 아래에 적는 말: 보인 마지막 행(shown 번째)과 횟수가 같은데 표에
 // 들지 못한 행의 수. 예: '9회로 공동 8위인 작곡가가 1명 더 있습니다'. 순위는 순위 칸처럼 같은 횟수는
 // 같은 순위(competitionRanks). 목록(envelope)이 cap 행까지 찼고 동점이 그 끝까지 이어지면 그 뒤가 더
