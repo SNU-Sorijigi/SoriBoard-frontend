@@ -280,6 +280,8 @@ function rankPlace(envelope, composerId) {
 
 /** @param {string} place */
 const rankLeadText = (place) => `많이 튼 작곡가 ${place}`;
+/** @param {string} place */
+const previousRankText = (place) => `지난 학기 ${place}`;
 
 // 순위 줄의 첫머리 '많이 튼 작곡가 3위'(공동이면 '공동 3위'): 통계의 많이 튼 작곡가 표로 가는 링크의 글.
 // 이 작곡가가 목록(그 표의 행)에 있을 때만이다. '100위 밖'이거나 목록에 없으면 ''(링크 없이 줄 그대로).
@@ -291,6 +293,19 @@ export function composerRankLead(envelope, composerId) {
 	if (composerId == null) return '';
 	const current = rankPlace(envelope, composerId);
 	return current && current.count != null ? rankLeadText(current.place) : '';
+}
+
+// 순위 줄 괄호 안의 '지난 학기 5위'(공동이면 '공동 5위'): 통계의 그 학기 많이 튼 작곡가 표로 가는 링크의 글.
+// previous(지난 학기의 같은 목록)에 선곡이 있고 이 작곡가가 그 목록(표의 행)에 있을 때만이다. 그 학기에 틀지
+// 않았거나 '100위 밖'이거나, 앞 학기의 목록이 없으면 ''(링크 없이 줄 그대로).
+/**
+ * @param {{ total_plays?: number, items?: { id: number | null, count: number }[] } | null | undefined} previous
+ * @param {number | string | null} composerId
+ */
+export function composerPreviousRankLead(previous, composerId) {
+	if (composerId == null || !previous?.total_plays) return '';
+	const last = rankPlace(previous, composerId);
+	return last && last.count != null ? previousRankText(last.place) : '';
 }
 
 // KPI 칸 아래의 순위 줄: 같은 기간·지기의 많이 튼 작곡가에서 이 작곡가의 자리(rankPlace)와 기간 선곡 중 몫.
@@ -312,7 +327,7 @@ export function composerRankNote(envelope, composerId, plays, previous = null) {
 	let before = '';
 	if (previous?.total_plays) {
 		const last = rankPlace(previous, composerId);
-		before = ` (지난 학기${last ? ` ${last.place}` : '에는 틀지 않음'})`;
+		before = ` (${last ? previousRankText(last.place) : '지난 학기에는 틀지 않음'})`;
 	}
 	const share = formatShare((count / total) * 100);
 	return `${rankLeadText(current.place)}${before} · 이 기간 선곡 ${formatCount(total)}곡 중 ${formatCount(count)}곡 (${share})`;

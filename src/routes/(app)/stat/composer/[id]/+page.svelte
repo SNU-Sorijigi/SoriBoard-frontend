@@ -102,6 +102,7 @@
 		composerHref,
 		composerRankNote,
 		composerRankLead,
+		composerPreviousRankLead,
 		RANK_LIMIT
 	} from '$lib/composerStats.js';
 
@@ -244,6 +245,12 @@
 	$: rankNote = composerRankNote(rank, composerId, summary?.total_plays, previousRank);
 	// 줄의 첫머리(많이 튼 작곡가 3위)는 통계의 그 표로 가는 링크다. 표에 없는 '100위 밖'은 글 그대로 둔다.
 	$: rankLead = composerRankLead(rank, composerId);
+	$: previousRankLead = composerPreviousRankLead(previousRank, composerId);
+	// 첫머리 뒤의 나머지. 그것이 ' (지난 학기 5위)'로 시작하면 괄호 안의 그 글도 링크다(previousStatLink).
+	$: rankRest = rankNote.slice(rankLead.length);
+	$: previousPart = ` (${previousRankLead})`;
+	$: previousLinked =
+		Boolean(previousRankLead && previousStatLink) && rankRest.startsWith(previousPart);
 
 	// 카드만 다시 부른다(기간이나 지기가 바뀌면 작곡가 정보는 그대로다).
 	function loadCards() {
@@ -636,10 +643,31 @@
 	let firstComposersByCount = readFirstsByCount($page.url.searchParams).composers;
 	let firstWorksByCountKey = firstWorksByCount;
 	// 머리말의 통계 링크(같은 기간·지기, 모든 차트 표로 보기와 처음 튼 많이 튼 순까지). 순위 줄의 링크도 이것에 #composers 를 붙인다.
-	$: statLink = firstsByCountHref(tableViewHref(composerStatHref(filter), allTables), {
-		composers: firstComposersByCount,
-		works: firstWorksByCount
-	});
+	$: statLink = statLinkOf(filter, allTables, firstComposersByCount, firstWorksByCount);
+	// 순위 줄의 '지난 학기 5위'는 같은 지기·표시로 그 앞 학기(previousTarget)의 통계를 연다(#composers 는 마크업에서).
+	// previousTarget 은 반응 블록 안(loadPreviousSummary)에서 바뀌어 이 줄을 다시 부르지 않으므로, 늦게 오는
+	// previousRank(그 학기의 순위, 순위 줄의 글)와 함께 다시 만든다.
+	$: previousStatLink =
+		previousRank && previousTarget
+			? statLinkOf(
+					{ ...filter, period: String(previousTarget.id), start: '', end: '' },
+					allTables,
+					firstComposersByCount,
+					firstWorksByCount
+				)
+			: '';
+	/**
+	 * @param {typeof filter} f
+	 * @param {boolean} tables
+	 * @param {boolean} composersByCount
+	 * @param {boolean} worksByCount
+	 */
+	function statLinkOf(f, tables, composersByCount, worksByCount) {
+		return firstsByCountHref(tableViewHref(composerStatHref(f), tables), {
+			composers: composersByCount,
+			works: worksByCount
+		});
+	}
 	$: if (firstWorksByCount !== firstWorksByCountKey) {
 		firstWorksByCountKey = firstWorksByCount;
 		syncFirstWorksByCount();
@@ -965,13 +993,19 @@
 			</p>
 		{/if}
 		<!-- 많이 튼 작곡가 중 이 작곡가의 순위와 기간 선곡 중 몫(같은 기간·지기, 통계의 많이 튼 작곡가와 같은 셈) -->
+		<!-- 괄호 안의 '지난 학기 5위'는 그 앞 학기의 통계에서 많이 튼 작곡가 표를 연다(괄호는 링크 밖) -->
 		{#if rankLead && rankNote.startsWith(rankLead)}
 			<p class="kpi-note">
 				<a
 					class="page-link"
 					href={cardHref(statLink, 'composers')}
 					title="통계의 많이 튼 작곡가 표에서 보기">{rankLead}</a
-				>{rankNote.slice(rankLead.length)}
+				>{#if previousLinked}{' ('}<a
+						class="page-link"
+						href={cardHref(previousStatLink, 'composers')}
+						title="통계에서 지난 학기({semesterLabel(previousTarget)})의 많이 튼 작곡가 표 보기"
+						>{previousRankLead}</a
+					>){rankRest.slice(previousPart.length)}{:else}{rankRest}{/if}
 			</p>
 		{:else if rankNote}
 			<p class="kpi-note">{rankNote}</p>

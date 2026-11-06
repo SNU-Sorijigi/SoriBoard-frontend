@@ -18,6 +18,7 @@ import {
 	composerRankLinks,
 	composerRankNote,
 	composerRankLead,
+	composerPreviousRankLead,
 	RANK_LIMIT,
 	composerSemesterLinks,
 	composerFacts,
@@ -1084,4 +1085,54 @@ test('rank note: no 지난 학기 clause without a previous 학기 with plays', 
 	assert.equal(composerRankNote(SEM2, '42', 3, SEM1), '');
 	assert.equal(composerRankNote(SEM2, '1', 0, SEM1), '');
 	assert.equal(composerRankNote(SEM2, null, 39, SEM1), '');
+});
+
+test("previous rank lead: the 지난 학기 place that links to that 학기's table on 통계", () => {
+	assert.equal(composerPreviousRankLead(SEM1, 4), '지난 학기 1위');
+	assert.equal(composerPreviousRankLead(SEM1, '1'), '지난 학기 3위');
+	assert.equal(composerPreviousRankLead(SEM1, '6'), '지난 학기 공동 5위');
+	assert.equal(composerPreviousRankLead(SEM2, '7'), '지난 학기 공동 5위');
+	assert.equal(composerPreviousRankLead(SEM2, '1'), '지난 학기 1위');
+});
+
+test('previous rank lead: none when the 학기 has no row for it (틀지 않음, 100위 밖) or no list', () => {
+	// 지난 학기에는 틀지 않음(짧은 목록에 없다)
+	assert.equal(composerPreviousRankLead(SEM1, '7'), '');
+	// 100위 밖: 표에 없다. 100번째 행과 묶여도 표에 있으면 링크가 있다
+	assert.equal(composerPreviousRankLead(FULL(1970), '1'), '');
+	assert.equal(composerPreviousRankLead(FULL(1970), '1099'), '지난 학기 공동 91위');
+	// 앞 학기가 없거나, 아직 없거나, 선곡이 없으면 괄호도 없다
+	assert.equal(composerPreviousRankLead(null, '1'), '');
+	assert.equal(composerPreviousRankLead(undefined, '1'), '');
+	assert.equal(composerPreviousRankLead({ items: SEM1.items }, '4'), '');
+	assert.equal(composerPreviousRankLead(ranking(0, []), '4'), '');
+	assert.equal(composerPreviousRankLead(SEM1, null), '');
+	assert.equal(
+		composerPreviousRankLead({ total_plays: 5, items: [{ id: null, name: '', count: 5 }] }, 'null'),
+		''
+	);
+});
+
+test("previous rank lead: the note has ' (<previous lead>)' right after its lead", () => {
+	const cases = [
+		[SEM2, 4, 32, SEM2],
+		[SEM2, '1', 39, SEM1],
+		[SEM2, 6, 18, SEM1],
+		[SEM2, '3', 16, SEM1],
+		[FULL(1970), '1099', 30, FULL(1500)]
+	];
+	for (const [envelope, id, plays, previous] of cases) {
+		const lead = composerRankLead(envelope, id);
+		const previousLead = composerPreviousRankLead(previous, id);
+		const note = composerRankNote(envelope, id, plays, previous);
+		assert.ok(lead && previousLead, `${id}: both leads non-empty`);
+		assert.ok(
+			note.startsWith(`${lead} (${previousLead}) · `),
+			`${note} starts with ${lead} (${previousLead})`
+		);
+	}
+	assert.equal(
+		composerRankNote(SEM2, 4, 32, SEM2).slice(composerRankLead(SEM2, 4).length),
+		` (${composerPreviousRankLead(SEM2, 4)}) · 이 기간 선곡 222곡 중 32곡 (14.4%)`
+	);
 });
