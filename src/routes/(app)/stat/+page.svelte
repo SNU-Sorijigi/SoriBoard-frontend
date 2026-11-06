@@ -854,7 +854,7 @@
 						}),
 						allTables
 					),
-					{ composers: false, works: firstsByCount.works }
+					firstsByCount
 				)
 			)
 		: [];
@@ -1343,7 +1343,7 @@
 									}),
 									allTables
 								),
-								{ composers: false, works: firstsByCount.works }
+								firstsByCount
 							)
 						: ''}
 					on:close={closeDrill}

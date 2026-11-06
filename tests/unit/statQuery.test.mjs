@@ -304,3 +304,18 @@ test('통계, 학기 결산 and 작곡가 links keep the 처음 튼 많이 튼 �
 		['view', 'table']
 	]);
 });
+
+test('통계 → 작곡가 page → 통계 gives back 처음 튼 작곡가 많이 튼 순 (by_count=composers)', () => {
+	const composers = { composers: true, works: false };
+	const readBack = (h) => readFirstsByCount(new URL(h, 'http://localhost').searchParams);
+	const composerPage = firstsByCountHref('/stat/composer/5?semester_id=3', composers);
+	assert.equal(composerPage, '/stat/composer/5?semester_id=3&by_count=composers');
+	assert.deepEqual(readBack(composerPage), composers);
+	// 작곡가 페이지의 통계 링크는 읽은 그대로 잇는다.
+	const statLink = firstsByCountHref(
+		composerStatHref({ period: '3', start: '', end: '' }),
+		readBack(composerPage)
+	);
+	assert.equal(statLink, '/stat?semester_id=3&by_count=composers');
+	assert.deepEqual(readBack(statLink), composers);
+});

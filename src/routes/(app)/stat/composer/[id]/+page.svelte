@@ -357,7 +357,9 @@
 		({ period, start: customStart, end: customEnd } = readComposerPeriod($page.url.searchParams));
 		({ userId, includeMentees } = readComposerMember($page.url.searchParams));
 		allTables = readTableView($page.url.searchParams);
-		firstWorksByCount = firstWorksByCountKey = readFirstsByCount($page.url.searchParams).works;
+		const firsts = readFirstsByCount($page.url.searchParams);
+		firstWorksByCount = firstWorksByCountKey = firsts.works;
+		firstComposersByCount = firsts.composers;
 		loadAll();
 	});
 
@@ -623,9 +625,11 @@
 	// 처음·마지막 날 → 그 하루, 그 곡의 선곡 기록(지기 없이: 날짜가 클럽 전체 기준이다).
 	$: worksDateLinks = works ? workDateLinks(works.items) : {};
 	// 처음 튼 곡의 '많이 튼 순'(TableCard, 통계와 같다). 기간·지기를 바꿔도 남는다. 표와 링크는 같은 보이는 목록에서 만든다.
-	// 통계처럼 URL의 by_count=works 에 둔다(composers 는 이 페이지에 없어 읽지 않는다). 누를 때만 URL에 쓴다:
+	// 통계처럼 URL의 by_count=works 에 둔다. 누를 때만 URL에 쓴다:
 	// firstWorksByCountKey 는 URL에 있는 값이고, afterNavigate 가 둘을 함께 URL에서 읽는다.
 	let firstWorksByCount = readFirstsByCount($page.url.searchParams).works;
+	// 처음 튼 작곡가의 by_count=composers 는 이 페이지가 쓰지 않고, 통계로 돌려주려고 URL과 링크에 잇기만 한다.
+	let firstComposersByCount = readFirstsByCount($page.url.searchParams).composers;
 	let firstWorksByCountKey = firstWorksByCount;
 	$: if (firstWorksByCount !== firstWorksByCountKey) {
 		firstWorksByCountKey = firstWorksByCount;
@@ -633,7 +637,10 @@
 	}
 	function syncFirstWorksByCount() {
 		const url = new URL($page.url);
-		writeFirstsByCount(url.searchParams, { composers: false, works: firstWorksByCount });
+		writeFirstsByCount(url.searchParams, {
+			composers: firstComposersByCount,
+			works: firstWorksByCount
+		});
 		goto(url, { replaceState: true, keepFocus: true, noScroll: true });
 	}
 	$: shownFirstWorks = firstWorksByCount ? byCount(firstWorks) : firstWorks;
@@ -732,7 +739,7 @@
 			<a
 				class="page-link"
 				href={firstsByCountHref(tableViewHref(composerStatHref(filter), allTables), {
-					composers: false,
+					composers: firstComposersByCount,
 					works: firstWorksByCount
 				})}>통계</a
 			>
@@ -965,7 +972,7 @@
 				표기만 다른 이름: {#each variants as row, i (row.id)}{i ? ', ' : ''}‘<a
 						class="page-link variant"
 						href={firstsByCountHref(tableViewHref(composerHref(row.id, filter), allTables), {
-							composers: false,
+							composers: firstComposersByCount,
 							works: firstWorksByCount
 						})}>{row.name}</a
 					>’ 선곡 {count(row.count)}회{/each} (전체 기간). 이 페이지의 수치에는 들지 않습니다. ·

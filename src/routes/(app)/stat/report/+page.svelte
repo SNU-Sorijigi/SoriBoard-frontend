@@ -312,13 +312,13 @@
 	}
 
 	// 순위 표(상위 10). 작곡가 이름은 이 학기를 고른 작곡가 페이지로, 독주자·지휘자·오케스트라·곡
-	// 이름은 이 학기에 그 대상·곡을 튼 선곡 기록으로 간다. 작곡가 페이지에는 처음 튼 곡의 '많이 튼 순'
-	// (works)을 잇는다. $: 블록이 누름에 따라 다시 만들도록 값을 인자로 받는다.
-	const linksOf = (envelope, semesterId, worksByCount) =>
+	// 이름은 이 학기에 그 대상·곡을 튼 선곡 기록으로 간다. 작곡가 페이지에는 처음 튼 작곡가·곡의
+	// '많이 튼 순'(composers, works)을 잇는다. $: 블록이 누름에 따라 다시 만들도록 값을 인자로 받는다.
+	const linksOf = (envelope, semesterId, composersByCount, worksByCount) =>
 		envelope && semesterId
 			? envelope.items.map((item) =>
 					firstsByCountHref(composerHref(item.id, { period: semesterId, start: '', end: '' }), {
-						composers: false,
+						composers: composersByCount,
 						works: worksByCount
 					})
 				)
@@ -399,7 +399,7 @@
 						firstIdSet(firstComposers)
 					)
 				: null,
-			links: linksOf(composers, semesterId, firstsByCount.firstWorks),
+			links: linksOf(composers, semesterId, firstsByCount.firstComposers, firstsByCount.firstWorks),
 			note: cutNote(data.composers?.current, '작곡가가', '명'),
 			more: restNote(data.composers?.current, '작곡가', '명'),
 			split: splits.composers,
@@ -520,7 +520,7 @@
 			table: shown?.items.length ? firstsTable(shown, nameHeader) : null,
 			links:
 				nameHeader === '작곡가'
-					? linksOf(shown, semesterId, firstsByCount.firstWorks)
+					? linksOf(shown, semesterId, firstsByCount.firstComposers, firstsByCount.firstWorks)
 					: workLinksOf(shown, semesterId),
 			// 처음 튼 날마다: 그 날 처음 튼 선곡(지기 없이, statFirsts.js 의 firstDayHref). 보이는 순서의 행마다.
 			cellLinks: {
