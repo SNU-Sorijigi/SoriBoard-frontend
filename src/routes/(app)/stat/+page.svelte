@@ -23,7 +23,8 @@
 		tableViewHref,
 		readFirstsByCount,
 		writeFirstsByCount,
-		firstsByCountHref
+		firstsByCountHref,
+		readLinkedCard
 	} from '$lib/statQuery.js';
 	import { createLatestRequests } from '$lib/latestRequest.js';
 	import {
@@ -547,6 +548,21 @@
 	}
 
 	onMount(loadAll);
+
+	// URL의 카드 해시(#works, 학기 결산의 '통계에서 모두 보기'): 처음 불러온 모든 카드가 끝나면 한 번 그 카드의
+	// 표를 연다(openTable). 위 카드들과 KPI 칸 아래의 지난 학기 줄이 다 그려진 뒤라야 스크롤한 자리가 밀리지
+	// 않는다. 해시는 브라우저에만 있다.
+	/** @type {string | null} */
+	let linkedCard = null;
+	onMount(() => (linkedCard = readLinkedCard($page.url.hash)));
+	$: previousSettled =
+		previousId == null || previousSummary != null || previousFailed.includes('summary');
+	$: if (linkedCard && previousSettled && CARD_KEYS.every((key) => !loading[key])) openLinkedCard();
+	function openLinkedCard() {
+		const key = linkedCard;
+		linkedCard = null;
+		cards[key]?.openTable();
+	}
 
 	// 표기 정리의 묶음(catalog/duplicates/, 전체 기간): 기간·지기와 상관없으므로 처음 한 번만 부르고,
 	// 많이 튼 작곡가·독주자·지휘자·오케스트라에 한 묶음의 표기가 둘 이상 들면(많이 튼 곡은 작곡가와 작품 번호가
@@ -1178,6 +1194,7 @@
 				csvHeaders={['작곡가', '횟수']}
 			/>
 			<ChartCard
+				bind:this={cards.soloists}
 				showTable={allTables}
 				title="많이 튼 독주자"
 				emptyText={PERFORMER_EMPTY.soloists}

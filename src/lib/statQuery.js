@@ -103,3 +103,24 @@ export function firstsByCountHref(href, flags) {
 	writeFirstsByCount(url.searchParams, flags);
 	return url.pathname + url.search + url.hash;
 }
+
+// 학기 결산의 '통계에서 모두 보기'는 통계를 그 카드에서 연다: /stat?semester_id=3&view=table#works.
+// 통계는 처음 불러온 뒤 한 번 그 카드로 스크롤해 표에 포커스를 둔다(ChartCard 의 openTable).
+const LINKED_CARDS = ['composers', 'soloists', 'conductors', 'orchestras', 'works'];
+
+// 해시(#works)를 카드 이름으로 읽는다. 없거나 모르는 해시는 null 이다.
+/** @param {string | null | undefined} hash */
+export function readLinkedCard(hash) {
+	const key = typeof hash === 'string' && hash.startsWith('#') ? hash.slice(1) : '';
+	return LINKED_CARDS.includes(key) ? key : null;
+}
+
+/**
+ * @param {string} href 경로와 쿼리(예: /stat?semester_id=3&view=table)
+ * @param {string} key 카드 이름(예: works)
+ */
+export function cardHref(href, key) {
+	const url = new URL(href, 'http://localhost');
+	url.hash = key;
+	return url.pathname + url.search + url.hash;
+}

@@ -16,7 +16,8 @@
 		tableViewHref,
 		readFirstsByCount,
 		writeFirstsByCount,
-		firstsByCountHref
+		firstsByCountHref,
+		cardHref
 	} from '$lib/statQuery.js';
 	import { sortSemesters, semesterLabel, currentSemesterRange } from '$lib/statPeriod.js';
 	import { composerHref } from '$lib/composerStats.js';
@@ -833,13 +834,13 @@
 							/>
 							{#if card.more && !card.note}
 								<p class="more-note">
-									<a href={fullListHref}>통계에서 모두 보기 ({card.more})</a>
+									<a href={cardHref(fullListHref, card.key)}>통계에서 모두 보기 ({card.more})</a>
 								</p>
 							{/if}
 							{#if card.note}
 								<p class="mix-note">
 									{card.note}<span class="note-link"
-										>&nbsp;· <a href={fullListHref}>통계에서 모두 보기</a></span
+										>&nbsp;· <a href={cardHref(fullListHref, card.key)}>통계에서 모두 보기</a></span
 									>
 								</p>
 							{/if}

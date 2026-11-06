@@ -9,7 +9,9 @@ import {
 	tableViewHref,
 	readFirstsByCount,
 	writeFirstsByCount,
-	firstsByCountHref
+	firstsByCountHref,
+	readLinkedCard,
+	cardHref
 } from '../../src/lib/statQuery.js';
 import { composerHref, composerStatHref } from '../../src/lib/composerStats.js';
 import { statHref } from '../../src/lib/playHistory.js';
@@ -318,4 +320,53 @@ test('통계 → 작곡가 page → 통계 gives back 처음 튼 작곡가 많�
 	);
 	assert.equal(statLink, '/stat?semester_id=3&by_count=composers');
 	assert.deepEqual(readBack(statLink), composers);
+});
+
+test("a card hash names one of 통계's five 많이 튼 cards", () => {
+	for (const key of ['composers', 'soloists', 'conductors', 'orchestras', 'works']) {
+		assert.equal(readLinkedCard(`#${key}`), key);
+	}
+});
+
+test('no hash or an unknown one names no card', () => {
+	for (const hash of [
+		'',
+		'#',
+		'#eras',
+		'#Works',
+		'#works?x',
+		'works',
+		'##works',
+		null,
+		undefined
+	]) {
+		assert.equal(readLinkedCard(hash), null, String(hash));
+	}
+});
+
+test("학기 결산's 통계에서 모두 보기 opens 통계 at that card", () => {
+	assert.equal(
+		cardHref('/stat?semester_id=3&view=table', 'works'),
+		'/stat?semester_id=3&view=table#works'
+	);
+	const linked = cardHref(
+		firstsByCountHref('/stat?semester_id=3&view=table', { composers: true, works: false }),
+		'composers'
+	);
+	assert.equal(linked, '/stat?semester_id=3&view=table&by_count=composers#composers');
+	const url = new URL(linked, 'http://localhost');
+	assert.deepEqual(readFirstsByCount(url.searchParams), { composers: true, works: false });
+	assert.equal(readLinkedCard(url.hash), 'composers');
+	// 다른 해시가 있으면 바꾼다.
+	assert.equal(
+		cardHref('/stat?semester_id=3#works', 'orchestras'),
+		'/stat?semester_id=3#orchestras'
+	);
+});
+
+test("통계's URL state keeps the card hash, so a reload lands on the card again", () => {
+	const url = new URL('/stat?semester_id=3&view=table#works', 'http://localhost');
+	const next = statQueryHref(url, { scope: 'individual', userId: '12', includeMentees: false });
+	assert.equal(next, '/stat?semester_id=3&view=table&scope=individual&user_id=12#works');
+	assert.equal(readLinkedCard(new URL(next, 'http://localhost').hash), 'works');
 });
