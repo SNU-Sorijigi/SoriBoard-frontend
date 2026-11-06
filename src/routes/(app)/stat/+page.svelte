@@ -1463,6 +1463,7 @@
 			<ChartCard
 				showTable={allTables}
 				title={`${bucketLabel} 선곡 수`}
+				headingLevel={3}
 				note={diversityGapNote}
 				option={countOpt}
 				data={countData}
@@ -1477,6 +1478,7 @@
 			<ChartCard
 				showTable={allTables}
 				title={`${bucketLabel} 다양성 추이`}
+				headingLevel={3}
 				note={diversityGapNote}
 				option={diversityOpt}
 				data={diversityCsvData}
@@ -1499,6 +1501,7 @@
 			<!-- 기간의 시작이 없으면(전체 기간, 시작을 비운 직접 지정) 모든 것이 '처음'이므로 묻지 않는다 -->
 			<TableCard
 				title="처음 튼 작곡가"
+				headingLevel={3}
 				subtitle={firstsSubtitle(viewLabel, firstComposers, '작곡가', '명', previousFirstComposers)}
 				table={shownFirstComposers?.items.length
 					? firstsTable(shownFirstComposers, '작곡가')
@@ -1519,6 +1522,7 @@
 			/>
 			<TableCard
 				title="처음 튼 곡"
+				headingLevel={3}
 				subtitle={firstsSubtitle(viewLabel, firstWorks, '곡', '곡', previousFirstWorks)}
 				table={shownFirstWorks?.items.length ? firstsTable(shownFirstWorks, '곡') : null}
 				links={firstWorkLinks}

@@ -28,6 +28,7 @@
 	export let retry = null; // 주면 실패한 카드에 '다시 시도' 단추가 보인다.
 	export let markedBar = -1; // 주면 차트의 그 막대(dataIndex)를 칠한다(열린 drill-down 패널의 대상, 화면에만).
 	export let markedRow = -1; // 주면 표로 보기의 그 행을 고른 행으로 보인다(DataTable 의 selectedRow).
+	export let headingLevel = 2; // 화면 낭독기만 읽는 카드 제목의 수준(h2, 페이지의 소제목 아래면 3)
 
 	let chartRef;
 	// 표로 보기: 캔버스는 키보드·화면 낭독기로 읽을 수 없으므로 같은 수치를 표로 보인다.
@@ -75,6 +76,8 @@
 </script>
 
 <div class="card" bind:this={cardEl}>
+	<!-- 제목은 캔버스에 그려지므로, 화면 낭독기가 제목으로 카드 사이를 옮겨 다니도록 숨은 제목을 둔다(학기 결산과 같다). -->
+	<svelte:element this={`h${headingLevel}`} class="sr-only">{title}</svelte:element>
 	<button
 		bind:this={viewToggle}
 		class="tool-btn view-toggle"
@@ -249,5 +252,14 @@
 	.note a {
 		color: inherit;
 		text-underline-offset: 3px;
+	}
+	/* 통계 페이지의 .sr-only 와 같다: 보이지 않고 화면 낭독기만 읽는다. */
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
 	}
 </style>

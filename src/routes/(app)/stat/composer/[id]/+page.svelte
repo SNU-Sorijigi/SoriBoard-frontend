@@ -1041,6 +1041,7 @@
 					aria-label="많이 튼 곡"
 					bind:this={worksCard}
 				>
+					<h2 class="sr-only">많이 튼 곡</h2>
 					<div class="toolbar">
 						<button
 							class="tool-btn"

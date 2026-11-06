@@ -25,6 +25,7 @@
 	// 눌렸는지는 sorted 로 알리고(bind:sorted), 행을 그 순서로 주는 것은 부르는 쪽이다(table, links).
 	export let sortLabel = '';
 	export let sorted = false;
+	export let headingLevel = 2; // 화면 낭독기만 읽는 카드 제목의 수준(h2, 페이지의 소제목 아래면 3)
 
 	let card;
 
@@ -50,6 +51,8 @@
 </script>
 
 <div class="card" bind:this={card} tabindex="-1" role="group" aria-label={title}>
+	<!-- 화면 낭독기가 제목으로 카드 사이를 옮겨 다니도록 숨은 제목을 둔다(ChartCard 와 같다). -->
+	<svelte:element this={`h${headingLevel}`} class="sr-only">{title}</svelte:element>
 	{#if showSort}
 		<button
 			class="tool-btn view-toggle"
@@ -177,5 +180,14 @@
 	}
 	.placeholder.error {
 		color: var(--secondary-secondary-800, #95560d);
+	}
+	/* 통계 페이지의 .sr-only 와 같다: 보이지 않고 화면 낭독기만 읽는다. */
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
 	}
 </style>
