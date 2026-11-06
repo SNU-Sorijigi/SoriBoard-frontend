@@ -103,64 +103,68 @@
 	{:else if groups.length === 0}
 		<div class="placeholder" class:stale={loading}>{spec.empty}</div>
 	{:else}
-		<table aria-label={`표기 정리: ${spec.label}`} class:stale={loading}>
-			<thead>
-				<tr>
-					<th scope="col">{loadedKind === 'music' ? '곡' : '표기'}</th>
-					{#if extra}<th scope="col" class="extra">{extra}</th>{/if}
-					<th scope="col" class="num">선곡 수</th>
-					<th scope="col" class="id">id</th>
-				</tr>
-			</thead>
-			{#each groups as group}
-				{@const heading = groupHeading(group)}
-				<tbody>
-					<tr class="group">
-						<th scope="rowgroup" colspan={columns}>
-							<span class="spelling">{heading.title}</span>
-							<span class="meta">{heading.meta}</span>
-						</th>
+		<!-- 긴 목록은 이 상자 안에서 스크롤해 머리줄이 남는다(작곡가 목록과 같다). 키보드로도 스크롤하게 포커스를 준다(DataTable 과 같다). -->
+		<!-- svelte-ignore a11y-no-noninteractive-tabindex -->
+		<div class="list-scroll" role="region" aria-label="표기 정리 표" tabindex="0">
+			<table aria-label={`표기 정리: ${spec.label}`} class:stale={loading}>
+				<thead>
+					<tr>
+						<th scope="col">{loadedKind === 'music' ? '곡' : '표기'}</th>
+						{#if extra}<th scope="col" class="extra">{extra}</th>{/if}
+						<th scope="col" class="num">선곡 수</th>
+						<th scope="col" class="id">id</th>
 					</tr>
-					{#each group.rows as row (row.id)}
-						{@const links = rowLinks(loadedKind, row)}
-						<tr>
-							<th scope="row">
-								{#if links.name}
-									<a class="spelling" href={links.name}>{row.name}</a>
-								{:else}
-									<span class="spelling">{row.name}</span>
-								{/if}
+				</thead>
+				{#each groups as group}
+					{@const heading = groupHeading(group)}
+					<tbody>
+						<tr class="group">
+							<th scope="rowgroup" colspan={columns}>
+								<span class="spelling">{heading.title}</span>
+								<span class="meta">{heading.meta}</span>
 							</th>
-							{#if loadedKind === 'player'}
-								<td>{row.instrument || '—'}</td>
-							{:else if loadedKind === 'music'}
-								<td>
-									{#if links.composer}
-										<a class="spelling" href={links.composer}>{row.composer_name}</a>
+						</tr>
+						{#each group.rows as row (row.id)}
+							{@const links = rowLinks(loadedKind, row)}
+							<tr>
+								<th scope="row">
+									{#if links.name}
+										<a class="spelling" href={links.name}>{row.name}</a>
 									{:else}
-										<span class="spelling">{row.composer_name ?? '—'}</span>
+										<span class="spelling">{row.name}</span>
+									{/if}
+								</th>
+								{#if loadedKind === 'player'}
+									<td>{row.instrument || '—'}</td>
+								{:else if loadedKind === 'music'}
+									<td>
+										{#if links.composer}
+											<a class="spelling" href={links.composer}>{row.composer_name}</a>
+										{:else}
+											<span class="spelling">{row.composer_name ?? '—'}</span>
+										{/if}
+									</td>
+								{/if}
+								<td class="num">
+									{#if links.count}
+										<a
+											class="count"
+											href={links.count}
+											title="선곡 기록에서 보기"
+											aria-label={`${row.name} 선곡 ${row.count.toLocaleString()} 곡 선곡 기록에서 보기`}
+											>{row.count.toLocaleString()}</a
+										>
+									{:else}
+										{row.count.toLocaleString()}
 									{/if}
 								</td>
-							{/if}
-							<td class="num">
-								{#if links.count}
-									<a
-										class="count"
-										href={links.count}
-										title="선곡 기록에서 보기"
-										aria-label={`${row.name} 선곡 ${row.count.toLocaleString()} 곡 선곡 기록에서 보기`}
-										>{row.count.toLocaleString()}</a
-									>
-								{:else}
-									{row.count.toLocaleString()}
-								{/if}
-							</td>
-							<td class="id">#{row.id}</td>
-						</tr>
-					{/each}
-				</tbody>
-			{/each}
-		</table>
+								<td class="id">#{row.id}</td>
+							</tr>
+						{/each}
+					</tbody>
+				{/each}
+			</table>
+		</div>
 	{/if}
 </section>
 
@@ -240,6 +244,11 @@
 	.stale {
 		opacity: 0.6;
 	}
+	/* 레이아웃의 main 은 스크롤하지 않는 스크롤 상자라 sticky 머리줄이 붙지 못하므로, 표에 제 스크롤 상자를 준다 */
+	.list-scroll {
+		max-height: calc(100vh - 200px);
+		overflow: auto;
+	}
 	table {
 		width: 100%;
 		border-collapse: collapse;
@@ -258,6 +267,8 @@
 		font-weight: 400;
 	}
 	thead th {
+		position: sticky;
+		top: 0;
 		background: var(--secondary-secondary-100, #fef9f3);
 		color: var(--gray-gray-600, #7c7c7c);
 		font-weight: 500;
@@ -324,8 +335,13 @@
 		clip: rect(0 0 0 0);
 		white-space: nowrap;
 	}
-	/* 인쇄: 작곡가 목록과 같다. 종류 고르기는 남기고 다시 시도는 빼며, 곡 이름은 낱말 사이에서만 줄을 바꾼다 */
+	/* 인쇄: 작곡가 목록과 같다. 종류 고르기는 남기고 다시 시도는 빼며, 곡 이름은 낱말 사이에서만 줄을 바꾼다.
+	   모든 묶음을 싣는다(스크롤 상자로 한 화면만큼 자르지 않는다). */
 	@media print {
+		:global(.list-scroll) {
+			max-height: none !important;
+			overflow: visible !important;
+		}
 		.card {
 			box-shadow: none;
 		}
