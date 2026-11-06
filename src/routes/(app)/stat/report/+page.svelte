@@ -371,6 +371,13 @@
 		semesterSelect?.focus();
 		show(started);
 	}
+	// 개인 보기의 빈 결산에 두는 '전체 결산 보기': 머리말의 '전체'와 같이 바꾼다. 단추는 사라지므로
+	// 포커스는 먼저 KPI 줄로 옮긴다.
+	function showAll() {
+		kpiRow?.focus();
+		scope = 'all';
+		onViewChange();
+	}
 
 	// 순위 표(상위 10). 작곡가 이름은 이 학기를 고른 작곡가 페이지로, 독주자·지휘자·오케스트라·곡
 	// 이름은 이 학기에 그 대상·곡을 튼 선곡 기록으로 간다. 작곡가 페이지에는 처음 튼 작곡가·곡의
@@ -773,7 +780,12 @@
 	];
 
 	// 선곡이 없는 학기에 카드 대신 보이는 말. 화면 낭독기의 로드 상태도 같은 말을 한다.
-	$: emptyText = upcoming ? '아직 시작하지 않은 학기입니다.' : '이 학기에는 선곡이 없습니다.';
+	// 개인에서는 그 지기의 선곡만 센 요약이므로, 학기가 아니라 이 지기가 튼 곡이 없다고 한다(통계와 같은 말).
+	$: emptyText = upcoming
+		? '아직 시작하지 않은 학기입니다.'
+		: scope === 'individual' && userId
+			? `이 학기에 이 지기가 ${includeMentees ? '지기·견습으로 ' : ''}튼 곡이 없습니다.`
+			: '이 학기에는 선곡이 없습니다.';
 	// 로드 상태에 이름을 대는 카드(페이지 순서). 한 요청이 여러 카드를 그린다: 다양성 응답은
 	// 시대·장르별 분포·선곡 다양성·월별 선곡이 함께 쓰고, 넷 다 제 오류와 다시 시도를 띄운다.
 	const cardNames = [
@@ -947,6 +959,8 @@
 					<button class="tool-btn" on:click={showStarted}>
 						{semesterLabel(started)} 결산 보기
 					</button>
+				{:else if !upcoming && scope === 'individual' && userId}
+					<button class="tool-btn" on:click={showAll}>전체 결산 보기</button>
 				{/if}
 			</div>
 		{:else}
