@@ -320,8 +320,8 @@ export async function fetchAllPlays(fetchPage, onProgress = () => {}) {
 }
 
 /** @typedef {{ id: number, time_id: number, date: string, time: number, is_requested: boolean,
- *   composer_id?: number | null, composer_name?: string, music_title?: string,
- *   music_semi_title?: string, source?: string, cd_id?: string | null,
+ *   composer_id?: number | null, composer_name?: string, music_id?: number | null,
+ *   music_title?: string, music_semi_title?: string, source?: string, cd_id?: string | null,
  *   conductor_name?: string, orchestra_name?: string, player_names?: string[],
  *   jigi_names?: string[], mentee_names?: string[] }} Play */
 
@@ -343,6 +343,32 @@ export function workParts(play) {
 	const composerId =
 		composer && typeof id === 'number' && Number.isSafeInteger(id) && id > 0 ? id : null;
 	return { composer, composerId, title: play.music_title || '' };
+}
+
+// 선곡의 곡 → 목록과 같은 기간·지기에서 그 곡의 선곡 기록. view 는 목록의 { period, start, end, userId,
+// includeMentees, targets }. 곡 id·제목이 없거나 목록이 이미 그 곡이면 null(링크하지 않는다).
+/**
+ * @param {Play} play
+ * @param {{ period: string, start: string, end: string, userId: string | null,
+ *   includeMentees: boolean, targets?: HistoryTarget[] }} view
+ */
+export function playWorkHref(play, view) {
+	const id = play.music_id;
+	const known = typeof id === 'number' && Number.isSafeInteger(id) && id > 0;
+	if (!play.music_title || !known) return null;
+	const target = { param: 'music_id', id: String(id) };
+	if ((view.targets ?? []).some((t) => t.param === target.param && t.id === target.id)) return null;
+	const { period, start, end, userId, includeMentees } = view;
+	return historyHref({
+		period,
+		start,
+		end,
+		q: '',
+		userId,
+		includeMentees,
+		requested: '',
+		targets: [target]
+	});
 }
 
 // 연주자('악기: 이름'), 오케스트라, '지휘: 이름'. 없으면 ''.

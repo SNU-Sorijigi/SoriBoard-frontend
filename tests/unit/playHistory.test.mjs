@@ -19,6 +19,7 @@ import {
 	sessionText,
 	workText,
 	workParts,
+	playWorkHref,
 	performersText,
 	recordingParts,
 	jigiNames,
@@ -581,6 +582,74 @@ test('historyPeriod takes a 학기’s dates from the 학기 list, by the backen
 	assert.deepEqual(historyPeriod(at('1'), current, []), blank);
 	assert.deepEqual(historyPeriod(at('1'), current, null), blank);
 	assert.deepEqual(historyPeriod(at('1'), current), blank);
+});
+
+test("playWorkHref opens a play's piece in the list's 기간 and 지기, and nothing else", () => {
+	const play = { music_id: 20, music_title: '교향곡 제1번' };
+	const view = {
+		period: 'all',
+		start: '',
+		end: '',
+		userId: null,
+		includeMentees: false,
+		targets: []
+	};
+	const work = { param: 'music_id', id: '20' };
+	const cases = [
+		[view, '/stat/history?period=all&music_id=20'],
+		[
+			{ ...view, period: '3', userId: '12', includeMentees: true },
+			'/stat/history?semester_id=3&user_id=12&include_mentees=true&music_id=20'
+		],
+		[
+			{ ...view, period: 'custom', start: '2026-03-01', end: '2026-03-31' },
+			'/stat/history?start=2026-03-01&end=2026-03-31&music_id=20'
+		],
+		[{ ...view, period: 'current' }, '/stat/history?music_id=20']
+	];
+	for (const [v, href] of cases) {
+		assert.equal(playWorkHref(play, v), href);
+		const { period, start, end, userId, includeMentees } = v;
+		assert.deepEqual(read(href.split('?')[1]), {
+			...DEFAULT,
+			period,
+			start,
+			end,
+			userId,
+			includeMentees,
+			targets: [work]
+		});
+	}
+	// 검색어·신청곡과 다른 id 필터는 버린다.
+	const narrowed = {
+		...view,
+		q: '브람스',
+		requested: 'true',
+		targets: [
+			{ param: 'composer_id', id: '7' },
+			{ param: 'player_id', id: '8' }
+		]
+	};
+	assert.equal(playWorkHref(play, narrowed), '/stat/history?period=all&music_id=20');
+	assert.equal(
+		playWorkHref(play, { ...view, targets: undefined }),
+		'/stat/history?period=all&music_id=20'
+	);
+	// 곡 id·제목이 없거나 쓸 수 없으면, 또는 목록이 이미 그 곡이면 링크하지 않는다.
+	for (const id of [undefined, null, 0, -1, 1.5, '20', Number.MAX_SAFE_INTEGER + 1]) {
+		assert.equal(playWorkHref({ ...play, music_id: id }, view), null, String(id));
+	}
+	assert.equal(playWorkHref({ ...play, music_title: '' }, view), null);
+	assert.equal(playWorkHref({ music_id: 20 }, view), null);
+	assert.equal(playWorkHref(play, { ...view, targets: [work] }), null);
+	assert.equal(
+		playWorkHref(play, { ...view, targets: [{ param: 'composer_id', id: '7' }, work] }),
+		null
+	);
+	assert.equal(
+		playWorkHref(play, { ...view, targets: [{ param: 'music_id', id: '21' }] }),
+		'/stat/history?period=all&music_id=20'
+	);
 });
 
 test('workHistoryHref opens the plays of one work, all time or in one 학기', () => {

@@ -5,11 +5,13 @@
 		workParts,
 		performersText,
 		recordingParts,
-		jigiNames
+		jigiNames,
+		playWorkHref
 	} from '$lib/playHistory.js';
 	import { composerHref } from '$lib/composerStats.js';
 
-	// 선곡 기록의 결과 표. 음반 칸은 음반 번호 아래에 음원 종류를 작게 둔다. 날짜·타임은 그 타임 화면으로, 작곡가는 그 작곡가 페이지로 가는 링크다.
+	// 선곡 기록의 결과 표. 음반 칸은 음반 번호 아래에 음원 종류를 작게 둔다. 날짜·타임은 그 타임 화면으로, 작곡가는 그 작곡가 페이지로,
+	// 곡 제목은 그 곡의 선곡 기록으로 가는 링크다.
 	/** @type {import('$lib/playHistory.js').Play[]} */
 	export let rows = [];
 	export let label = '선곡 기록';
@@ -17,6 +19,17 @@
 	// 없으면 전체 기간·전체 지기.
 	/** @type {import('$lib/composerStats.js').ComposerPeriod | undefined} */
 	export let composerPeriod = undefined;
+	// 목록의 기간·지기·id 필터({ period, start, end, userId, includeMentees, targets }), 곡 제목 링크에 쓴다.
+	// 없으면 전체 기간·전체 지기, 필터 없음.
+	/** @type {Parameters<typeof playWorkHref>[1]} */
+	export let listView = {
+		period: 'all',
+		start: '',
+		end: '',
+		userId: null,
+		includeMentees: false,
+		targets: []
+	};
 </script>
 
 <table aria-label={label}>
@@ -34,18 +47,25 @@
 		{#each rows as play (play.id)}
 			{@const work = workParts(play)}
 			{@const recording = recordingParts(play)}
+			{@const workLink = playWorkHref(play, listView)}
 			<tr>
 				<th scope="row" class="session">
 					<a href={`/time_manage/${play.time_id}`} title="이 타임 열기">{sessionText(play)}</a>
 				</th>
 				<td>
 					{#if work.composer || work.title}
+						<!-- 곡 제목 링크는 선곡 기록 자신으로 간다. 그 페이지는 URL을 처음 한 번만 읽으므로 새로 불러온다 -->
 						<div>
 							{#if work.composerId}<a
 									class="composer"
 									href={composerHref(work.composerId, composerPeriod)}
 									title="이 작곡가 페이지 열기">{work.composer}</a
-								>{:else}{work.composer}{/if}{#if work.composer && work.title}{' - '}{/if}{work.title}
+								>{:else}{work.composer}{/if}{#if work.composer && work.title}{' - '}{/if}{#if workLink}<a
+									class="work"
+									href={workLink}
+									data-sveltekit-reload
+									title="이 곡의 선곡 기록 보기">{work.title}</a
+								>{:else}{work.title}{/if}
 						</div>
 					{:else}
 						<div class="missing">{workText(play)}</div>
@@ -103,13 +123,15 @@
 		font-variant-numeric: tabular-nums;
 	}
 	.session a,
-	.composer {
+	.composer,
+	.work {
 		color: inherit;
 		text-decoration-color: var(--gray-gray-500, #656667);
 		text-underline-offset: 3px;
 	}
 	.session a:hover,
-	.composer:hover {
+	.composer:hover,
+	.work:hover {
 		text-decoration-thickness: 2px;
 	}
 	.semi {
