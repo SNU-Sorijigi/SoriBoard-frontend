@@ -9,6 +9,7 @@
 		playWorkHref
 	} from '$lib/playHistory.js';
 	import { composerHref } from '$lib/composerStats.js';
+	import MarkedText from './MarkedText.svelte';
 
 	// 선곡 기록의 결과 표. 음반 칸은 음반 번호 아래에 음원 종류를 작게 둔다. 날짜·타임은 그 타임 화면으로, 작곡가는 그 작곡가 페이지로,
 	// 곡 제목은 그 곡의 선곡 기록으로 가는 링크다.
@@ -30,6 +31,8 @@
 		includeMentees: false,
 		targets: []
 	};
+	// 보이는 행이 답한 검색어. 있으면 백엔드가 찾는 칸(작곡가·곡 제목·세부 제목·연주)에서 그 말을 표시한다.
+	export let q = '';
 </script>
 
 <table aria-label={label}>
@@ -59,22 +62,25 @@
 							{#if work.composerId}<a
 									class="composer"
 									href={composerHref(work.composerId, composerPeriod)}
-									title="이 작곡가 페이지 열기">{work.composer}</a
-								>{:else}{work.composer}{/if}{#if work.composer && work.title}{' - '}{/if}{#if workLink}<a
+									title="이 작곡가 페이지 열기"><MarkedText text={work.composer} {q} /></a
+								>{:else}<MarkedText
+									text={work.composer}
+									{q}
+								/>{/if}{#if work.composer && work.title}{' - '}{/if}{#if workLink}<a
 									class="work"
 									href={workLink}
 									data-sveltekit-reload
-									title="이 곡의 선곡 기록 보기">{work.title}</a
-								>{:else}{work.title}{/if}
+									title="이 곡의 선곡 기록 보기"><MarkedText text={work.title} {q} /></a
+								>{:else}<MarkedText text={work.title} {q} />{/if}
 						</div>
 					{:else}
 						<div class="missing">{workText(play)}</div>
 					{/if}
 					{#if play.music_semi_title}
-						<div class="semi">{play.music_semi_title}</div>
+						<div class="semi"><MarkedText text={play.music_semi_title} {q} /></div>
 					{/if}
 				</td>
-				<td>{performersText(play)}</td>
+				<td><MarkedText text={performersText(play)} {q} /></td>
 				<td>
 					{#if recording.number}<div class="recording">{recording.number}</div>{/if}
 					{#if recording.source}<div class="semi recording">{recording.source}</div>{/if}

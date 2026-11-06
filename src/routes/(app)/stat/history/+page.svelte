@@ -487,6 +487,7 @@
 					{rows}
 					composerPeriod={{ period, start: customStart, end: customEnd, userId, includeMentees }}
 					listView={{ period, start: customStart, end: customEnd, userId, includeMentees, targets }}
+					q={shownQ}
 				/>
 			</div>
 		{:else if loading}
