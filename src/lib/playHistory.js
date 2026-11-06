@@ -100,31 +100,35 @@ export function historyHref(filter, pathname = '/stat/history') {
 }
 
 // 대상 하나(id 필터 하나, 예: player_id)의 선곡 기록. period 는 statPeriod.js 의 기간(전체 기간 또는 학기 id).
+// member 를 주면 그 지기(와 견습 포함)의 선곡만 연다(학기 결산의 개인 보기). 없으면 전체 지기.
 /**
  * @param {string} param
  * @param {number | string} id
  * @param {string} [period]
+ * @param {{ userId?: string | number | null, includeMentees?: boolean }} [member]
  */
-export function targetHistoryHref(param, id, period = ALL) {
+export function targetHistoryHref(param, id, period = ALL, member = {}) {
+	const userId = member.userId ? String(member.userId) : null;
 	return historyHref({
 		period: String(period),
 		start: '',
 		end: '',
 		q: '',
-		userId: null,
-		includeMentees: false,
+		userId,
+		includeMentees: Boolean(userId && member.includeMentees),
 		requested: '',
 		targets: [{ param, id: String(id) }]
 	});
 }
 
-// 곡 하나(stats/works·stats/firsts 의 id)의 선곡 기록.
+// 곡 하나(stats/works·stats/firsts 의 id)의 선곡 기록. member 는 targetHistoryHref 와 같다.
 /**
  * @param {number | string} musicId
  * @param {string} [period]
+ * @param {{ userId?: string | number | null, includeMentees?: boolean }} [member]
  */
-export function workHistoryHref(musicId, period = ALL) {
-	return targetHistoryHref('music_id', musicId, period);
+export function workHistoryHref(musicId, period = ALL, member = {}) {
+	return targetHistoryHref('music_id', musicId, period, member);
 }
 
 // 시계열 카드(선곡 추이, 선곡 수, 학기별 선곡)의 버킷마다 → 그 주·월·학기의 선곡 기록. filter 의

@@ -690,6 +690,38 @@ test('targetHistoryHref opens the plays of one 독주자 (or other id filter), i
 	assert.equal(targetHistoryHref('user_id', 5, '2'), '/stat/history?semester_id=2');
 });
 
+test('targetHistoryHref and workHistoryHref open one 지기 plays when given a member', () => {
+	const member = { userId: 5, includeMentees: true };
+	assert.equal(
+		targetHistoryHref('conductor_id', 6, '2', member),
+		'/stat/history?semester_id=2&user_id=5&include_mentees=true&conductor_id=6'
+	);
+	assert.equal(
+		workHistoryHref(20, '3', member),
+		'/stat/history?semester_id=3&user_id=5&include_mentees=true&music_id=20'
+	);
+	assert.deepEqual(read(workHistoryHref(20, '3', member).split('?')[1]), {
+		...DEFAULT,
+		period: '3',
+		userId: '5',
+		includeMentees: true,
+		targets: [{ param: 'music_id', id: '20' }]
+	});
+	// 견습 포함이 꺼져 있으면 user_id 만.
+	assert.equal(
+		targetHistoryHref('player_id', 5, '2', { userId: '7', includeMentees: false }),
+		'/stat/history?semester_id=2&user_id=7&player_id=5'
+	);
+	// 지기가 없으면(전체) 견습 포함도 쓰지 않고, 인자가 없을 때와 같다.
+	for (const none of [{}, { userId: null, includeMentees: true }, { userId: '' }]) {
+		assert.equal(
+			targetHistoryHref('orchestra_id', 1, '2', none),
+			targetHistoryHref('orchestra_id', 1, '2')
+		);
+		assert.equal(workHistoryHref(20, '3', none), '/stat/history?semester_id=3&music_id=20');
+	}
+});
+
 test('historyFileTags names the id filters, 신청곡 and the search word', () => {
 	const filter = {
 		...DEFAULT,
