@@ -26,6 +26,7 @@
 		DEFAULT_KIND
 	} from '$lib/catalogSpelling.js';
 	import SpellingVariants from '$lib/components/stat/SpellingVariants.svelte';
+	import MarkedText from '$lib/components/stat/MarkedText.svelte';
 
 	// 작곡가 정리: 모든 작곡가의 시대·출생 연도·선곡 수. 시대 미상을 앞에 두고, 한 줄씩 고친다.
 	// 검색어는 URL에 두고, 페이지가 시작될 때 한 번만 읽는다.
@@ -286,7 +287,7 @@
 								<tr class:editing={editingId === composer.id}>
 									<th scope="row">
 										<a href={composerHref(composer.id)} title="이 작곡가 페이지 열기"
-											>{composer.name}</a
+											><MarkedText text={composer.name} q={shownQ} /></a
 										>
 									</th>
 									{#if editingId === composer.id}
