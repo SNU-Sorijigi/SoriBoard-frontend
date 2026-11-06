@@ -230,6 +230,9 @@
 	} = data);
 	// 선곡 다양성의 칸: 다양성 응답의 summary. 주별/월별만 바꾸면 다시 부르지 않고 그대로 둔다.
 	$: tiles = data.diversityTiles;
+	// 칸의 고른정도: 잴 것이 없으면(불러오는 중·실패·센 선곡 없음) null 이고 칸은 '—'다.
+	$: eraEvenness = groupEvenness(tiles?.era);
+	$: genreEvenness = groupEvenness(tiles?.genre);
 
 	// 카드마다 자기를 덮는 가장 최근 요청의 응답만 반영한다. 늦게 도착한 이전 요청의 응답은 버린다.
 	const requests = createLatestRequests();
@@ -289,7 +292,9 @@
 		retry(key);
 	}
 	let summaryRow;
-	let cards = {}; // 많이 튼 작곡가·곡·지휘자·오케스트라 카드: 위 KPI 숫자가 그 카드의 표를 연다(openTable).
+	// 많이 튼 작곡가·곡·지휘자·오케스트라 카드: 위 KPI 숫자가 그 카드의 표를 연다(openTable).
+	// 시대별·장르별 분포 카드: 선곡 다양성의 시대·장르 다양성 %가 그 카드의 표를 연다.
+	let cards = {};
 	let tilesRow;
 	const loadAll = () => {
 		timelineBucket = nextTimelineBucket();
@@ -1247,6 +1252,7 @@
 				csvHeaders={['오케스트라', '횟수']}
 			/>
 			<ChartCard
+				bind:this={cards.eras}
 				showTable={allTables}
 				title="시대별 분포"
 				option={eraOpt}
@@ -1262,6 +1268,7 @@
 				csvHeaders={['시대', '횟수']}
 			/>
 			<ChartCard
+				bind:this={cards.genres}
 				showTable={allTables}
 				title="장르별 분포"
 				option={genreOpt}
@@ -1372,7 +1379,20 @@
 		<!-- 고유 곡 수는 위의 곡 칸과 같아(같은 선곡의 서로 다른 곡 수) 두지 않는다(학기 결산과 같다) -->
 		<div class="kpi-row diversity-kpi" bind:this={tilesRow} tabindex="-1">
 			<div class="kpi">
-				<div class="kpi-value">{tiles ? pct(groupEvenness(tiles.era)) : '—'}</div>
+				<div class="kpi-value">
+					{#if eraEvenness != null}
+						<button
+							type="button"
+							class="kpi-link kpi-open"
+							on:click={() => cards.eras?.openTable()}
+							title="시대별 분포 표로 보기"
+							aria-label="시대 다양성 {pct(eraEvenness)} — 시대별 분포 표로 보기"
+							>{pct(eraEvenness)}</button
+						>
+					{:else}
+						{pct(eraEvenness)}
+					{/if}
+				</div>
 				<div class="kpi-label">시대 다양성</div>
 				{#if tileChanges.era}
 					<div class="kpi-change">
@@ -1382,7 +1402,20 @@
 				{/if}
 			</div>
 			<div class="kpi">
-				<div class="kpi-value">{tiles ? pct(groupEvenness(tiles.genre)) : '—'}</div>
+				<div class="kpi-value">
+					{#if genreEvenness != null}
+						<button
+							type="button"
+							class="kpi-link kpi-open"
+							on:click={() => cards.genres?.openTable()}
+							title="장르별 분포 표로 보기"
+							aria-label="장르 다양성 {pct(genreEvenness)} — 장르별 분포 표로 보기"
+							>{pct(genreEvenness)}</button
+						>
+					{:else}
+						{pct(genreEvenness)}
+					{/if}
+				</div>
 				<div class="kpi-label">장르 다양성</div>
 				{#if tileChanges.genre}
 					<div class="kpi-change">
