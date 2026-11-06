@@ -21,6 +21,8 @@
 	export let cellLinks = {};
 	// 이름 단추(rowLabel)가 있는 표에서 고른 행(열린 drill-down 패널의 대상): 배경·굵은 이름, aria-current.
 	export let selectedRow = -1;
+	// 짧은 표는 행만큼만 높아지고, 340px 를 넘으면 지금처럼 스크롤한다(처음 튼 작곡가·곡의 TableCard).
+	export let fit = false;
 
 	const dispatch = createEventDispatcher();
 
@@ -29,7 +31,7 @@
 	const subtitleId = titleId + '-sub';
 </script>
 
-<div class="table-view">
+<div class="table-view" class:fit>
 	<div class="table-title" id={titleId}>{title}</div>
 	{#if subtitle}
 		<div class="table-subtitle" id={subtitleId}>{subtitle}</div>
@@ -87,6 +89,19 @@
 		display: flex;
 		flex-direction: column;
 		height: 340px;
+	}
+	.table-view.fit {
+		height: auto;
+		max-height: 340px;
+	}
+	.table-view.fit .table-scroll {
+		flex: 0 1 auto;
+	}
+	/* 종이에는 모든 행을 싣는다: 페이지의 인쇄 규칙이 height 를 풀듯 max-height 도 푼다 */
+	@media print {
+		.table-view.fit {
+			max-height: none;
+		}
 	}
 	/* 차트 제목·부제(chartOptions.js 의 titleBlock)와 같은 글꼴·색 */
 	.table-title {

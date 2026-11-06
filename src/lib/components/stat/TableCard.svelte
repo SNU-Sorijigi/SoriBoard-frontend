@@ -39,6 +39,8 @@
 	$: showSort = Boolean(sortLabel) && canExport;
 	$: shownSubtitle = sorted && sortLabel ? `${subtitle} · ${sortLabel}` : subtitle;
 	$: compact = !loading && !error && (Boolean(emptyText) || !table);
+	// 보이는 표는 행만큼만 높다(DataTable 의 fit). 짧은 목록의 카드가 빈 틀이 되지 않는다.
+	$: fit = !compact && !loading && !error && Boolean(table);
 
 	function exportCsv() {
 		if (!canExport || !table) return;
@@ -72,7 +74,7 @@
 		</button>
 	</div>
 
-	<div class="table-area" class:compact>
+	<div class="table-area" class:compact class:fit>
 		{#if loading || error || emptyText || !table}
 			<!-- 제목은 표가 보이므로, 표가 없으면 어느 카드인지 여기서 밝힌다(ChartCard 와 같다). -->
 			<div class="placeholder" class:error={!loading && error} class:compact>
@@ -84,7 +86,7 @@
 				{/if}
 			</div>
 		{:else}
-			<DataTable {table} {title} subtitle={shownSubtitle} {links} {cellLinks} />
+			<DataTable {table} {title} subtitle={shownSubtitle} {links} {cellLinks} fit />
 		{/if}
 	</div>
 </div>
@@ -145,6 +147,9 @@
 	.table-area {
 		flex: 1;
 		min-height: 340px;
+	}
+	.table-area.fit {
+		min-height: 0;
 	}
 	.table-area.compact {
 		min-height: 0;
