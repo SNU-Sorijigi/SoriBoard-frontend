@@ -5,7 +5,7 @@
 import { CURRENT, ALL, CUSTOM, readStatPeriod, readStatRange } from './statPeriod.js';
 import { historyHref, bucketHistoryLinks, statHref } from './playHistory.js';
 import { DRILL_CARDS, previousWorkValue } from './statDrill.js';
-import { competitionRanks, formatCount } from './statTable.js';
+import { competitionRanks, formatCount, formatShare } from './statTable.js';
 import { periodTitle } from './statTitle.js';
 import { spansSemesters } from './statBucket.js';
 import { firstsTable } from './semesterReport.js';
@@ -255,6 +255,37 @@ export function composerRankLinks(composerId, card, envelope, filter = WHOLE) {
 			? composerHistoryHref(composerId, [{ param: spec.param, id: String(item.id) }], filter)
 			: null
 	);
+}
+
+// 많이 튼 작곡가(stats/composers)를 묻는 길이: 백엔드의 상한(limit 최대 100)이다.
+export const RANK_LIMIT = 100;
+
+// KPI 칸 아래의 순위 줄: 같은 기간·지기의 많이 튼 작곡가(상위 RANK_LIMIT)에서 이 작곡가의 자리와 기간 선곡 중 몫.
+// 같은 횟수는 같은 순위(통계의 표와 같다), 다른 작곡가와 같으면 '공동'. 목록을 다 채웠는데 없으면 '100위 밖'
+// (횟수는 이 페이지의 요약 plays). 선곡이 없거나, 짧은 목록에 없으면(요약과 어긋난 답) ''(줄이 없다).
+/**
+ * @param {{ total_plays?: number, items?: { id: number | null, count: number }[] } | null | undefined} envelope
+ * @param {number | string | null} composerId
+ * @param {number | null | undefined} plays
+ */
+export function composerRankNote(envelope, composerId, plays) {
+	const total = envelope?.total_plays;
+	if (!plays || !total || composerId == null) return '';
+	const items = envelope?.items ?? [];
+	const i = items.findIndex((item) => item.id != null && String(item.id) === String(composerId));
+	let place;
+	let count;
+	if (i >= 0) {
+		const values = items.map((item) => item.count);
+		count = values[i];
+		const tied = values.some((v, j) => j !== i && v === count);
+		place = `${tied ? '공동 ' : ''}${competitionRanks(values)[i]}위`;
+	} else if (items.length >= RANK_LIMIT) {
+		place = `${RANK_LIMIT}위 밖`;
+		count = plays;
+	} else return '';
+	const share = formatShare((count / total) * 100);
+	return `많이 튼 작곡가 ${place} · 이 기간 선곡 ${formatCount(total)}곡 중 ${formatCount(count)}곡 (${share})`;
 }
 
 // 머리말의 '시대 · 출생 연도'. composers/<id>/ 의 era 는 출생 연도와 보정값으로 정한 시대다.

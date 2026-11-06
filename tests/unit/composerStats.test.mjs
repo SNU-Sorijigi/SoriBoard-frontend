@@ -16,6 +16,8 @@ import {
 	composerRequestedHref,
 	composerDayHref,
 	composerRankLinks,
+	composerRankNote,
+	RANK_LIMIT,
 	composerSemesterLinks,
 	composerFacts,
 	composerTimelineBucket,
@@ -868,4 +870,92 @@ test('the date tiles get the whole record under them, except in the whole-record
 	assert.equal(composerIsWholeRecord({ period: 'custom', start: '', end: '2026-01-01' }), false);
 	assert.equal(composerIsWholeRecord({ period: 'all', userId: '12' }), false);
 	assert.equal(composerIsWholeRecord({ period: '7' }), false);
+});
+
+// stats/composers 의 답(많은 순, 같으면 이름·id 순).
+const ranking = (total, counts) => ({
+	total_plays: total,
+	items: counts.map(([id, count]) => ({ id, name: `작곡가 ${id}`, count }))
+});
+const SEM2 = ranking(222, [
+	[1, 39],
+	[8, 34],
+	[4, 32],
+	[2, 19],
+	[6, 18],
+	[7, 18],
+	[10, 18],
+	[3, 16],
+	[9, 16],
+	[5, 12]
+]);
+
+test('rank note: first place and its share of the period', () => {
+	assert.equal(
+		composerRankNote(SEM2, '1', 39),
+		'많이 튼 작곡가 1위 · 이 기간 선곡 222곡 중 39곡 (17.6%)'
+	);
+	assert.equal(
+		composerRankNote(SEM2, 4, 32),
+		'많이 튼 작곡가 3위 · 이 기간 선곡 222곡 중 32곡 (14.4%)'
+	);
+	// 마지막 자리도 다른 작곡가와 같지 않으면 '공동'이 없다
+	assert.equal(
+		composerRankNote(SEM2, '5', 12),
+		'많이 튼 작곡가 10위 · 이 기간 선곡 222곡 중 12곡 (5.4%)'
+	);
+});
+
+test('rank note: the same count is the same rank, 공동', () => {
+	for (const id of ['6', '7', '10']) {
+		assert.equal(
+			composerRankNote(SEM2, id, 18),
+			'많이 튼 작곡가 공동 5위 · 이 기간 선곡 222곡 중 18곡 (8.1%)'
+		);
+	}
+	assert.equal(
+		composerRankNote(SEM2, '9', 16),
+		'많이 튼 작곡가 공동 8위 · 이 기간 선곡 222곡 중 16곡 (7.2%)'
+	);
+});
+
+test('rank note: counts get thousands separators', () => {
+	const whole = ranking(1970, [
+		[1, 1234],
+		[2, 736]
+	]);
+	assert.equal(
+		composerRankNote(whole, '1', 1234),
+		'많이 튼 작곡가 1위 · 이 기간 선곡 1,970곡 중 1,234곡 (62.6%)'
+	);
+});
+
+test("rank note: outside a full list of 100 is 100위 밖, with this page's own plays", () => {
+	assert.equal(RANK_LIMIT, 100);
+	const full = ranking(
+		1970,
+		Array.from({ length: RANK_LIMIT }, (_, i) => [1000 + i, 30 - Math.floor(i / 10)])
+	);
+	assert.equal(
+		composerRankNote(full, '1', 3),
+		'많이 튼 작곡가 100위 밖 · 이 기간 선곡 1,970곡 중 3곡 (0.2%)'
+	);
+});
+
+test('rank note: no line when the answer disagrees or there is nothing to rank', () => {
+	// 짧은 목록에 없다(요약과 어긋난 답)
+	assert.equal(composerRankNote(SEM2, '42', 3), '');
+	assert.equal(composerRankNote(SEM2, '1', 0), '');
+	assert.equal(composerRankNote(SEM2, '1', null), '');
+	assert.equal(composerRankNote(SEM2, '1', undefined), '');
+	assert.equal(composerRankNote(null, '1', 39), '');
+	assert.equal(composerRankNote(undefined, '1', 39), '');
+	assert.equal(composerRankNote(ranking(0, []), '1', 39), '');
+	assert.equal(composerRankNote({ items: SEM2.items }, '1', 39), '');
+	assert.equal(composerRankNote(SEM2, null, 39), '');
+	// id 가 없는 항목은 어느 작곡가와도 맞지 않는다
+	assert.equal(
+		composerRankNote({ total_plays: 5, items: [{ id: null, name: '', count: 5 }] }, 'null', 5),
+		''
+	);
 });

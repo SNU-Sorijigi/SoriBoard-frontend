@@ -98,7 +98,9 @@
 		composerIsWholeRecord,
 		composerWholeDates,
 		composerDayHref,
-		composerHref
+		composerHref,
+		composerRankNote,
+		RANK_LIMIT
 	} from '$lib/composerStats.js';
 
 	// 작곡가 한 명의 기록, 고른 기간·지기만(기본값은 전체 기간·전체 지기). 카드는 따로 불러오고,
@@ -218,6 +220,27 @@
 		}
 	}
 
+	// KPI 칸 아래 순위 줄의 많이 튼 작곡가(composer_id 없는 stats/composers, 같은 기간·지기, 상위 100).
+	// 카드가 아니다: 실패하면 줄만 두지 않는다(표기만 다른 이름과 같다. 다시 시도도, 읽어 주는 상태도 없다).
+	let rank = null;
+	async function loadRank(gen) {
+		try {
+			const params = new URLSearchParams({
+				...composerPeriodParams({ period, start: customStart, end: customEnd }, current),
+				...composerMemberParams({ userId, includeMentees }),
+				limit: String(RANK_LIMIT)
+			});
+			const res = await fetch(`/api/stats/composers?${params}`);
+			if (!res.ok) throw new Error(`composers ${res.status}`);
+			const result = await res.json();
+			if (gen === cardGeneration) rank = result;
+		} catch (e) {
+			if (gen !== cardGeneration) return;
+			console.error('많이 튼 작곡가 순위 로딩 실패', e);
+		}
+	}
+	$: rankNote = composerRankNote(rank, composerId, summary?.total_plays);
+
 	// 카드만 다시 부른다(기간이나 지기가 바뀌면 작곡가 정보는 그대로다).
 	function loadCards() {
 		const id = readComposerId($page.params.id);
@@ -227,6 +250,7 @@
 		appliedFilters = null;
 		wholeSummary = null;
 		wholeError = false;
+		rank = null;
 		timelineBucket = nextTimelineBucket();
 		loading = Object.fromEntries(CARD_KEYS.map((key) => [key, Boolean(id)]));
 		loadPreviousSummary();
@@ -234,6 +258,7 @@
 		const firsts = asksFirsts(period, customStart);
 		if (!firsts) loading.firstWorks = false;
 		for (const key of CARD_KEYS) if (key !== 'firstWorks' || firsts) loadCard(key, id, gen);
+		loadRank(gen);
 		// filter 는 아직 이전 값일 수 있으므로 기간·지기 변수를 바로 쓴다(nextTimelineBucket 과 같다).
 		if (!composerIsWholeRecord({ period, start: customStart, end: customEnd, userId })) {
 			loadWhole(id, gen);
@@ -905,6 +930,10 @@
 			<p class="kpi-note">
 				진행 중인 학기입니다. 지난 학기({semesterLabel(previousTarget)}) 수치는 학기 전체입니다.
 			</p>
+		{/if}
+		<!-- 많이 튼 작곡가 중 이 작곡가의 순위와 기간 선곡 중 몫(같은 기간·지기, 통계의 많이 튼 작곡가와 같은 셈) -->
+		{#if rankNote}
+			<p class="kpi-note">{rankNote}</p>
 		{/if}
 		<!-- 표기만 다른 이름(표기 정리의 묶음): 그 선곡은 이 페이지에 들지 않으므로, 기간·지기와 상관없이 알린다.
 		     이름은 띄어쓰기가 달라도 보이도록 그대로 두고, 그 작곡가 페이지를 같은 기간·지기로 연다 -->
