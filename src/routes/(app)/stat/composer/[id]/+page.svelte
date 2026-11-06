@@ -1171,6 +1171,10 @@
 					</div>
 				{/if}
 			</div>
+			<!-- 장르별 분포에는 링크가 없으므로 이름을 들어 말한다 -->
+			<p class="drill-hint">
+				학기·달과 독주자·지휘자·오케스트라의 막대나 이름을 누르면 이 작곡가의 그 선곡 기록을 엽니다.
+			</p>
 		{/if}
 	{/if}
 </div>
@@ -1360,6 +1364,14 @@
 		justify-content: flex-end;
 		margin: -8px 0 8px;
 	}
+	/* 통계의 안내와 같다 */
+	.drill-hint {
+		margin: 8px 0 0;
+		text-align: center;
+		font-family: var(--small-medium-font-family, 'Noto Sans KR', sans-serif);
+		font-size: var(--small-medium-font-size, 13px);
+		color: var(--gray-gray-600, #7c7c7c);
+	}
 	.chart-grid {
 		display: grid;
 		/* 캔버스 폭이 칸의 최소 폭이 되지 않게: 창을 줄이면 카드도 줄어든다 */
@@ -1440,11 +1452,13 @@
 			padding: 0 1px 0 0;
 		}
 		/* 종이에는 고르는 것·누르는 것을 싣지 않는다: 기간·지기 고르기, 머리말 링크, 모든 차트 표로 보기,
-		   카드의 단추(표로 보기, PNG·CSV 저장, 다시 시도, 전체 기간에서 보기). 표의 이름은 남는다 */
+		   카드의 단추(표로 보기, PNG·CSV 저장, 다시 시도, 전체 기간에서 보기), 막대를 누르라는 안내.
+		   표의 이름은 남는다 */
 		.controls,
 		.view-row,
 		.title-group .page-link,
 		.toolbar,
+		.drill-hint,
 		.composer-page :global(.tool-btn) {
 			display: none !important;
 		}
