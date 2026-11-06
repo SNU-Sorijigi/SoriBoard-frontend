@@ -49,6 +49,7 @@
 		mixSubtitle,
 		rankChangeTable,
 		tieNote,
+		moreRowsText,
 		firstIdSet,
 		loadWithPrevious,
 		firstsTable,
@@ -146,6 +147,8 @@
 	$: orchestras = topOf(data.orchestras?.current, TOP);
 	// 10 행이 동점을 잘랐을 때 표 아래의 말과 링크: 통계의 그 학기를 모든 차트 표로 보기로(표가 응답 전체를 싣는다).
 	const cutNote = (envelope, noun, unit) => tieNote(envelope, TOP, WORKS_LIMIT, noun, unit);
+	// 동점이 없어도 목록이 10 행보다 길면 표 아래에 같은 링크를 둔다: '통계에서 모두 보기 (작곡가 30명)'.
+	const restNote = (envelope, noun, unit) => moreRowsText(envelope, TOP, WORKS_LIMIT, noun, unit);
 	$: fullListHref = semester
 		? firstsByCountHref(tableViewHref(`/stat?semester_id=${semester.id}`, true), statFirsts)
 		: '';
@@ -398,6 +401,7 @@
 				: null,
 			links: linksOf(composers, semesterId, firstsByCount.firstWorks),
 			note: cutNote(data.composers?.current, '작곡가가', '명'),
+			more: restNote(data.composers?.current, '작곡가', '명'),
 			split: splits.composers,
 			splitKind: SPLIT_KINDS.composers
 		},
@@ -409,6 +413,7 @@
 				: null,
 			links: performerLinksOf('soloists', soloists, semesterId),
 			note: cutNote(data.soloists?.current, '독주자가', '명'),
+			more: restNote(data.soloists?.current, '독주자', '명'),
 			split: splits.soloists,
 			splitKind: SPLIT_KINDS.soloists,
 			empty: PERFORMER_EMPTY.soloists
@@ -421,6 +426,7 @@
 				: null,
 			links: workLinksOf(works, semesterId),
 			note: cutNote(data.works?.current, '곡이', '곡'),
+			more: restNote(data.works?.current, '곡', '곡'),
 			split: worksSplit,
 			splitKind: 'music',
 			wide: true
@@ -433,6 +439,7 @@
 				: null,
 			links: performerLinksOf('conductors', conductors, semesterId),
 			note: cutNote(data.conductors?.current, '지휘자가', '명'),
+			more: restNote(data.conductors?.current, '지휘자', '명'),
 			split: splits.conductors,
 			splitKind: SPLIT_KINDS.conductors,
 			empty: PERFORMER_EMPTY.conductors
@@ -445,6 +452,7 @@
 				: null,
 			links: performerLinksOf('orchestras', orchestras, semesterId),
 			note: cutNote(data.orchestras?.current, '오케스트라가', '곳'),
+			more: restNote(data.orchestras?.current, '오케스트라', '곳'),
 			split: splits.orchestras,
 			splitKind: SPLIT_KINDS.orchestras,
 			empty: PERFORMER_EMPTY.orchestras
@@ -823,6 +831,11 @@
 								labelledby={`report-${card.key}`}
 								describedby={`report-${card.key}-sub`}
 							/>
+							{#if card.more && !card.note}
+								<p class="more-note">
+									<a href={fullListHref}>통계에서 모두 보기 ({card.more})</a>
+								</p>
+							{/if}
 							{#if card.note}
 								<p class="mix-note">
 									{card.note}<span class="note-link"
@@ -1295,6 +1308,18 @@
 		color: inherit;
 		text-underline-offset: 3px;
 	}
+	/* 표 아래의 길잡이 링크: .mix-note 의 자리와 글꼴, 경고색이 아닌 흐린 색 */
+	.more-note {
+		margin: 4px 0 0;
+		font-family: var(--small-medium-font-family, 'Noto Sans KR', sans-serif);
+		font-size: var(--small-medium-font-size, 13px);
+		color: var(--gray-gray-600, #7c7c7c);
+		text-align: center;
+	}
+	.more-note a {
+		color: inherit;
+		text-underline-offset: 3px;
+	}
 
 	@page {
 		size: A4;
@@ -1316,7 +1341,8 @@
 		}
 		.controls,
 		.tool-btn,
-		.note-link {
+		.note-link,
+		.more-note {
 			display: none;
 		}
 		.card {

@@ -341,6 +341,24 @@ export function tieNote(envelope, shown, cap, noun, unit) {
 	return `${formatCount(value)}회로 공동 ${rank}위인 ${noun} ${hidden.toLocaleString()}${unit}${more} 더 있습니다`;
 }
 
+// 상위 10 표보다 목록이 길 때 표 아래 링크('통계에서 모두 보기 (작곡가 30명)')의 괄호 안 말: 목록의 행 수.
+// 목록(envelope)이 cap 행까지 찼으면 그 뒤가 더 있을 수 있으므로 '곡 100곡 이상'. noun 은 조사 없이
+// ('작곡가', '곡'), unit 은 세는 말('명', '곡', '곳'). 목록이 없거나 shown 행 이하면 ''.
+/**
+ * @param {{ values: number[] } | null | undefined} envelope
+ * @param {number} shown
+ * @param {number} cap
+ * @param {string} noun
+ * @param {string} unit
+ * @returns {string}
+ */
+export function moreRowsText(envelope, shown, cap, noun, unit) {
+	const n = envelope?.values?.length ?? 0;
+	if (n <= shown) return '';
+	if (n >= cap) return `${noun} ${cap.toLocaleString()}${unit} 이상`;
+	return `${noun} ${n.toLocaleString()}${unit}`;
+}
+
 // 순위 차트(통계, 작곡가 페이지)가 마지막 막대에서 동점을 자르면 차트 아래에 적는 말(ChartCard 의 chartNote).
 // tieNote 와 같은 말에, 잘린 행이 모두 표로 보기에 있으면 ' · 표로 보기에 모두 있습니다'를 붙인다.
 // 목록이 cap 행까지 찼고 동점이 그 끝까지 이어지면('… 이상') 표도 거기서 끝나므로 붙이지 않는다.

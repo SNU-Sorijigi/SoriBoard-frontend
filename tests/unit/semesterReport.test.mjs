@@ -13,6 +13,7 @@ import {
 	rankChangeTable,
 	rankNotes,
 	tieNote,
+	moreRowsText,
 	chartTieNote,
 	firstIdSet,
 	loadWithPrevious,
@@ -911,6 +912,32 @@ test('tieNote writes counts of 1,000 or more with a comma', () => {
 		tieNote(counts(values), 10, 100, '작곡가가', '명'),
 		'1,234회로 공동 1위인 작곡가가 2명 더 있습니다'
 	);
+});
+
+test('moreRowsText is empty without a list', () => {
+	assert.equal(moreRowsText(null, 10, 100, '작곡가', '명'), '');
+	assert.equal(moreRowsText(undefined, 10, 100, '곡', '곡'), '');
+});
+
+test('moreRowsText is empty when the list has no more rows than the table shows', () => {
+	assert.equal(moreRowsText(counts([5, 4, 3, 3, 2, 2, 2, 1, 1, 1]), 10, 100, '작곡가', '명'), '');
+	assert.equal(moreRowsText(counts([5, 4, 3]), 10, 100, '작곡가', '명'), '');
+});
+
+test("moreRowsText counts a longer list's rows with each card's noun and unit", () => {
+	const thirty = Array.from({ length: 30 }, (_, i) => 30 - i);
+	assert.equal(moreRowsText(counts(thirty), 10, 100, '작곡가', '명'), '작곡가 30명');
+	assert.equal(
+		moreRowsText(counts(thirty.slice(0, 12)), 10, 100, '오케스트라', '곳'),
+		'오케스트라 12곳'
+	);
+	assert.equal(moreRowsText(counts(thirty.slice(0, 11)), 10, 100, '독주자', '명'), '독주자 11명');
+});
+
+test('moreRowsText says 이상 when the list is cut at the cap', () => {
+	const full = Array.from({ length: 100 }, (_, i) => 100 - i);
+	assert.equal(moreRowsText(counts(full), 10, 100, '곡', '곡'), '곡 100곡 이상');
+	assert.equal(moreRowsText(counts(full.slice(0, 99)), 10, 100, '곡', '곡'), '곡 99곡');
 });
 
 // 차트의 목록은 values 와 items 를 함께 싣는다(topOf 가 자르는 봉투).
