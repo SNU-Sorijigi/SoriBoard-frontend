@@ -959,3 +959,65 @@ test('rank note: no line when the answer disagrees or there is nothing to rank',
 		''
 	);
 });
+
+// 지난 학기(같은 지기)의 stats/composers 답.
+const SEM1 = ranking(180, [
+	[4, 30],
+	[8, 25],
+	[1, 21],
+	[2, 15],
+	[6, 12],
+	[3, 12],
+	[5, 8]
+]);
+const FULL = (total) =>
+	ranking(
+		total,
+		Array.from({ length: RANK_LIMIT }, (_, i) => [1000 + i, 30 - Math.floor(i / 10)])
+	);
+
+test("rank note: the previous 학기's place follows the current one", () => {
+	assert.equal(
+		composerRankNote(SEM2, '1', 39, SEM1),
+		'많이 튼 작곡가 1위 (지난 학기 3위) · 이 기간 선곡 222곡 중 39곡 (17.6%)'
+	);
+	// 지난 학기의 같은 횟수는 같은 순위, '공동'
+	assert.equal(
+		composerRankNote(SEM2, 6, 18, SEM1),
+		'많이 튼 작곡가 공동 5위 (지난 학기 공동 5위) · 이 기간 선곡 222곡 중 18곡 (8.1%)'
+	);
+	assert.equal(
+		composerRankNote(SEM2, '3', 16, SEM1),
+		'많이 튼 작곡가 공동 8위 (지난 학기 공동 5위) · 이 기간 선곡 222곡 중 16곡 (7.2%)'
+	);
+});
+
+test('rank note: absent last 학기 is 틀지 않음 in a short list, 100위 밖 in a full one', () => {
+	assert.equal(
+		composerRankNote(SEM2, '7', 18, SEM1),
+		'많이 튼 작곡가 공동 5위 (지난 학기에는 틀지 않음) · 이 기간 선곡 222곡 중 18곡 (8.1%)'
+	);
+	assert.equal(
+		composerRankNote(SEM2, '1', 39, FULL(1970)),
+		'많이 튼 작곡가 1위 (지난 학기 100위 밖) · 이 기간 선곡 222곡 중 39곡 (17.6%)'
+	);
+	// 지금 100위 밖이어도 말이 뒤따른다
+	assert.equal(
+		composerRankNote(FULL(1970), '1', 3, SEM1),
+		'많이 튼 작곡가 100위 밖 (지난 학기 3위) · 이 기간 선곡 1,970곡 중 3곡 (0.2%)'
+	);
+});
+
+test('rank note: no 지난 학기 clause without a previous 학기 with plays', () => {
+	const today = '많이 튼 작곡가 1위 · 이 기간 선곡 222곡 중 39곡 (17.6%)';
+	assert.equal(composerRankNote(SEM2, '1', 39, null), today);
+	assert.equal(composerRankNote(SEM2, '1', 39, undefined), today);
+	assert.equal(composerRankNote(SEM2, '1', 39, ranking(0, [])), today);
+	assert.equal(composerRankNote(SEM2, '1', 39, { items: SEM1.items }), today);
+	// 지금의 답이 없거나 어긋나면 지난 학기가 있어도 줄이 없다
+	assert.equal(composerRankNote(null, '1', 39, SEM1), '');
+	assert.equal(composerRankNote(ranking(0, []), '1', 39, SEM1), '');
+	assert.equal(composerRankNote(SEM2, '42', 3, SEM1), '');
+	assert.equal(composerRankNote(SEM2, '1', 0, SEM1), '');
+	assert.equal(composerRankNote(SEM2, null, 39, SEM1), '');
+});

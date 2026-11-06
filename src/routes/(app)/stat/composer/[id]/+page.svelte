@@ -239,7 +239,7 @@
 			console.error('많이 튼 작곡가 순위 로딩 실패', e);
 		}
 	}
-	$: rankNote = composerRankNote(rank, composerId, summary?.total_plays);
+	$: rankNote = composerRankNote(rank, composerId, summary?.total_plays, previousRank);
 
 	// 카드만 다시 부른다(기간이나 지기가 바뀌면 작곡가 정보는 그대로다).
 	function loadCards() {
@@ -404,6 +404,7 @@
 	let previousWorks = null; // 앞 학기의 곡 목록
 	let previousGenres = null; // 앞 학기의 장르별 분포
 	let previousFirstWorks = null; // 앞 학기에 처음 튼 곡
+	let previousRank = null; // 앞 학기의 많이 튼 작곡가(순위 줄의 '지난 학기 3위')
 	let previousAsked = null; // 마지막으로 부른 앞 학기 id(없으면 null)
 	let previousTarget = null; // 마지막으로 부른 앞 학기
 	let previousComposerId = null; // 그때의 작곡가(다시 시도도 같은 작곡가로 부른다)
@@ -456,6 +457,24 @@
 			}
 		}
 	}
+	// 순위 줄의 지난 학기 자리: loadRank 처럼 composer_id 없이 묻는다(getJson 은 늘 composer_id 를 붙이므로
+	// previousRequests 에 둘 수 없다). 같은 지기, 기간만 앞 학기. 카드가 아니어서 실패하면 말만 붙이지 않는다
+	// (previousFailed 에 넣지 않으므로 지난 학기 오류 줄과 다시 시도는 그대로다).
+	async function loadPreviousRank(gen) {
+		try {
+			const params = new URLSearchParams({
+				...composerMemberParams({ userId, includeMentees }),
+				semester_id: String(previousTarget.id),
+				limit: String(RANK_LIMIT)
+			});
+			const res = await fetch(`/api/stats/composers?${params}`);
+			if (!res.ok) throw new Error(`composers ${res.status}`);
+			const result = await res.json();
+			if (gen === previousGeneration) previousRank = result;
+		} catch (e) {
+			if (gen === previousGeneration) console.error('지난 학기 많이 튼 작곡가 순위 로딩 실패', e);
+		}
+	}
 	async function loadPreviousSummary() {
 		const id = readComposerId($page.params.id);
 		++previousGeneration;
@@ -469,8 +488,12 @@
 		previousWorks = null;
 		previousGenres = null;
 		previousFirstWorks = null;
+		previousRank = null;
 		if (!previous || !id) return;
-		await Promise.allSettled(Object.keys(previousRequests).map(askPrevious));
+		await Promise.allSettled([
+			...Object.keys(previousRequests).map(askPrevious),
+			loadPreviousRank(previousGeneration)
+		]);
 	}
 	// 지난 학기 수치의 '다시 시도': 실패한 요청만 같은 previousGeneration 으로 다시 부른다. 새로 올리면 아직
 	// 오지 않은 첫 요청의 응답까지 버려진다. 단추는 사라지므로 포커스는 h1 으로 옮긴다(retryComposer 와 같다).

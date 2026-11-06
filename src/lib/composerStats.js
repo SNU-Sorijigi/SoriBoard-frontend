@@ -260,32 +260,47 @@ export function composerRankLinks(composerId, card, envelope, filter = WHOLE) {
 // 많이 튼 작곡가(stats/composers)를 묻는 길이: 백엔드의 상한(limit 최대 100)이다.
 export const RANK_LIMIT = 100;
 
-// KPI 칸 아래의 순위 줄: 같은 기간·지기의 많이 튼 작곡가(상위 RANK_LIMIT)에서 이 작곡가의 자리와 기간 선곡 중 몫.
-// 같은 횟수는 같은 순위(통계의 표와 같다), 다른 작곡가와 같으면 '공동'. 목록을 다 채웠는데 없으면 '100위 밖'
-// (횟수는 이 페이지의 요약 plays). 선곡이 없거나, 짧은 목록에 없으면(요약과 어긋난 답) ''(줄이 없다).
+// 많이 튼 작곡가 목록(상위 RANK_LIMIT)에서 이 작곡가의 자리: 같은 횟수는 같은 순위(통계의 표와 같다), 다른
+// 작곡가와 같으면 '공동'. 목록을 다 채웠는데 없으면 '100위 밖'(count 는 null), 짧은 목록에 없으면 null.
+/**
+ * @param {{ items?: { id: number | null, count: number }[] } | null | undefined} envelope
+ * @param {number | string} composerId
+ * @returns {{ place: string, count: number | null } | null}
+ */
+function rankPlace(envelope, composerId) {
+	const items = envelope?.items ?? [];
+	const i = items.findIndex((item) => item.id != null && String(item.id) === String(composerId));
+	if (i >= 0) {
+		const values = items.map((item) => item.count);
+		const tied = values.some((v, j) => j !== i && v === values[i]);
+		return { place: `${tied ? '공동 ' : ''}${competitionRanks(values)[i]}위`, count: values[i] };
+	}
+	return items.length >= RANK_LIMIT ? { place: `${RANK_LIMIT}위 밖`, count: null } : null;
+}
+
+// KPI 칸 아래의 순위 줄: 같은 기간·지기의 많이 튼 작곡가에서 이 작곡가의 자리(rankPlace)와 기간 선곡 중 몫.
+// '100위 밖'의 횟수는 이 페이지의 요약 plays. 선곡이 없거나, 짧은 목록에 없으면(요약과 어긋난 답) ''(줄이 없다).
+// previous(지난 학기의 같은 목록, 같은 지기)에 선곡이 있으면 자리 뒤에 '(지난 학기 3위)'를 붙인다. 그 짧은
+// 목록에 없으면 그 학기에는 틀지 않았다. 앞 학기가 없거나, 아직 오지 않았거나, 실패했으면(null) 붙이지 않는다.
 /**
  * @param {{ total_plays?: number, items?: { id: number | null, count: number }[] } | null | undefined} envelope
  * @param {number | string | null} composerId
  * @param {number | null | undefined} plays
+ * @param {{ total_plays?: number, items?: { id: number | null, count: number }[] } | null | undefined} [previous]
  */
-export function composerRankNote(envelope, composerId, plays) {
+export function composerRankNote(envelope, composerId, plays, previous = null) {
 	const total = envelope?.total_plays;
 	if (!plays || !total || composerId == null) return '';
-	const items = envelope?.items ?? [];
-	const i = items.findIndex((item) => item.id != null && String(item.id) === String(composerId));
-	let place;
-	let count;
-	if (i >= 0) {
-		const values = items.map((item) => item.count);
-		count = values[i];
-		const tied = values.some((v, j) => j !== i && v === count);
-		place = `${tied ? '공동 ' : ''}${competitionRanks(values)[i]}위`;
-	} else if (items.length >= RANK_LIMIT) {
-		place = `${RANK_LIMIT}위 밖`;
-		count = plays;
-	} else return '';
+	const current = rankPlace(envelope, composerId);
+	if (!current) return '';
+	const count = current.count ?? plays;
+	let before = '';
+	if (previous?.total_plays) {
+		const last = rankPlace(previous, composerId);
+		before = ` (지난 학기${last ? ` ${last.place}` : '에는 틀지 않음'})`;
+	}
 	const share = formatShare((count / total) * 100);
-	return `많이 튼 작곡가 ${place} · 이 기간 선곡 ${formatCount(total)}곡 중 ${formatCount(count)}곡 (${share})`;
+	return `많이 튼 작곡가 ${current.place}${before} · 이 기간 선곡 ${formatCount(total)}곡 중 ${formatCount(count)}곡 (${share})`;
 }
 
 // 머리말의 '시대 · 출생 연도'. composers/<id>/ 의 era 는 출생 연도와 보정값으로 정한 시대다.
