@@ -34,7 +34,7 @@
 	import { DRILL_CARDS, WORKS_LIMIT } from '$lib/statDrill.js';
 	import { loadStatusText, withPreviousFailure } from '$lib/statCards.js';
 	import { pageTitle } from '$lib/statTitle.js';
-	import { clubShareText } from '$lib/statShare.js';
+	import { clubShareText, previousShareText } from '$lib/statShare.js';
 	import { downloadCsvTable, tableCsv } from '$lib/csvTable.js';
 	import { downloadName, memberFileText } from '$lib/statFileName.js';
 	import { todayStamp } from '$lib/csv.js';
@@ -118,24 +118,29 @@
 	// 개인에서 지기를 고르면 총 선곡·타임·신청곡 칸 아래에 같은 학기 클럽 전체에서의 몫을 쓴다(통계와 같다,
 	// '클럽 342곡 중 12.3%'). 클럽의 요약은 지기 파라미터 없이 부르고, 실패하면 줄만 없다(오류 줄은 없다).
 	// 요약의 '다시 시도'가 그때 함께 다시 부른다(clubFailed).
+	// 지난 학기가 있으면 그 학기 클럽의 요약도 따로 불러 같은 줄 끝 괄호에 지난 학기의 몫을 쓴다
+	// ('(지난 학기 9.8%)', 통계와 같다). 둘은 따로 불러 하나가 실패해도 다른 하나는 쓴다.
 	let clubSummary = null;
+	let previousClubSummary = null;
 	let clubFailed = false;
 	function loadClubSummary(gen) {
 		clubFailed = false;
-		const params = new URLSearchParams({ semester_id: String(semester.id) });
-		fetch(`/api/stats/summary?${params}`)
-			.then((res) => {
-				if (!res.ok) throw new Error(`summary ${res.status}`);
-				return res.json();
-			})
-			.then((result) => {
-				if (gen === generation) clubSummary = result;
-			})
-			.catch((e) => {
-				if (gen !== generation) return;
-				console.error('학기 결산 로딩 실패 (클럽 요약)', e);
-				clubFailed = true;
-			});
+		const askClub = (id, apply) =>
+			fetch(`/api/stats/summary?${new URLSearchParams({ semester_id: String(id) })}`)
+				.then((res) => {
+					if (!res.ok) throw new Error(`summary ${res.status}`);
+					return res.json();
+				})
+				.then((result) => {
+					if (gen === generation) apply(result);
+				})
+				.catch((e) => {
+					if (gen !== generation) return;
+					console.error('학기 결산 로딩 실패 (클럽 요약)', e);
+					clubFailed = true;
+				});
+		askClub(semester.id, (result) => (clubSummary = result));
+		if (previous) askClub(previous.id, (result) => (previousClubSummary = result));
 	}
 	const CLUB_UNITS = { total_plays: '곡', sessions: '타임', requested: '곡' };
 	// 요약·상위 10·시대·장르·처음 튼 작곡가·곡은 지난 학기와 견준다(지난 학기가 없으면 previous 는 null).
@@ -219,12 +224,17 @@
 	$: summary = data.summary?.current;
 	$: previousSummary = data.summary?.previous;
 	// 개인(지기를 골랐을 때)의 KPI 칸 아래 몫의 줄. 두 요약 중 하나라도 없으면(불러오는 중·실패) ''.
+	// previous 는 괄호 안의 지난 학기 몫: 지난 학기가 없거나, 불러오는 중·실패했거나, 그 학기에 클럽이 튼
+	// 것이 없으면 ''이고 괄호를 쓰지 않는다.
 	$: clubShares =
 		scope === 'individual' && userId
 			? Object.fromEntries(
 					Object.entries(CLUB_UNITS).map(([key, unit]) => [
 						key,
-						clubShareText(summary?.[key], clubSummary?.[key], unit)
+						{
+							text: clubShareText(summary?.[key], clubSummary?.[key], unit),
+							previous: previousShareText(previousSummary?.[key], previousClubSummary?.[key])
+						}
 					])
 				)
 			: {};
@@ -258,6 +268,7 @@
 		errors = {};
 		loading = Object.fromEntries(CARD_KEYS.map((key) => [key, true]));
 		clubSummary = null;
+		previousClubSummary = null;
 		clubFailed = false;
 		// 개인에서 지기를 고르지 않았으면 부르지 않는다(카드 대신 안내 문구).
 		if (scope === 'individual' && !userId) return;
@@ -951,8 +962,14 @@
 					</div>
 					<div class="kpi-label">{name}</div>
 					<!-- 개인: 같은 학기 클럽 전체에서의 몫(통계와 같다). 지난 학기 줄보다 위 -->
-					{#if clubShares[key]}
-						<div class="kpi-change kpi-share">{clubShares[key]}</div>
+					{#if clubShares[key]?.text}
+						<!-- 괄호 안 지난 학기의 몫은 span 이라 좁은 칸(인쇄)에서 통째로 다음 줄에 간다 -->
+						<div class="kpi-change kpi-share">
+							{clubShares[key].text}
+							{#if clubShares[key].previous}
+								<span>({clubShares[key].previous})</span>
+							{/if}
+						</div>
 					{/if}
 					{#if change}
 						{@const [diff, before] = change.split(' · ')}
