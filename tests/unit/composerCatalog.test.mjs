@@ -3,6 +3,12 @@ import assert from 'node:assert/strict';
 import {
 	ERAS,
 	readCatalogQuery,
+	readCatalogEra,
+	catalogEraHref,
+	eraOptions,
+	filterEra,
+	eraLabel,
+	eraSummary,
 	catalogHref,
 	composersSearch,
 	unknownFirst,
@@ -193,4 +199,110 @@ test('a saved composer replaces its row in place', () => {
 	);
 	assert.equal(next[1], list[1]);
 	assert.equal(list[0].era, '미상');
+});
+
+test('the 시대 is read from the URL; a missing, empty or unknown value means every 시대', () => {
+	for (const era of ERAS) {
+		assert.equal(readCatalogEra(new URLSearchParams({ era })), era);
+	}
+	assert.equal(readCatalogEra(new URLSearchParams('')), '');
+	assert.equal(readCatalogEra(new URLSearchParams('era=20세기')), '');
+	assert.equal(readCatalogEra(new URLSearchParams('era=')), '');
+});
+
+test('the 시대 is added to, replaced in or removed from the href, other parameters kept', () => {
+	const added = catalogEraHref('/stat/composers', '바로크');
+	assert.equal(added, '/stat/composers?era=%EB%B0%94%EB%A1%9C%ED%81%AC');
+	assert.equal(readCatalogEra(new URL(added, 'http://x').searchParams), '바로크');
+
+	const kept = new URL(catalogEraHref('/stat/composers?q=bach&view=spelling', '미상'), 'http://x');
+	assert.equal(kept.pathname, '/stat/composers');
+	assert.equal(kept.searchParams.get('q'), 'bach');
+	assert.equal(kept.searchParams.get('view'), 'spelling');
+	assert.equal(kept.searchParams.get('era'), '미상');
+
+	const replaced = new URL(catalogEraHref('/stat/composers?era=고전&q=a', '낭만'), 'http://x');
+	assert.deepEqual(replaced.searchParams.getAll('era'), ['낭만']);
+	assert.equal(replaced.searchParams.get('q'), 'a');
+
+	assert.equal(catalogEraHref('/stat/composers?era=고전', ''), '/stat/composers');
+	assert.equal(catalogEraHref('/stat/composers?q=a&era=고전', '20세기'), '/stat/composers?q=a');
+	assert.equal(catalogEraHref('/stat/composers', ''), '/stat/composers');
+});
+
+const eraList = () => [
+	composer(1, '미상', { num_time_music: 4 }),
+	composer(2, '바로크', { num_time_music: 30 }),
+	composer(3, '낭만', { num_time_music: 20 }),
+	composer(4, '바로크', { num_time_music: 6 }),
+	composer(5, '근현대', { num_time_music: 0 })
+];
+
+test('the 시대 options count the listed composers of each 시대, in ERAS order, zeros kept', () => {
+	assert.deepEqual(eraOptions(eraList()), [
+		{ era: '중세', count: 0 },
+		{ era: '바로크', count: 2 },
+		{ era: '고전', count: 0 },
+		{ era: '낭만', count: 1 },
+		{ era: '근현대', count: 1 },
+		{ era: '미상', count: 1 }
+	]);
+	assert.deepEqual(
+		eraOptions([]).map((o) => o.count),
+		[0, 0, 0, 0, 0, 0]
+	);
+});
+
+test('the 시대 filter keeps the order and the kept rows in their place', () => {
+	const list = eraList();
+	assert.deepEqual(filterEra(list, ''), list);
+	assert.deepEqual(
+		filterEra(list, '바로크').map((c) => c.id),
+		[2, 4]
+	);
+	assert.deepEqual(
+		filterEra(list, '바로크', new Set([3])).map((c) => c.id),
+		[2, 3, 4]
+	);
+	assert.deepEqual(
+		filterEra(list, '미상', new Set([5])).map((c) => c.id),
+		[1, 5]
+	);
+	assert.deepEqual(filterEra(list, '20세기'), []);
+});
+
+test('the 시대 line gives its composers, plays and share of every listed play', () => {
+	assert.equal(
+		eraSummary(eraList(), '바로크', false),
+		'바로크 작곡가 2명 (5명 중) · 선곡 36곡, 60.0%'
+	);
+	assert.equal(
+		eraSummary(eraList(), '미상', false),
+		'시대 미상 작곡가 1명 (5명 중) · 선곡 4곡, 6.7%'
+	);
+	assert.equal(eraSummary(eraList(), '중세', false), '중세 작곡가 0명 (5명 중) · 선곡 0곡, 0.0%');
+	assert.equal(eraLabel('미상'), '시대 미상');
+	assert.equal(eraLabel('고전'), '고전');
+});
+
+test('the 시대 line leaves out the share while searching or when nothing was played', () => {
+	assert.equal(eraSummary(eraList(), '바로크', true), '바로크 작곡가 2명 (5명 중) · 선곡 36곡');
+	const silent = [
+		composer(1, '고전', { num_time_music: 0 }),
+		composer(2, '낭만', { num_time_music: 0 })
+	];
+	assert.equal(eraSummary(silent, '고전', false), '고전 작곡가 1명 (2명 중) · 선곡 0곡');
+	assert.equal(eraSummary([], '고전', false), '고전 작곡가 0명 (0명 중) · 선곡 0곡');
+});
+
+test('the 시대 line groups large counts', () => {
+	const many = [
+		...Array.from({ length: 1200 }, (_, i) => composer(i + 1, '낭만', { num_time_music: 0 })),
+		composer(2000, '낭만', { num_time_music: 1234 }),
+		composer(2001, '고전', { num_time_music: 1234 })
+	];
+	assert.equal(
+		eraSummary(many, '낭만', false),
+		'낭만 작곡가 1,201명 (1,202명 중) · 선곡 1,234곡, 50.0%'
+	);
 });

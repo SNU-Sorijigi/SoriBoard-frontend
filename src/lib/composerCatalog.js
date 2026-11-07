@@ -63,6 +63,69 @@ export function unknownSummary(composers, searched) {
 	return `${head} (선곡 ${unknownPlays.toLocaleString()}곡${share})`;
 }
 
+// URL의 시대(?era=바로크). ERAS 밖의 값이나 없으면 '' = 모든 시대.
+/** @param {URLSearchParams} params */
+export function readCatalogEra(params) {
+	const era = params.get('era') ?? '';
+	return ERAS.includes(era) ? era : '';
+}
+
+// 이 페이지의 경로(catalogHref·catalogViewHref 의 답)에 시대를 담는다. '' 나 ERAS 밖의 값이면 뺀다.
+// 다른 파라미터(q, view, kind)는 그대로 둔다.
+/**
+ * @param {string} href
+ * @param {string} era
+ */
+export function catalogEraHref(href, era) {
+	const [path, search = ''] = href.split('?');
+	const params = new URLSearchParams(search);
+	if (ERAS.includes(era)) params.set('era', era);
+	else params.delete('era');
+	const query = params.toString();
+	return query ? `${path}?${query}` : path;
+}
+
+// 시대 고르기의 항목: ERAS 순서로 시대마다 받은 목록의 작곡가 수(0명도 둔다).
+/** @param {CatalogComposer[]} composers */
+export const eraOptions = (composers) =>
+	ERAS.map((era) => ({ era, count: composers.filter((c) => c.era === era).length }));
+
+// 고른 시대의 작곡가만, 받은 순서 그대로. keep 의 id 는 시대가 달라도 남긴다(저장해 시대가 바뀐 줄을
+// 시대나 검색이 바뀔 때까지 그 자리에 둔다). era '' = 모두.
+/**
+ * @param {CatalogComposer[]} composers
+ * @param {string} era
+ * @param {Set<number>} [keep]
+ */
+export function filterEra(composers, era, keep = new Set()) {
+	if (!era) return composers;
+	return composers.filter((c) => c.era === era || keep.has(c.id));
+}
+
+// 문구 속 시대 이름: 미상은 '시대 미상'.
+/** @param {string} era */
+export const eraLabel = (era) => (era === UNKNOWN_ERA ? '시대 미상' : era);
+
+// 시대를 골랐을 때의 개수 줄: '바로크 작곡가 12명 (140명 중) · 선곡 320곡, 25.0%'. 비율은 받은 목록
+// 전체 선곡 수(선곡 수 칸의 합)에 대한 것이고, unknownSummary 처럼 검색 중이거나 전체가 0이면 뺀다.
+/**
+ * @param {CatalogComposer[]} composers
+ * @param {string} era
+ * @param {boolean} searched
+ */
+export function eraSummary(composers, era, searched) {
+	const plays = (/** @type {CatalogComposer[]} */ list) =>
+		list.reduce((sum, c) => sum + (c.num_time_music || 0), 0);
+	const matching = composers.filter((c) => c.era === era);
+	const eraPlays = plays(matching);
+	const total = plays(composers);
+	const share = !searched && total > 0 ? `, ${formatShare((eraPlays / total) * 100)}` : '';
+	return (
+		`${eraLabel(era)} 작곡가 ${matching.length.toLocaleString()}명 ` +
+		`(${composers.length.toLocaleString()}명 중) · 선곡 ${eraPlays.toLocaleString()}곡${share}`
+	);
+}
+
 // era_override 가 시대를 정하는가(ERAS 밖의 자유 입력은 백엔드가 무시한다).
 /** @param {{ era_override?: string | null }} composer */
 export const hasOverride = (composer) => ERAS.includes(composer.era_override ?? '');
