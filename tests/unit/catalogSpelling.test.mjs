@@ -10,6 +10,7 @@ import {
 	rowLinks,
 	groupHeading,
 	spellingSummary,
+	filterSpellingGroups,
 	composerVariants,
 	spellingKindOf,
 	spellingVariants,
@@ -140,6 +141,69 @@ test('the summary counts groups and spellings', () => {
 		]),
 		'2묶음 · 표기 5개'
 	);
+});
+
+const bach = {
+	key: 'jsbach',
+	count: 4,
+	rows: [
+		{ id: 1, name: 'J.S. Bach', count: 3 },
+		{ id: 2, name: 'J. S. Bach', count: 1 }
+	]
+};
+const mozart = {
+	key: 'wamozart',
+	count: 2,
+	rows: [
+		{ id: 5, name: 'W.A. Mozart', count: 1 },
+		{ id: 6, name: 'W. A. Mozart', count: 1 }
+	]
+};
+
+test('the 표기 정리 search keeps whole groups in which some spelling has the word', () => {
+	assert.deepEqual(filterSpellingGroups([bach, mozart], 'bach'), [bach]);
+	assert.deepEqual(filterSpellingGroups([bach, mozart], ' BACH '), [bach]);
+	// a word in one spelling only still shows the group with all its spellings, in order
+	const [group] = filterSpellingGroups([mozart, bach], 'j.s.');
+	assert.equal(group, bach);
+	assert.deepEqual(
+		group.rows.map((row) => row.name),
+		['J.S. Bach', 'J. S. Bach']
+	);
+	assert.deepEqual(filterSpellingGroups([bach, mozart], 'a'), [bach, mozart]);
+	assert.deepEqual(filterSpellingGroups([bach, mozart], '바흐'), []);
+});
+
+test('the 표기 정리 search matches a piece by its composer too', () => {
+	const fifth = {
+		key: 'op67',
+		count: 4,
+		rows: [
+			{ id: 10, name: '교향곡 5번 Op. 67', count: 3, composer_id: 7, composer_name: '베토벤' },
+			{ id: 11, name: '교향곡 제5번 op.67', count: 1, composer_id: 7, composer_name: '베토벤' }
+		]
+	};
+	const orphan = {
+		key: 'k525',
+		count: 2,
+		rows: [
+			{ id: 12, name: '세레나데 K. 525', count: 1, composer_id: null, composer_name: null },
+			{ id: 13, name: '세레나데 KV 525', count: 1 }
+		]
+	};
+	assert.deepEqual(filterSpellingGroups([fifth, orphan], '베토벤'), [fifth]);
+	assert.deepEqual(filterSpellingGroups([fifth, orphan], 'OP.67'), [fifth]);
+	// a row without a composer (null or missing) does not throw
+	assert.deepEqual(filterSpellingGroups([fifth, orphan], 'kv'), [orphan]);
+});
+
+test('a blank 표기 정리 search keeps every group', () => {
+	const groups = [bach, mozart];
+	assert.equal(filterSpellingGroups(groups, ''), groups);
+	assert.equal(filterSpellingGroups(groups, '  '), groups);
+	assert.equal(filterSpellingGroups(groups, undefined), groups);
+	assert.deepEqual(filterSpellingGroups(null, 'bach'), []);
+	assert.deepEqual(filterSpellingGroups(undefined, ''), []);
 });
 
 test('every kind has a label and an empty text', () => {

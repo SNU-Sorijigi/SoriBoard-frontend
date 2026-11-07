@@ -127,6 +127,26 @@ export function spellingSummary(groups) {
 	return `${groups.length.toLocaleString()}묶음 · 표기 ${rows.toLocaleString()}개`;
 }
 
+// 표기 정리의 검색: 어느 행의 이름(곡이면 작곡가도)에 검색어가 든 묶음만, 그 묶음은 모든 행 그대로.
+// 대소문자를 가리지 않는다(작곡가 목록의 name__icontains 처럼). 검색어가 비었으면 받은 묶음 그대로.
+/**
+ * @param {SpellingGroup[] | null | undefined} groups
+ * @param {string | null | undefined} q
+ * @returns {SpellingGroup[]}
+ */
+export function filterSpellingGroups(groups, q) {
+	const list = Array.isArray(groups) ? groups : [];
+	const term = (q ?? '').trim().toLowerCase();
+	if (!term) return list;
+	/** @param {unknown} text */
+	const hit = (text) => typeof text === 'string' && text.toLowerCase().includes(term);
+	return list.filter((group) =>
+		(Array.isArray(group?.rows) ? group.rows : []).some(
+			(row) => hit(row?.name) || hit(row?.composer_name)
+		)
+	);
+}
+
 // 선곡 기록의 id 필터(composer_id 등) → 그 catalog/duplicates/ 의 kind. 없으면 null.
 /**
  * @param {string | null | undefined} param
