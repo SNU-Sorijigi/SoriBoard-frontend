@@ -107,6 +107,7 @@
 	} from '$lib/statFirsts.js';
 	import { memberFileText } from '$lib/statFileName.js';
 	import { pageTitle, periodTitle } from '$lib/statTitle.js';
+	import { clubShareText } from '$lib/statShare.js';
 	import {
 		splitSpellings,
 		splitSpellingNote,
@@ -166,8 +167,8 @@
 	// 백엔드가 적용했다고 돌려준 기간(filters). 기간이 바뀔 때만 비운다.
 	let appliedFilters = null;
 
-	// 현재 필터를 쿼리스트링으로.
-	function buildQuery(extra = {}) {
+	// 현재 필터를 쿼리스트링으로. withMember 가 false 면 개인 범위여도 지기를 빼고 클럽 전체를 묻는다.
+	function buildQuery(extra = {}, withMember = true) {
 		const params = new URLSearchParams();
 		if (period === CURRENT) {
 			if (startDate) params.set('start', startDate);
@@ -178,7 +179,7 @@
 		} else if (period !== ALL) {
 			params.set('semester_id', period);
 		}
-		if (scope === 'individual' && userId) {
+		if (withMember && scope === 'individual' && userId) {
 			params.set('user_id', userId);
 			if (includeMentees) params.set('include_mentees', 'true');
 		}
@@ -187,8 +188,8 @@
 		return s ? `?${s}` : '';
 	}
 
-	async function getJson(endpoint, extra) {
-		const res = await fetch(`/api/stats/${endpoint}${buildQuery(extra)}`);
+	async function getJson(endpoint, extra, withMember = true) {
+		const res = await fetch(`/api/stats/${endpoint}${buildQuery(extra, withMember)}`);
 		if (!res.ok) throw new Error(`${endpoint} 실패`);
 		return res.json();
 	}
@@ -247,7 +248,10 @@
 	async function load(keys) {
 		// 개인 범위인데 지기 미선택이면 로드 보류.
 		if (scope === 'individual' && !userId) return;
-		if (keys.includes('summary')) loadPreviousSummary();
+		if (keys.includes('summary')) {
+			loadPreviousSummary();
+			loadClubSummary();
+		}
 		const id = requests.begin(keys);
 		for (const key of keys) {
 			// 불러오는 동안(그리고 실패한 뒤) 이전 필터의 수치가 새 필터의 이름으로 남아 보이지 않도록 비운다.
@@ -398,6 +402,28 @@
 		if (!previous || (scope === 'individual' && !userId)) return;
 		await Promise.allSettled(Object.keys(previousRequests).map(askPrevious));
 	}
+	// 개인 범위에서 지기를 고르면 KPI 칸 아래에 같은 기간 클럽 전체에서의 몫을 쓴다('클럽 342곡 중 12.3%').
+	// 클럽의 요약은 지기를 뺀 같은 기간으로 요약과 함께 부르고, 실패하면 줄만 없다(statShare.js).
+	let clubSummary = null;
+	async function loadClubSummary() {
+		const id = requests.begin(['clubSummary']);
+		clubSummary = null;
+		if (scope !== 'individual' || !userId) return;
+		try {
+			const result = await getJson('summary', {}, false);
+			if (requests.isLatest('clubSummary', id)) clubSummary = result;
+		} catch (e) {
+			if (requests.isLatest('clubSummary', id)) console.error('통계 로딩 실패 (클럽 요약)', e);
+		}
+	}
+	$: clubShares =
+		scope === 'individual' && userId
+			? {
+					total_plays: clubShareText(summary?.total_plays, clubSummary?.total_plays, '곡'),
+					sessions: clubShareText(summary?.sessions, clubSummary?.sessions, '타임'),
+					requested: clubShareText(summary?.requested, clubSummary?.requested, '곡')
+				}
+			: {};
 	// 지난 학기 수치의 '다시 시도': 실패한 요청만 같은 토큰으로 다시 부른다. 새 토큰(begin)을 쓰면 아직
 	// 오지 않은 첫 요청의 응답까지 버려진다. 줄은 누르자마자 사라지므로 포커스를 KPI 칸으로 옮긴다.
 	function retryPrevious() {
@@ -1012,6 +1038,10 @@
 					{/if}
 				</div>
 				<div class="kpi-label">총 선곡</div>
+				<!-- 개인 범위: 같은 기간 클럽 전체에서의 몫. 지난 학기 줄보다 위 -->
+				{#if clubShares.total_plays}
+					<div class="kpi-change kpi-share">{clubShares.total_plays}</div>
+				{/if}
 				<!-- 학기를 고르면 앞 학기와 견준 줄. 좁은 칸에서는 · 뒤에서만 줄을 바꾼다 -->
 				{#if changes.total_plays}
 					<div class="kpi-change">
@@ -1026,6 +1056,9 @@
 					{summary && summary.sessions != null ? summary.sessions.toLocaleString() : '—'}
 				</div>
 				<div class="kpi-label">타임</div>
+				{#if clubShares.sessions}
+					<div class="kpi-change kpi-share">{clubShares.sessions}</div>
+				{/if}
 				{#if changes.sessions}
 					<div class="kpi-change">
 						<span>{changes.sessions.diff} ·</span>
@@ -1048,6 +1081,9 @@
 					{/if}
 				</div>
 				<div class="kpi-label">신청곡</div>
+				{#if clubShares.requested}
+					<div class="kpi-change kpi-share">{clubShares.requested}</div>
+				{/if}
 				{#if changes.requested}
 					<div class="kpi-change">
 						<span>{changes.requested.diff} ·</span>
@@ -1736,6 +1772,10 @@
 	}
 	.kpi-change span {
 		white-space: nowrap;
+	}
+	/* 좁은 칸에서도 '342곡' 같은 낱말 안에서는 줄을 바꾸지 않는다 */
+	.kpi-share {
+		word-break: keep-all;
 	}
 	.kpi-error,
 	.kpi-note {
