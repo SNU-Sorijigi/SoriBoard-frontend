@@ -8,6 +8,12 @@
 		ERAS,
 		UNKNOWN_ERA,
 		readCatalogQuery,
+		readCatalogEra,
+		catalogEraHref,
+		eraOptions,
+		filterEra,
+		eraLabel,
+		eraSummary,
 		composersSearch,
 		unknownFirst,
 		unknownSummary,
@@ -37,12 +43,20 @@
 
 	// 보기: null = 작곡가 목록, 아니면 표기 정리와 그 종류. 검색어처럼 URL에 둔다.
 	let spellingKind = readSpellingKind($page.url.searchParams);
+	// 작곡가 목록의 시대('' = 모든 시대). 받은 목록을 거를 뿐 다시 부르지 않는다. 검색어처럼 URL에 두고,
+	// 표기 정리로 가도 남긴다.
+	let era = readCatalogEra($page.url.searchParams);
+	// 시대를 고른 채 저장해 다른 시대가 된 줄: 시대·검색·목록이 바뀔 때까지 그 자리에 둔다(바꿔 넣어야 다시 거른다).
+	/** @type {Set<number>} */
+	let keepIds = new Set();
+	/** @param {string | null} kind */
+	const viewHref = (kind) => catalogEraHref(catalogViewHref(q, kind), era);
 
 	// 검색어는 두 보기가 함께 쓴다. 작곡가 목록으로 돌아올 때 목록이 다른 검색어의 답이면 다시 부른다.
 	/** @param {string | null} kind */
 	function showView(kind) {
 		spellingKind = kind;
-		goto(catalogViewHref(q, kind), { replaceState: true, keepFocus: true, noScroll: true });
+		goto(viewHref(kind), { replaceState: true, keepFocus: true, noScroll: true });
 		if (!kind && (!loaded || shownQ !== q)) load();
 	}
 
@@ -68,6 +82,7 @@
 			const result = await res.json();
 			if (id !== requestId) return;
 			composers = unknownFirst(result);
+			keepIds = new Set();
 			loaded = true;
 			shownQ = asked;
 		} catch (e) {
@@ -98,8 +113,17 @@
 	function onSearch() {
 		q = query.trim();
 		query = q;
-		goto(catalogViewHref(q, spellingKind), { replaceState: true, keepFocus: true, noScroll: true });
+		goto(viewHref(spellingKind), { replaceState: true, keepFocus: true, noScroll: true });
 		if (!spellingKind) load();
+	}
+
+	// 시대를 바꾸면 받은 목록을 다시 거른다(새 검색처럼 수정 칸을 닫는다).
+	/** @param {Event & { currentTarget: HTMLSelectElement }} e */
+	function onEraChange(e) {
+		era = e.currentTarget.value;
+		keepIds = new Set();
+		editingId = null;
+		goto(viewHref(spellingKind), { replaceState: true, keepFocus: true, noScroll: true });
 	}
 	// 검색란을 ✕(또는 Escape)로 비우면 곧바로 전체를 보인다. Enter 도 search 이벤트를 보내지만
 	// (브라우저에 따라 submit 앞이나 뒤에) 그때는 submit 이 검색하므로 넘어간다.
@@ -178,6 +202,7 @@
 		const open = editingId === composer.id;
 		if (!failure) {
 			composers = replaceComposer(composers, result);
+			if (era && result.era !== era) keepIds = new Set([...keepIds, result.id]);
 			status = `‘${result.name}’ 저장됨 · 시대 ${result.era}`;
 			if (open) await stopEdit();
 		} else if (!open) {
@@ -201,6 +226,11 @@
 	}
 
 	$: unknownText = unknownSummary(composers, Boolean(shownQ));
+	$: shown = filterEra(composers, era, keepIds);
+	$: eraChoices = eraOptions(composers);
+	$: eraText = era ? eraSummary(composers, era, Boolean(shownQ)) : '';
+	// 빈 목록: ‘'bach'에 맞는 바로크 작곡가가 없습니다’(검색어·시대가 없으면 그 말을 뺀다).
+	$: emptyText = `${shownQ ? `'${shownQ}'에 맞는 ` : ''}${era ? `${eraLabel(era)} ` : ''}작곡가가 없습니다`;
 
 	// 검색어와 표기만 다른 작곡가: 목록의 검색(composers/ 의 q, icontains)은 이름만 글자 그대로 찾으므로,
 	// 띄어쓰기·마침표·줄표만 다른 표기는 그 검색에 들지 않는다(searchVariants, 선곡 기록과 같다). 묶음
@@ -291,19 +321,32 @@
 		</p>
 
 		<div class="toolbar">
-			<form class="search" role="search" on:submit|preventDefault={onSearch}>
-				<input
-					type="search"
-					bind:value={query}
-					on:keydown={onSearchKeydown}
-					on:search={onSearchEvent}
-					placeholder="작곡가 이름"
-					aria-label="작곡가 검색"
-				/>
-				<button type="submit">검색</button>
-			</form>
+			<div class="filters">
+				<form class="search" role="search" on:submit|preventDefault={onSearch}>
+					<input
+						type="search"
+						bind:value={query}
+						on:keydown={onSearchKeydown}
+						on:search={onSearchEvent}
+						placeholder="작곡가 이름"
+						aria-label="작곡가 검색"
+					/>
+					<button type="submit">검색</button>
+				</form>
+				<!-- 개수는 받은 목록(지금의 검색)에서 센다 -->
+				<select class="era-filter" aria-label="시대" value={era} on:change={onEraChange}>
+					<option value="">모든 시대</option>
+					{#each eraChoices as choice (choice.era)}
+						<option value={choice.era}
+							>{choice.era}{loaded ? ` (${choice.count.toLocaleString()}명)` : ''}</option
+						>
+					{/each}
+				</select>
+			</div>
 			<p class="result-count" aria-live="polite">
-				{#if loaded && !error}
+				{#if loaded && !error && era}
+					{eraText}{#if shownQ}&nbsp;· '{shownQ}' 검색{/if}
+				{:else if loaded && !error}
 					작곡가 {composers.length.toLocaleString()}명 · {unknownText}{#if shownQ}&nbsp;· '{shownQ}'
 						검색{/if}
 				{:else if error}
@@ -343,9 +386,9 @@
 						>다시 시도</button
 					>
 				</div>
-			{:else if loaded && composers.length === 0}
+			{:else if loaded && shown.length === 0}
 				<div class="placeholder" class:stale={loading}>
-					{shownQ ? `'${shownQ}'에 맞는 작곡가가 없습니다` : '작곡가가 없습니다'}
+					{emptyText}
 				</div>
 			{:else if loaded}
 				<!-- 긴 목록은 이 상자 안에서 스크롤해 머리줄이 남는다. 키보드로도 스크롤하게 포커스를 준다(DataTable 과 같다). -->
@@ -362,7 +405,7 @@
 							</tr>
 						</thead>
 						<tbody>
-							{#each composers as composer (composer.id)}
+							{#each shown as composer (composer.id)}
 								{@const cell = eraCell(composer)}
 								<tr class:editing={editingId === composer.id}>
 									<th scope="row">
@@ -539,6 +582,7 @@
 		justify-content: space-between;
 		gap: 12px 16px;
 	}
+	.filters,
 	.search {
 		display: flex;
 		align-items: center;
@@ -761,6 +805,7 @@
 		.page-link,
 		.view-toggle,
 		.search,
+		.era-filter,
 		.actions,
 		.placeholder .tool-btn {
 			display: none;
