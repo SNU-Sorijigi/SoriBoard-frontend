@@ -76,6 +76,10 @@
 		genrePair,
 		monthlyTable
 	} from '$lib/semesterReport.js';
+	import { catalogEraHref, UNKNOWN_ERA } from '$lib/composerCatalog.js';
+
+	// 시대 미상 경고의 '작곡가 정리' 링크: 시대 미상 작곡가만 골라 연다.
+	const unknownEraHref = catalogEraHref('/stat/composers', UNKNOWN_ERA);
 
 	// 한 학기의 결산(클럽 전체, 또는 개인이면 한 지기). 학기는 URL(semester_id)에 두고, 없으면 가장 최근의
 	// 시작한 학기다. 카드는 따로 불러오고, 실패하면 그 카드에만 오류를 띄운다.
@@ -1156,7 +1160,7 @@
 							{#if card.note}
 								<p class="mix-note">
 									{card.note}<span class="note-link"
-										>&nbsp;· <a href="/stat/composers">작곡가 정리</a></span
+										>&nbsp;· <a href={unknownEraHref}>작곡가 정리</a></span
 									>
 								</p>
 							{/if}

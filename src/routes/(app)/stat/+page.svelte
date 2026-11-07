@@ -120,6 +120,10 @@
 		FIRST_SPELLING_LEAD,
 		FIRST_MUSIC_LEAD
 	} from '$lib/catalogSpelling.js';
+	import { catalogEraHref, UNKNOWN_ERA } from '$lib/composerCatalog.js';
+
+	// 시대 미상 경고의 '작곡가 정리' 링크: 시대 미상 작곡가만 골라 연다(머리의 링크는 모든 시대).
+	const unknownEraHref = catalogEraHref('/stat/composers', UNKNOWN_ERA);
 
 	// 범위·지기·견습 포함·기간·주별/월별·열린 drill-down 패널은 URL에도 둔다(링크로 같은 보기를 연다). 페이지가 시작될 때 한 번만 읽는다.
 	const initial = readStatQuery($page.url.searchParams);
@@ -1447,7 +1451,7 @@
 				retry={() => retry('eras')}
 				{fileTag}
 				note={eraNote}
-				noteLink={{ href: '/stat/composers', text: '작곡가 정리' }}
+				noteLink={{ href: unknownEraHref, text: '작곡가 정리' }}
 				table={eraTable}
 				csv={eraTable && tableCsv(eraTable)}
 				csvHeaders={['시대', '횟수']}
