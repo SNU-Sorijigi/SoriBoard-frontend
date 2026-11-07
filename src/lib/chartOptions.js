@@ -80,6 +80,10 @@ const EDGE_LABELS_INSIDE = { alignMinLabel: 'left', alignMaxLabel: 'right' };
 // 때만 마지막 이름이 보이고, 진행 중인 버킷의 '(진행 중)' 이 숨는다. 겹치면 그 앞 이름이 빠진다.
 const LAST_NAME_SHOWN = { showMaxLabel: true };
 
+// 라인 차트는 첫(가장 이른) 버킷 이름도 늘 그린다. 선이 시작하는 날짜와 기간이 자른 첫 주의 '(3/3부터)' 가
+// 숨지 않도록. ECharts 는 첫 이름을 가운데 정렬로 어림해 다음 이름과 겹친다며 빼는데, 이제는 겹치는 이웃 이름이 빠진다.
+const FIRST_NAME_SHOWN = { showMinLabel: true, hideOverlap: true };
+
 // 시간 축 x 이름표 끝의 표시('2026-10-26 (진행 중)', '2026-08-31 (8/31까지)', statBucket.js 의 timelineView)는
 // 날짜 밑 둘째 줄에 둔다. 한 줄로 길어지면 ECharts 가 축 이름을 솎아 내 표시하려던 바로 그 이름이 숨는다.
 // 그리는 이름만 바뀌고 카테고리 값(툴팁, 표로 보기, CSV)은 그대로다. 시간 축에만 쓴다(순위 막대의
@@ -192,6 +196,7 @@ export function timelineOption({ labels, values }, title, subtitle) {
 				color: TEXT,
 				...EDGE_LABELS_INSIDE,
 				...LAST_NAME_SHOWN,
+				...FIRST_NAME_SHOWN,
 				formatter: twoLineName
 			}
 		},
@@ -303,6 +308,7 @@ export function diversityLineOption(labels, series, title, subtitle) {
 				hideOverlap: true,
 				...EDGE_LABELS_INSIDE,
 				...LAST_NAME_SHOWN,
+				...FIRST_NAME_SHOWN,
 				formatter: twoLineName
 			}
 		},

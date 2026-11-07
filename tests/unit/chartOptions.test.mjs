@@ -65,6 +65,23 @@ test('time charts always name their newest bucket, and the bar chart keeps every
 	assert.equal('containLabel' in bar.grid, false);
 });
 
+test('line charts always name their first bucket too, leaving out a neighbour it would collide with', () => {
+	for (const option of [
+		timelineOption({ labels, values: [3, 1, 4, 1] }, '주별 선곡 추이', '2026-03-03 ~ 2026-06-28'),
+		diversityLineOption(labels, series, '주별 다양성 추이', '0%=편중 · 100%=고름')
+	]) {
+		const axisLabel = option.xAxis.axisLabel;
+		assert.equal(axisLabel.showMinLabel, true);
+		assert.equal(axisLabel.hideOverlap, true);
+		// 첫 이름은 첫 점 밑에 왼쪽 정렬, 마지막 이름도 그대로
+		assert.equal(axisLabel.alignMinLabel, 'left');
+		assert.equal(axisLabel.showMaxLabel, true);
+	}
+	// 막대 차트는 그대로(이름을 모두 재는 outerBounds 로 이미 첫 버킷을 그린다)
+	const bar = countBarOption({ labels, values: [3, 1, 4, 1] }, '주별 선곡 수', '전체');
+	assert.equal('showMinLabel' in bar.xAxis.axisLabel, false);
+});
+
 test('diversity legend sits below the subtitle, and the plot below the legend', () => {
 	const option = diversityLineOption(labels, series, '월별 다양성 추이', '0=편중 · 1=고름');
 	// 부제는 위에서 약 45~62px 를 차지한다(범례가 48 이면 그 위에 겹쳤다).
