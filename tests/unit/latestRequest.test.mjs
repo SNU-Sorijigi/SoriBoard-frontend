@@ -111,3 +111,48 @@ test('a signal of a key nobody else begins is never aborted', () => {
 	requests.begin(['previousSummary']);
 	assert.equal(signal.aborted, false);
 });
+
+test('abortAll aborts every signal handed out and not yet aborted', () => {
+	const requests = createLatestRequests();
+	const full = requests.begin(CARDS);
+	const summary = requests.signal(full, ['summary']);
+	const diversity = requests.signal(full, ['diversity']);
+	const club = requests.begin(['clubSummary']);
+	const clubSignal = requests.signal(club, ['clubSummary']);
+	requests.abortAll();
+	assert.equal(summary.aborted, true);
+	assert.equal(diversity.aborted, true);
+	assert.equal(clubSignal.aborted, true);
+});
+
+test('after abortAll no earlier request is the latest for any key', () => {
+	const requests = createLatestRequests();
+	const full = requests.begin(CARDS);
+	const reload = requests.begin(['diversity']);
+	const club = requests.begin(['clubSummary']);
+	requests.abortAll();
+	for (const id of [full, reload, club]) {
+		for (const key of [...CARDS, 'clubSummary']) assert.equal(requests.isLatest(key, id), false);
+	}
+});
+
+test('a begin after abortAll returns a fresh latest id with a live signal', () => {
+	const requests = createLatestRequests();
+	const old = requests.begin(CARDS);
+	requests.abortAll();
+	const id = requests.begin(CARDS);
+	assert.notEqual(id, old);
+	for (const key of CARDS) assert.equal(requests.isLatest(key, id), true);
+	const signal = requests.signal(id, CARDS);
+	assert.equal(signal.aborted, false);
+	// A later view change still cancels it as before.
+	requests.begin(CARDS);
+	assert.equal(signal.aborted, true);
+});
+
+test('a signal asked for an old id after abortAll comes back aborted', () => {
+	const requests = createLatestRequests();
+	const id = requests.begin(['previousSummary']);
+	requests.abortAll();
+	assert.equal(requests.signal(id, ['previousSummary']).aborted, true);
+});

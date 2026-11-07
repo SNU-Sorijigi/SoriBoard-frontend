@@ -50,6 +50,13 @@ export function createLatestRequests() {
 			if (stale(id, keys)) controller.abort();
 			else pending.push({ id, keys, controller });
 			return controller.signal;
+		},
+		// 페이지를 떠날 때: 기다리던 요청을 모두 취소하고 최신 표시를 지운다. 그래서 어느 이전 id 도 최신이
+		// 아니고(isLatest 가 false, 취소된 요청의 catch 는 조용하다), 그 id 로 받는 signal 은 취소된 채로 온다.
+		abortAll() {
+			for (const entry of pending) entry.controller.abort();
+			pending = [];
+			latest.clear();
 		}
 	};
 }
