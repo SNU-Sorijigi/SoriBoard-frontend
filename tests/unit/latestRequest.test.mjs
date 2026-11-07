@@ -57,3 +57,57 @@ test('ids grow across calls and separate guards do not share state', () => {
 	assert.equal(b.isLatest('x', b1), true);
 	assert.equal(a.isLatest('x', a1), true);
 });
+
+test('a signal aborts only once none of its keys belongs to its request', () => {
+	const requests = createLatestRequests();
+	const id = requests.begin(['a', 'b']);
+	const signal = requests.signal(id, ['a', 'b']);
+	assert.equal(signal.aborted, false);
+	requests.begin(['a']);
+	// b is still served by id.
+	assert.equal(signal.aborted, false);
+	requests.begin(['b']);
+	assert.equal(signal.aborted, true);
+});
+
+test('a signal asked for a stale request comes back aborted', () => {
+	const requests = createLatestRequests();
+	const old = requests.begin(['a']);
+	requests.begin(['a']);
+	assert.equal(requests.signal(old, ['a']).aborted, true);
+});
+
+test('two signals of one request abort separately by their own keys', () => {
+	const requests = createLatestRequests();
+	const id = requests.begin(CARDS);
+	const summary = requests.signal(id, ['summary']);
+	const diversity = requests.signal(id, ['diversity']);
+	requests.begin(['diversity']);
+	assert.equal(summary.aborted, false);
+	assert.equal(diversity.aborted, true);
+});
+
+test('a diversity-only reload keeps the full load diversity request that still draws other cards', () => {
+	const requests = createLatestRequests();
+	const full = requests.begin(['summary', 'diversity', 'eras', 'genres']);
+	const shared = requests.signal(full, ['diversity', 'eras', 'genres']);
+	const reload = requests.begin(['diversity']);
+	const reloadSignal = requests.signal(reload, ['diversity']);
+	assert.equal(shared.aborted, false);
+	// Switching back again makes only the first reload stale.
+	requests.begin(['diversity']);
+	assert.equal(reloadSignal.aborted, true);
+	assert.equal(shared.aborted, false);
+	// A new full load ends both.
+	requests.begin(['summary', 'diversity', 'eras', 'genres']);
+	assert.equal(shared.aborted, true);
+});
+
+test('a signal of a key nobody else begins is never aborted', () => {
+	const requests = createLatestRequests();
+	const id = requests.begin(['clubSummary']);
+	const signal = requests.signal(id, ['clubSummary']);
+	requests.begin(['summary']);
+	requests.begin(['previousSummary']);
+	assert.equal(signal.aborted, false);
+});
