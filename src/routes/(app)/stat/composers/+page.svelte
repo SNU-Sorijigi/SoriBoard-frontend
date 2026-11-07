@@ -22,6 +22,8 @@
 		readSpellingKind,
 		catalogViewHref,
 		catalogPageTitle,
+		duplicatesSearch,
+		searchVariants,
 		DEFAULT_KIND
 	} from '$lib/catalogSpelling.js';
 	import SpellingVariants from '$lib/components/stat/SpellingVariants.svelte';
@@ -197,6 +199,44 @@
 	}
 
 	$: unknownText = unknownSummary(composers, Boolean(shownQ));
+
+	// 검색어와 표기만 다른 작곡가: 목록의 검색(composers/ 의 q, icontains)은 이름만 글자 그대로 찾으므로,
+	// 띄어쓰기·마침표·줄표만 다른 표기는 그 검색에 들지 않는다(searchVariants, 선곡 기록과 같다). 묶음
+	// (catalog/duplicates/, 전체 기간)은 첫 검색이 답한 뒤 이 페이지에서 한 번만 부르고, 못 받으면 줄을 두지 않는다.
+	// 줄은 개수 줄처럼 보이는 목록이 답한 검색어(shownQ)를 따른다.
+	/** @type {any} */
+	let duplicates = null;
+	let duplicatesAsked = false;
+	async function loadDuplicates() {
+		if (duplicatesAsked) return;
+		duplicatesAsked = true;
+		try {
+			const res = await fetch(`/api/catalog/duplicates${duplicatesSearch(DEFAULT_KIND)}`);
+			if (!res.ok) throw new Error(`catalog/duplicates ${res.status}`);
+			duplicates = await res.json();
+		} catch (e) {
+			console.error('표기만 다른 이름 로딩 실패', e);
+		}
+	}
+	$: if (shownQ && loaded) loadDuplicates();
+	const SEARCH_LINE_MAX = 5;
+	$: missed = shownQ && loaded && !error ? searchVariants(duplicates, shownQ) : [];
+	// 다섯 개까지, 가장 많이 튼 것부터. 링크는 그 표기로 검색한 작곡가 목록(그 줄을 바로 고칠 수 있다).
+	$: missedRows = missed.slice(0, SEARCH_LINE_MAX).map((row) => ({
+		...row,
+		plays: (row.count ?? 0).toLocaleString(),
+		href: catalogViewHref(row.name, null)
+	}));
+	$: missedMore = Math.max(missed.length - SEARCH_LINE_MAX, 0);
+
+	// '표기 정리'는 같은 검색어로 이 페이지의 표기 정리 보기를 연다. 새 검색을 부르는 중이면(q 가 이미
+	// 다르면) 링크대로 페이지를 새로 불러 줄이 말한 검색어로 연다. 새 탭으로 열기는 브라우저에 맡긴다.
+	/** @param {MouseEvent} e */
+	function openSpelling(e) {
+		if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || q !== shownQ) return;
+		e.preventDefault();
+		showView(DEFAULT_KIND);
+	}
 </script>
 
 <svelte:head>
@@ -261,6 +301,24 @@
 				{/if}
 			</p>
 		</div>
+		<!-- 이 페이지는 URL을 처음 한 번만 읽으므로 이름 링크는 페이지를 새로 불러온다(data-sveltekit-reload).
+		     이름은 띄어쓰기가 달라도 보이도록 그대로 둔다 -->
+		{#if missedRows.length}
+			<p class="variants-note">
+				검색어와 표기만 다른 작곡가: {#each missedRows as row, i (row.id)}{i ? ', ' : ''}‘<a
+						class="variant"
+						href={row.href}
+						data-sveltekit-reload>{row.name}</a
+					>’ 선곡 {row.plays}회{/each}{#if missedMore}&nbsp;외
+					{missedMore.toLocaleString()}개{/if}
+				(전체 기간). 이 검색에는 들지 않습니다. ·
+				<a
+					href={catalogViewHref(shownQ, DEFAULT_KIND)}
+					data-sveltekit-reload
+					on:click={openSpelling}>표기 정리</a
+				>
+			</p>
+		{/if}
 		<p class="status" aria-live="polite">{status}</p>
 
 		<section class="card" aria-label="작곡가 목록" tabindex="-1" bind:this={listCard}>
@@ -453,6 +511,7 @@
 	}
 	.hint,
 	.result-count,
+	.variants-note,
 	.status {
 		font-family: var(--small-medium-font-family, 'Noto Sans KR', sans-serif);
 		font-size: var(--small-medium-font-size, 13px);
@@ -477,6 +536,18 @@
 	.result-count {
 		min-height: 1.5em;
 		margin: 0;
+	}
+	/* 선곡 기록의 '검색어와 표기만 다른' 줄과 같은 모양 */
+	.variants-note {
+		margin: 8px 0 0;
+	}
+	.variants-note a {
+		color: var(--primary-primary-800, #6a5134);
+		text-underline-offset: 3px;
+	}
+	/* 띄어쓰기가 다른 표기도 그대로 보이도록(표기 정리, 선곡 기록과 같다) */
+	.variants-note .variant {
+		white-space: pre-wrap;
 	}
 	.status {
 		min-height: 1.5em;
