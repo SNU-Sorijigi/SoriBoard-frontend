@@ -11,6 +11,8 @@
 	import { todayStamp } from '$lib/csv.js';
 	import { downloadName, memberFileText } from '$lib/statFileName.js';
 	import { pageTitle, periodTitle } from '$lib/statTitle.js';
+	import { semesterRangeOf } from '$lib/statBucket.js';
+	import { ongoingText, upcomingText } from '$lib/semesterReport.js';
 	import {
 		EXPORT_PAGE_SIZE,
 		PLAY_CSV_HEADERS,
@@ -329,6 +331,11 @@
 		current,
 		semesters
 	));
+	// 고른 학기가 진행 중이면 '진행 중 · 2026-11-07까지', 시작 전이면 '시작 전 · 2027-03-01부터'
+	// (통계와 같다; current.end 는 페이지를 연 날). 이번 학기·전체 기간·직접 지정은 ''.
+	$: semesterRange = semesterRangeOf(period, semesters);
+	$: ongoing = ongoingText(semesterRange, current.end);
+	$: upcoming = upcomingText(semesterRange, current.end);
 	$: statLink = statHref({
 		period,
 		start: customStart,
@@ -369,6 +376,8 @@
 		<div class="title-group">
 			<h1>선곡 기록</h1>
 			<span class="period">{periodText}</span>
+			{#if ongoing}<span class="period">{ongoing}</span>{/if}
+			{#if upcoming}<span class="period">{upcoming}</span>{/if}
 			<a class="stat-link" href={statLink}>통계</a>
 			<!-- 작곡가 페이지의 '선곡 기록'이 이 목록을 연다(#38): 거꾸로 가는 링크 -->
 			{#if composerLink}
@@ -502,7 +511,7 @@
 		{:else if count === 0}
 			{#if period !== ALL}
 				<div class="placeholder">
-					이 기간에는 조건에 맞는 선곡이 없습니다
+					{upcoming ? '아직 시작하지 않은 학기입니다.' : '이 기간에는 조건에 맞는 선곡이 없습니다'}
 					<button
 						class="tool-btn"
 						on:click={widenPeriod}
