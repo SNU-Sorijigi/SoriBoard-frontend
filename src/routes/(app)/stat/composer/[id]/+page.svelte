@@ -1041,7 +1041,8 @@
 			<p class="kpi-note">{rankNote}</p>
 		{/if}
 		<!-- 표기만 다른 이름(표기 정리의 묶음): 그 선곡은 이 페이지에 들지 않으므로, 기간·지기와 상관없이 알린다.
-		     이름은 띄어쓰기가 달라도 보이도록 그대로 두고, 그 작곡가 페이지를 같은 기간·지기로 연다 -->
+		     이름은 띄어쓰기가 달라도 보이도록 그대로 두고, 그 작곡가 페이지를 같은 기간·지기로 연다.
+		     표기 정리는 이 작곡가 이름으로 찾아 열어, 전체 목록 대신 이 작곡가의 묶음부터 보인다 -->
 		{#if variants.length}
 			<p class="kpi-note variants-note">
 				표기만 다른 이름: {#each variants as row, i (row.id)}{i ? ', ' : ''}‘<a
@@ -1051,7 +1052,8 @@
 							works: firstWorksByCount
 						})}>{row.name}</a
 					>’ 선곡 {count(row.count)}회{/each} (전체 기간). 이 페이지의 수치에는 들지 않습니다. ·
-				<a class="page-link" href={catalogViewHref('', DEFAULT_KIND)}>표기 정리</a>
+				<a class="page-link" href={catalogViewHref(composer?.name ?? '', DEFAULT_KIND)}>표기 정리</a
+				>
 			</p>
 		{/if}
 
@@ -1140,8 +1142,10 @@
 							cellLinks={worksDateLinks}
 						/>
 						{#if worksSplit}
+							<!-- 곡 표기 정리도 이 작곡가 이름으로 찾는다(작곡가 칸이 맞아 이 작곡가의 곡 묶음만) -->
 							<div class="note">
-								{worksSplit}&nbsp;· <a href={catalogViewHref('', 'music')}>표기 정리</a>
+								{worksSplit}&nbsp;·
+								<a href={catalogViewHref(composer?.name ?? '', 'music')}>표기 정리</a>
 							</div>
 						{/if}
 					{/if}
