@@ -1,5 +1,5 @@
 <script>
-	import { onMount, tick } from 'svelte';
+	import { onDestroy, onMount, tick } from 'svelte';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import PeriodSelect from '$lib/components/stat/PeriodSelect.svelte';
@@ -95,33 +95,49 @@
 	// 가장 최근 요청의 응답만 반영한다. 필터를 바꾸면 진행 중인 '더 보기'의 응답도 버린다.
 	// 응답을 반영했으면(성공이든 실패든) true 를 돌려준다. limit 은 한 번에 받을 선곡 수.
 	let requestId = 0;
+	// 버리는 요청은 끊기도 한다(학기 결산과 같다): 새 load 는 이전 목록 요청을, 새 목록은 이전 클럽 수 요청도
+	// 끊는다. 끊기 전에 requestId 가 오르므로 끊긴 목록의 catch·finally 는 아무것도 하지 않는다.
+	let listAbort = new AbortController();
+	let clubAbort = new AbortController();
 
 	async function load(more = false, limit = PAGE_SIZE) {
 		const id = ++requestId;
+		listAbort.abort();
+		listAbort = new AbortController();
+		const { signal } = listAbort;
 		const wanted = filter();
 		loading = true;
 		replacing = !more;
-		// 새 목록은 진행 중인 '모두 보기'도 멈춘다(그 반복은 다음 응답에서 false 를 받고 끝난다).
+		// 새 목록은 진행 중인 '모두 보기'도 멈춘다(그 쪽 요청은 위에서 끊기고, 반복은 false 를 받고 끝난다).
 		if (!more) restLoading = false;
 		error = '';
 		// 지기를 골랐으면 같은 조건의 클럽 수도 함께 묻는다(새 목록만). 목록은 이 답을 기다리지 않고, 실패하면 몫을
 		// 쓰지 않는다. 목록보다 먼저 오면 목록과 함께, 늦게 오면 그 목록이 아직 보일 때만 쓴다.
+		// '더 보기'·'모두 보기'는 이 요청을 끊지 않는다(보이는 목록의 몫이다). 끊긴 요청은 아무것도 바꾸지
+		// 않는다: 흐리게 남은 옛 목록의 몫 줄을 지우지 않는다.
+		if (!more) {
+			clubAbort.abort();
+			clubAbort = new AbortController();
+		}
+		const clubSignal = clubAbort.signal;
 		const clubQuery = more ? null : clubPlaysParams(wanted, current);
 		/** @type {number | null | undefined} undefined: 아직 답이 없다 */
 		let club = clubQuery ? undefined : null;
 		if (clubQuery) {
-			fetch(`/api/plays?${clubQuery}`)
+			fetch(`/api/plays?${clubQuery}`, { signal: clubSignal })
 				.then((res) => (res.ok ? res.json() : null))
 				.then((result) => (typeof result?.count === 'number' ? result.count : null))
 				.catch(() => null)
 				.then((answer) => {
+					if (clubSignal.aborted) return;
 					club = answer;
 					if (shownList === id) clubCount = answer;
 				});
 		}
 		try {
 			const res = await fetch(
-				`/api/plays?${playsParams(wanted, current, more ? offset : 0, limit)}`
+				`/api/plays?${playsParams(wanted, current, more ? offset : 0, limit)}`,
+				{ signal }
 			);
 			if (!res.ok) throw new Error(`plays ${res.status}`);
 			const result = await res.json();
@@ -313,6 +329,14 @@
 		load();
 		targets.forEach(loadTargetName);
 		new Set(targets.map((t) => spellingKindOf(t.param)).filter(Boolean)).forEach(loadDuplicates);
+	});
+	// 선곡 기록을 떠나면(작곡가·통계·학기 결산 링크) 아직 기다리던 목록·클럽 수 요청을 끊어 다음 화면의 요청이
+	// 먼저 가게 한다. requestId 를 올려 두므로 끊긴 요청의 catch 는 아무것도 적지 않고, '모두 보기'도 멈춘다.
+	onDestroy(() => {
+		++requestId;
+		++restRun;
+		listAbort.abort();
+		clubAbort.abort();
 	});
 
 	function onSearch() {
