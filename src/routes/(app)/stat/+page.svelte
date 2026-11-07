@@ -24,7 +24,8 @@
 		readFirstsByCount,
 		writeFirstsByCount,
 		firstsByCountHref,
-		readLinkedCard
+		readLinkedCard,
+		cardHref
 	} from '$lib/statQuery.js';
 	import { createLatestRequests } from '$lib/latestRequest.js';
 	import {
@@ -89,6 +90,7 @@
 		evennessChangeText,
 		mixTable,
 		rankChangeTable,
+		previousRankHrefs,
 		rankNotes,
 		chartTieNote,
 		firstIdSet,
@@ -781,6 +783,36 @@
 		orchestras && rankChangeTable(orchestras, previousRanks.orchestras, '오케스트라', WORKS_LIMIT);
 	$: worksTable =
 		works && rankChangeTable(works, previousRanks.works, '곡', WORKS_LIMIT, firstIdSet(firstWorks));
+	// 많이 튼 표의 지난 학기 칸('23위')은 그 순위를 센 앞 학기(previousTarget)를 같은 보기(범위·지기·견습,
+	// 처음 튼 '많이 튼 순')와 모든 차트 표로 보기로 연다. previousTarget 은 $: 가 부르는 loadPreviousSummary 가
+	// 바꾸므로, 순위(previousRanks)가 올 때 다시 만든다.
+	$: previousLink =
+		previousRanks && previousTarget && !(scope === 'individual' && !userId)
+			? {
+					href: statQueryHref(
+						new URL(
+							firstsByCountHref(
+								tableViewHref(`/stat?semester_id=${previousTarget.id}`, true),
+								firstsByCount
+							),
+							'http://localhost'
+						),
+						{ scope, userId, includeMentees }
+					),
+					label: semesterLabel(previousTarget)
+				}
+			: null;
+	// 순위인 칸만 같은 카드의 표(#composers)로 가는 링크다(없음·100위 밖·첫 선곡은 글자). 같은 페이지라 새로 불러온다.
+	const previousCellLinks = (table, key, title, link) =>
+		table && link
+			? {
+					[table.columns.length - 1]: {
+						hrefs: previousRankHrefs(table, cardHref(link.href, key)),
+						title: `지난 학기(${link.label})의 ${title} 표 보기`,
+						reload: true
+					}
+				}
+			: {};
 
 	// 다양성: 버킷 라벨, 선곡 수 막대, 다양성(고른정도) 추이.
 	$: bucketLabel = diversityBucket === 'week' ? '주별' : '월별';
@@ -1214,6 +1246,7 @@
 				on:itemclick={(e) => openBar('composers', e)}
 				on:rowselect={(e) => openDrill('composers', e.detail)}
 				table={composerTable}
+				cellLinks={previousCellLinks(composerTable, 'composers', '많이 튼 작곡가', previousLink)}
 				csv={composerTable && tableCsv(composerTable)}
 				csvHeaders={['작곡가', '횟수']}
 			/>
@@ -1237,6 +1270,7 @@
 				on:itemclick={(e) => openBar('soloists', e)}
 				on:rowselect={(e) => openDrill('soloists', e.detail)}
 				table={soloistTable}
+				cellLinks={previousCellLinks(soloistTable, 'soloists', '많이 튼 독주자', previousLink)}
 				csv={soloistTable && tableCsv(soloistTable)}
 				csvHeaders={['연주자', '횟수']}
 			/>
@@ -1263,6 +1297,7 @@
 				on:itemclick={(e) => openBar('conductors', e)}
 				on:rowselect={(e) => openDrill('conductors', e.detail)}
 				table={conductorTable}
+				cellLinks={previousCellLinks(conductorTable, 'conductors', '많이 튼 지휘자', previousLink)}
 				csv={conductorTable && tableCsv(conductorTable)}
 				csvHeaders={['지휘자', '횟수']}
 			/>
@@ -1289,6 +1324,12 @@
 				on:itemclick={(e) => openBar('orchestras', e)}
 				on:rowselect={(e) => openDrill('orchestras', e.detail)}
 				table={orchestraTable}
+				cellLinks={previousCellLinks(
+					orchestraTable,
+					'orchestras',
+					'많이 튼 오케스트라',
+					previousLink
+				)}
 				csv={orchestraTable && tableCsv(orchestraTable)}
 				csvHeaders={['오케스트라', '횟수']}
 			/>
@@ -1352,6 +1393,7 @@
 				links={worksLinks}
 				on:itemclick={openWork}
 				table={worksTable}
+				cellLinks={previousCellLinks(worksTable, 'works', '많이 튼 곡', previousLink)}
 				csv={worksTable && tableCsv(worksTable)}
 				csvHeaders={['곡', '횟수']}
 			/>

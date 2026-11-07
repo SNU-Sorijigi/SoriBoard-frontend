@@ -22,6 +22,8 @@
 	export let rowLabel = ''; // 주면 표의 이름 칸이 단추가 된다(예: '곡 보기', DataTable 의 rowselect).
 	/** @type {(string | null)[]} */
 	export let links = []; // 주면 표의 이름 칸이 그 주소로 가는 링크가 된다(행마다, DataTable 의 links).
+	/** @type {Record<number, { hrefs: (string | null)[], title: string, reload?: boolean }>} */
+	export let cellLinks = {}; // 주면 표의 이름이 아닌 칸도 링크가 된다(DataTable 의 cellLinks).
 	/** @type {string | string[]} */
 	export let fileTag = ''; // 내려받는 파일 이름에서 제목 뒤에 붙는 보기(기간, 지기 등, statFileName.js)
 	/** @type {(() => void) | null} */
@@ -138,6 +140,7 @@
 					subtitle={option?.title?.subtext ?? ''}
 					{rowLabel}
 					{links}
+					{cellLinks}
 					selectedRow={markedRow}
 					on:rowselect
 				/>

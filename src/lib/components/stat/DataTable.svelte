@@ -17,7 +17,8 @@
 	/** @type {(string | null)[]} */
 	export let links = [];
 	// 주면 이름이 아닌 칸도 링크가 된다: 열의 위치 → { hrefs: 행마다 주소(없는 행은 글자 그대로), title }.
-	/** @type {Record<number, { hrefs: (string | null)[], title: string }>} */
+	// reload 면 페이지를 새로 불러온다(같은 페이지의 다른 보기, 통계는 URL을 처음에만 읽는다).
+	/** @type {Record<number, { hrefs: (string | null)[], title: string, reload?: boolean }>} */
 	export let cellLinks = {};
 	// 이름 단추(rowLabel)가 있는 표에서 고른 행(열린 drill-down 패널의 대상): 배경·굵은 이름, aria-current.
 	export let selectedRow = -1;
@@ -69,8 +70,11 @@
 								<th scope="row" class:numeric={table.columns[i].numeric}>{cell}</th>
 							{:else if cellLinks[i]?.hrefs[r]}
 								<td class:numeric={table.columns[i].numeric}>
-									<a class="row-link" href={cellLinks[i].hrefs[r]} title={cellLinks[i].title}
-										>{cell}</a
+									<a
+										class="row-link"
+										href={cellLinks[i].hrefs[r]}
+										title={cellLinks[i].title}
+										data-sveltekit-reload={cellLinks[i].reload || undefined}>{cell}</a
 									>
 								</td>
 							{:else}
