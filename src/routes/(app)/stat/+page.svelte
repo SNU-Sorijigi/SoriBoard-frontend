@@ -188,8 +188,10 @@
 		return s ? `?${s}` : '';
 	}
 
-	async function getJson(endpoint, extra, withMember = true) {
-		const res = await fetch(`/api/stats/${endpoint}${buildQuery(extra, withMember)}`);
+	// signal: 그 요청이 더는 어느 카드의 최신도 아니면 취소된다(latestRequest.js). 취소되면 fetch 가 실패하지만,
+	// 그때는 isLatest 가 거짓이라 아무것도 알리지 않는다.
+	async function getJson(endpoint, extra, withMember = true, signal = undefined) {
+		const res = await fetch(`/api/stats/${endpoint}${buildQuery(extra, withMember)}`, { signal });
 		if (!res.ok) throw new Error(`${endpoint} 실패`);
 		return res.json();
 	}
@@ -200,17 +202,18 @@
 	// 카드는 따로 불러오고, 실패하면 그 카드에만 오류를 띄운다. 요청 하나가 여러 카드를 그릴 수 있다:
 	// 시대·장르별 분포와 선곡 다양성의 칸은 따로 부르지 않고 다양성 응답으로 그린다(statCards.js).
 	const cardRequests = {
-		summary: () => getJson('summary'),
-		composers: () => getJson('composers', { limit: WORKS_LIMIT }),
-		soloists: () => getJson('soloists', { limit: WORKS_LIMIT }),
-		conductors: () => getJson('conductors', { limit: WORKS_LIMIT }),
-		orchestras: () => getJson('orchestras', { limit: WORKS_LIMIT }),
-		timeline: () => getJson('timeline', { bucket: timelineBucket }),
-		diversity: () => getJson('diversity', { bucket: diversityBucket }),
-		works: () => getJson('works', { limit: WORKS_LIMIT }),
+		summary: (signal) => getJson('summary', {}, true, signal),
+		composers: (signal) => getJson('composers', { limit: WORKS_LIMIT }, true, signal),
+		soloists: (signal) => getJson('soloists', { limit: WORKS_LIMIT }, true, signal),
+		conductors: (signal) => getJson('conductors', { limit: WORKS_LIMIT }, true, signal),
+		orchestras: (signal) => getJson('orchestras', { limit: WORKS_LIMIT }, true, signal),
+		timeline: (signal) => getJson('timeline', { bucket: timelineBucket }, true, signal),
+		diversity: (signal) => getJson('diversity', { bucket: diversityBucket }, true, signal),
+		works: (signal) => getJson('works', { limit: WORKS_LIMIT }, true, signal),
 		// 시작이 없는 기간이면 firsts 는 지금까지 튼 모든 것을 주므로 부르지 않는다(null, statFirsts.js).
-		firstComposers: () => (hasFirsts() ? getJson('firsts', { kind: 'composer' }) : null),
-		firstWorks: () => (hasFirsts() ? getJson('firsts', { kind: 'work' }) : null)
+		firstComposers: (signal) =>
+			hasFirsts() ? getJson('firsts', { kind: 'composer' }, true, signal) : null,
+		firstWorks: (signal) => (hasFirsts() ? getJson('firsts', { kind: 'work' }, true, signal) : null)
 	};
 	const hasFirsts = () =>
 		hasPeriodStart({ period, start: period === CUSTOM ? customStart : startDate });
@@ -264,8 +267,10 @@
 				// 주별/월별로 다양성만 다시 부르면 시대·장르 카드는 덮이지 않으므로, 진행 중인 전체 로드의
 				// 다양성 응답이 그 카드들을 채운다(summary 는 버킷과 무관하다).
 				const latest = () => cards.filter((key) => requests.isLatest(key, id));
+				// 이 요청이 그리는 카드가 모두 더 새 요청으로 넘어가면 취소된다(await 앞에서 받는다).
+				const signal = requests.signal(id, cards);
 				try {
-					const result = await cardRequests[request]();
+					const result = await cardRequests[request](signal);
 					// 부르지 않은 카드(null)는 비운 채로 둔다.
 					if (result == null) return;
 					for (const key of latest()) {
@@ -392,7 +397,8 @@
 			const result = await getJson(
 				path,
 				{ ...extra, semester_id: String(previousTarget.id) },
-				withMember
+				withMember,
+				requests.signal(id, ['previousSummary'])
 			);
 			if (requests.isLatest('previousSummary', id)) apply(result);
 		} catch (e) {
@@ -432,7 +438,7 @@
 		clubSummary = null;
 		if (scope !== 'individual' || !userId) return;
 		try {
-			const result = await getJson('summary', {}, false);
+			const result = await getJson('summary', {}, false, requests.signal(id, ['clubSummary']));
 			if (requests.isLatest('clubSummary', id)) clubSummary = result;
 		} catch (e) {
 			if (requests.isLatest('clubSummary', id)) console.error('통계 로딩 실패 (클럽 요약)', e);
@@ -520,10 +526,12 @@
 		if (!drill || !previous || (scope === 'individual' && !userId)) return;
 		try {
 			// buildQuery 는 extra 를 마지막에 넣으므로 기간의 semester_id 만 바뀌고 지기는 그대로다.
-			const result = await getJson('works', {
-				...drillParams(drill),
-				semester_id: String(previous.id)
-			});
+			const result = await getJson(
+				'works',
+				{ ...drillParams(drill), semester_id: String(previous.id) },
+				true,
+				requests.signal(id, ['previousDrill'])
+			);
 			if (requests.isLatest('previousDrill', id)) previousDrillWorks = result;
 		} catch (e) {
 			if (requests.isLatest('previousDrill', id)) {
@@ -544,7 +552,12 @@
 		drillLoading = true;
 		drillError = '';
 		try {
-			const result = await getJson('works', drillParams(drill));
+			const result = await getJson(
+				'works',
+				drillParams(drill),
+				true,
+				requests.signal(id, ['drill'])
+			);
 			if (requests.isLatest('drill', id)) {
 				drillWorks = result;
 				if (result.items.length >= WORKS_LIMIT) loadDrillTotal(drill, id);
@@ -561,7 +574,12 @@
 	async function loadDrillTotal(target, id) {
 		try {
 			// buildQuery 가 기간·지기를 works 요청과 같게 넣는다.
-			const result = await getJson('summary', { [target.param]: String(target.id) });
+			const result = await getJson(
+				'summary',
+				{ [target.param]: String(target.id) },
+				true,
+				requests.signal(id, ['drillTotal'])
+			);
 			if (requests.isLatest('drillTotal', id)) drillTotal = result.works;
 		} catch (e) {
 			if (requests.isLatest('drillTotal', id)) console.error('통계 로딩 실패 (drill summary)', e);
