@@ -29,7 +29,8 @@
 		targetName,
 		targetText,
 		historyFileTags,
-		historyPeriod
+		historyPeriod,
+		partialPrintText
 	} from '$lib/playHistory.js';
 	import {
 		SPELLING_KINDS,
@@ -420,6 +421,8 @@
 			includeMentees
 		});
 	$: hasMore = count !== null && offset < count;
+	// 인쇄본에만: 불러온 행만 실린다는 말('n / N'과 더 보기·모두 보기가 보일 때와 같은 조건).
+	$: printNote = hasMore ? partialPrintText(rows.length, count) : '';
 	// 탭 제목: id 필터(이름을 찾기 전에는 '작곡가 #12'), 지기, 기간(이번 학기는 빼고).
 	// 검색어와 신청곡은 넣지 않는다: '가상 작곡가 D · 전체 기간 · 선곡 기록'.
 	$: tabTitle = pageTitle(
@@ -551,6 +554,8 @@
 			</button>
 		</div>
 	</div>
+	<!-- 인쇄본에만 보인다: 개수 줄의 '총 N곡'을 종이에서 '이 인쇄본에 N곡'으로 읽지 않도록 -->
+	{#if printNote}<p class="print-note">{printNote}</p>{/if}
 
 	<section
 		class="card"
@@ -666,13 +671,19 @@
 	.period,
 	.result-count,
 	.more-count,
-	.variants-note {
+	.variants-note,
+	.print-note {
 		font-family: var(--small-medium-font-family, 'Noto Sans KR', sans-serif);
 		font-size: var(--small-medium-font-size, 13px);
 		color: var(--gray-gray-600, #7c7c7c);
 	}
 	.variants-note {
 		margin: 16px 0 -8px;
+	}
+	/* 화면에서는 '더 보기' 옆의 'n / N'이 말하므로 인쇄에만 보인다(@media print) */
+	.print-note {
+		display: none;
+		margin: -4px 0 8px;
 	}
 	.stat-link,
 	.variants-note a {
@@ -828,6 +839,9 @@
 		}
 		.card {
 			box-shadow: none;
+		}
+		.history-page :global(.print-note) {
+			display: block !important;
 		}
 		/* 검색어는 개수 줄에 남는다. 버튼은 모두 뺀다: .toolbar 의 것(해제, 기간·지기 고르기 안의 적용·다시 시도,
 		   나중에 툴바에 더할 버튼도)까지 */
