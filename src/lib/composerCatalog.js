@@ -85,6 +85,11 @@ export function catalogEraHref(href, era) {
 	return query ? `${path}?${query}` : path;
 }
 
+// 통계 시대별 분포 표의 행마다 그 시대의 작곡가 정리 주소(?era=바로크). ERAS 밖의 이름은 null(글자 그대로).
+/** @param {string[]} labels */
+export const eraCatalogLinks = (labels) =>
+	labels.map((label) => (ERAS.includes(label) ? catalogEraHref('/stat/composers', label) : null));
+
 // 시대 고르기의 항목: ERAS 순서로 시대마다 받은 목록의 작곡가 수(0명도 둔다).
 /** @param {CatalogComposer[]} composers */
 export const eraOptions = (composers) =>

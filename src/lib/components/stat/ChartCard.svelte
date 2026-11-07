@@ -22,6 +22,7 @@
 	export let rowLabel = ''; // 주면 표의 이름 칸이 단추가 된다(예: '곡 보기', DataTable 의 rowselect).
 	/** @type {(string | null)[]} */
 	export let links = []; // 주면 표의 이름 칸이 그 주소로 가는 링크가 된다(행마다, DataTable 의 links).
+	export let linkTitle = ''; // 그 링크의 title(DataTable 의 linkTitle)
 	/** @type {Record<number, { hrefs: (string | null)[], title: string, reload?: boolean }>} */
 	export let cellLinks = {}; // 주면 표의 이름이 아닌 칸도 링크가 된다(DataTable 의 cellLinks).
 	/** @type {string | string[]} */
@@ -140,6 +141,7 @@
 					subtitle={option?.title?.subtext ?? ''}
 					{rowLabel}
 					{links}
+					{linkTitle}
 					{cellLinks}
 					selectedRow={markedRow}
 					on:rowselect

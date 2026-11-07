@@ -5,6 +5,7 @@ import {
 	readCatalogQuery,
 	readCatalogEra,
 	catalogEraHref,
+	eraCatalogLinks,
 	eraOptions,
 	filterEra,
 	eraLabel,
@@ -228,6 +229,19 @@ test('the 시대 is added to, replaced in or removed from the href, other parame
 	assert.equal(catalogEraHref('/stat/composers?era=고전', ''), '/stat/composers');
 	assert.equal(catalogEraHref('/stat/composers?q=a&era=고전', '20세기'), '/stat/composers?q=a');
 	assert.equal(catalogEraHref('/stat/composers', ''), '/stat/composers');
+});
+
+test('통계 시대별 분포 rows link to 작곡가 정리 at their 시대; a label outside ERAS stays text', () => {
+	assert.deepEqual(eraCatalogLinks(['바로크', '미상', '20세기']), [
+		'/stat/composers?era=%EB%B0%94%EB%A1%9C%ED%81%AC',
+		'/stat/composers?era=%EB%AF%B8%EC%83%81',
+		null
+	]);
+	assert.deepEqual(
+		eraCatalogLinks(ERAS),
+		ERAS.map((era) => catalogEraHref('/stat/composers', era))
+	);
+	assert.deepEqual(eraCatalogLinks([]), []);
 });
 
 const eraList = () => [

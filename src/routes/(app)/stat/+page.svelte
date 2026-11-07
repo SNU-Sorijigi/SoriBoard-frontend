@@ -120,7 +120,7 @@
 		FIRST_SPELLING_LEAD,
 		FIRST_MUSIC_LEAD
 	} from '$lib/catalogSpelling.js';
-	import { catalogEraHref, UNKNOWN_ERA } from '$lib/composerCatalog.js';
+	import { catalogEraHref, eraCatalogLinks, UNKNOWN_ERA } from '$lib/composerCatalog.js';
 
 	// 시대 미상 경고의 '작곡가 정리' 링크: 시대 미상 작곡가만 골라 연다(머리의 링크는 모든 시대).
 	const unknownEraHref = catalogEraHref('/stat/composers', UNKNOWN_ERA);
@@ -843,6 +843,8 @@
 	// 표로 보기와 CSV 저장은 같은 표다(앞 학기가 있으면 지난 학기·변화 열까지, 학기 결산과 같다).
 	$: eraTable =
 		eras && (previousEras ? mixTable(eras, previousEras, '시대') : shareTable(eras, '시대'));
+	// 표로 보기의 시대 이름은 작곡가 정리의 그 시대로 간다(지난 학기에만 있는 행도).
+	$: eraLinks = eraTable ? eraCatalogLinks(eraTable.rows.map((row) => row[0])) : [];
 	$: genreTable =
 		genres &&
 		(previousGenres ? mixTable(genres, previousGenres, '장르') : shareTable(genres, '장르'));
@@ -1453,6 +1455,8 @@
 				note={eraNote}
 				noteLink={{ href: unknownEraHref, text: '작곡가 정리' }}
 				table={eraTable}
+				links={eraLinks}
+				linkTitle="작곡가 정리에서 이 시대의 작곡가 보기 (모든 기간)"
 				csv={eraTable && tableCsv(eraTable)}
 				csvHeaders={['시대', '횟수']}
 			/>
