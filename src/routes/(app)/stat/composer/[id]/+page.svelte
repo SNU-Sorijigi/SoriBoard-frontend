@@ -124,14 +124,15 @@
 	const current = currentSemesterRange();
 
 	// withMember 가 false 면 지기를 빼고 같은 기간 클럽 전체를 묻는다(KPI 칸의 클럽 몫, 통계와 같다).
-	const getJson = async (endpoint, id, extra = {}, withMember = true) => {
+	// signal 은 그 요청이 속한 보기의 것이다(cardAbort·previousAbort): 보기가 바뀌면 끊긴다.
+	const getJson = async (endpoint, id, extra = {}, withMember = true, signal) => {
 		const params = new URLSearchParams({
 			composer_id: id,
 			...composerPeriodParams({ period, start: customStart, end: customEnd }, current),
 			...(withMember ? composerMemberParams({ userId, includeMentees }) : {}),
 			...extra
 		});
-		const res = await fetch(`/api/stats/${endpoint}?${params}`);
+		const res = await fetch(`/api/stats/${endpoint}?${params}`, { signal });
 		if (!res.ok) throw new Error(`${endpoint} ${res.status}`);
 		return res.json();
 	};
@@ -144,14 +145,16 @@
 	// 100)까지 부르고, 앞 학기도 그만큼 불러 표의 지난 학기 칸에 상위 100 안의 순위를 그대로 적는다('23위', 통계와 같다).
 	const LIMITS = { soloists: 10, conductors: 10, orchestras: 10 };
 	const cardRequests = {
-		summary: (id) => getJson('summary', id),
-		timeline: (id) => getJson('timeline', id, { bucket: timelineBucket }),
-		works: (id) => getJson('works', id, { limit: String(WORKS_LIMIT) }),
-		soloists: (id) => getJson('soloists', id, { limit: String(WORKS_LIMIT) }),
-		conductors: (id) => getJson('conductors', id, { limit: String(WORKS_LIMIT) }),
-		orchestras: (id) => getJson('orchestras', id, { limit: String(WORKS_LIMIT) }),
-		genres: (id) => getJson('genres', id),
-		firstWorks: (id) => getJson('firsts', id, { kind: 'work' })
+		summary: (id, signal) => getJson('summary', id, {}, true, signal),
+		timeline: (id, signal) => getJson('timeline', id, { bucket: timelineBucket }, true, signal),
+		works: (id, signal) => getJson('works', id, { limit: String(WORKS_LIMIT) }, true, signal),
+		soloists: (id, signal) => getJson('soloists', id, { limit: String(WORKS_LIMIT) }, true, signal),
+		conductors: (id, signal) =>
+			getJson('conductors', id, { limit: String(WORKS_LIMIT) }, true, signal),
+		orchestras: (id, signal) =>
+			getJson('orchestras', id, { limit: String(WORKS_LIMIT) }, true, signal),
+		genres: (id, signal) => getJson('genres', id, {}, true, signal),
+		firstWorks: (id, signal) => getJson('firsts', id, { kind: 'work' }, true, signal)
 	};
 	const CARD_KEYS = Object.keys(cardRequests);
 	// 처음 튼 곡(stats/firsts)은 기간의 시작이 있을 때만 묻는다. 없으면 모든 곡이 '처음'이다(statFirsts.js).
@@ -175,6 +178,10 @@
 	// 다른 작곡가나 기간으로 옮겨 가면 이전의 늦은 응답은 버린다.
 	let generation = 0;
 	let cardGeneration = 0;
+	// 기간·지기가 바뀌면(cardGeneration 이 오르면) 이전 보기의 요청도 끊는다. 아직 브라우저에서 기다리던
+	// 요청은 서버에 가지 않는다. 끊긴 요청의 catch 는 세대가 지난 것이라 아무것도 하지 않는다.
+	// '다시 시도'는 세대를 그대로 두므로 지금의 signal 을 쓰고, 아무것도 끊지 않는다.
+	let cardAbort = new AbortController();
 
 	async function loadComposer(id, gen) {
 		try {
@@ -195,7 +202,7 @@
 	}
 
 	function loadCard(key, id, gen) {
-		cardRequests[key](id)
+		cardRequests[key](id, cardAbort.signal)
 			.then((result) => {
 				if (gen !== cardGeneration) return;
 				data[key] = result;
@@ -217,7 +224,9 @@
 	let wholeError = false;
 	async function loadWhole(id, gen) {
 		try {
-			const res = await fetch(`/api/stats/summary?composer_id=${id}`);
+			const res = await fetch(`/api/stats/summary?composer_id=${id}`, {
+				signal: cardAbort.signal
+			});
 			if (!res.ok) throw new Error(`summary ${res.status}`);
 			const result = await res.json();
 			if (gen === cardGeneration) wholeSummary = result;
@@ -238,7 +247,7 @@
 				...composerMemberParams({ userId, includeMentees }),
 				limit: String(RANK_LIMIT)
 			});
-			const res = await fetch(`/api/stats/composers?${params}`);
+			const res = await fetch(`/api/stats/composers?${params}`, { signal: cardAbort.signal });
 			if (!res.ok) throw new Error(`composers ${res.status}`);
 			const result = await res.json();
 			if (gen === cardGeneration) rank = result;
@@ -252,7 +261,7 @@
 	let clubSummary = null;
 	async function loadClubSummary(id, gen) {
 		try {
-			const result = await getJson('summary', id, {}, false);
+			const result = await getJson('summary', id, {}, false, cardAbort.signal);
 			if (gen === cardGeneration) clubSummary = result;
 		} catch (e) {
 			if (gen === cardGeneration) console.error('작곡가 통계 로딩 실패 (클럽 요약)', e);
@@ -272,6 +281,8 @@
 	function loadCards() {
 		const id = readComposerId($page.params.id);
 		const gen = ++cardGeneration;
+		cardAbort.abort();
+		cardAbort = new AbortController();
 		data = {};
 		errors = {};
 		appliedFilters = null;
@@ -441,6 +452,7 @@
 	let previousTarget = null; // 마지막으로 부른 앞 학기
 	let previousComposerId = null; // 그때의 작곡가(다시 시도도 같은 작곡가로 부른다)
 	let previousGeneration = 0; // 이전 보기의 늦은 응답은 버린다.
+	let previousAbort = new AbortController(); // 이전 보기의 요청은 끊는다(cardAbort 와 같다).
 	/** @type {string[]} 실패한 앞 학기 요청(엔드포인트). KPI 칸 아래에 다시 시도와 함께 알린다. */
 	let previousFailed = [];
 	// 이번 학기는 id 가 아닌 날짜 범위라, 그 시작일의 학기보다 앞선 가장 최근 학기와 견준다(statBucket.js).
@@ -479,6 +491,7 @@
 	};
 	async function askPrevious(endpoint) {
 		const gen = previousGeneration;
+		const { signal } = previousAbort;
 		// 기록이 endpoint 를 밝히면 그것을 부른다(처음 튼 곡은 firsts). 실패 목록에는 기록의 키를 둔다.
 		const {
 			apply,
@@ -492,7 +505,8 @@
 				path,
 				previousComposerId,
 				{ ...extra, semester_id: String(previousTarget.id) },
-				withMember
+				withMember,
+				signal
 			);
 			if (gen === previousGeneration) apply(result);
 		} catch (e) {
@@ -512,7 +526,9 @@
 				semester_id: String(previousTarget.id),
 				limit: String(RANK_LIMIT)
 			});
-			const res = await fetch(`/api/stats/composers?${params}`);
+			const res = await fetch(`/api/stats/composers?${params}`, {
+				signal: previousAbort.signal
+			});
 			if (!res.ok) throw new Error(`composers ${res.status}`);
 			const result = await res.json();
 			if (gen === previousGeneration) previousRank = result;
@@ -523,6 +539,8 @@
 	async function loadPreviousSummary() {
 		const id = readComposerId($page.params.id);
 		++previousGeneration;
+		previousAbort.abort();
+		previousAbort = new AbortController();
 		const previous = previousOf(period, semesters);
 		previousAsked = previous?.id ?? null;
 		previousTarget = previous;
