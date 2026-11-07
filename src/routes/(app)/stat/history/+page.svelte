@@ -32,10 +32,13 @@
 		historyPeriod
 	} from '$lib/playHistory.js';
 	import {
+		SPELLING_KINDS,
 		catalogViewHref,
 		duplicatesSearch,
 		spellingKindOf,
 		spellingVariants,
+		searchVariants,
+		searchCatalogName,
 		variantHistoryHref
 	} from '$lib/catalogSpelling.js';
 
@@ -208,12 +211,15 @@
 		}
 	}
 
-	// 표기 정리의 묶음(catalog/duplicates/, 전체 기간·전체 지기): id 필터의 종류마다 한 번만 부른다.
-	// 필터는 해제로 줄기만 하므로 다시 부르지 않는다. 못 받으면 줄을 두지 않는다.
+	// 표기 정리의 묶음(catalog/duplicates/, 전체 기간·전체 지기): id 필터와 검색이 쓰는 종류마다 이 페이지에서
+	// 한 번만 부른다(부르는 중에도 다시 부르지 않는다). 못 받으면 그 종류의 줄을 두지 않는다.
 	/** @type {Record<string, any>} */
 	let duplicates = {};
+	const askedKinds = new Set();
 	/** @param {string} kind */
 	async function loadDuplicates(kind) {
+		if (askedKinds.has(kind)) return;
+		askedKinds.add(kind);
 		try {
 			const res = await fetch(`/api/catalog/duplicates${duplicatesSearch(kind)}`);
 			if (!res.ok) throw new Error(`catalog/duplicates ${res.status}`);
@@ -250,6 +256,30 @@
 			};
 		})
 		.filter((line) => line.rows.length);
+
+	// 검색어와 표기만 다른 이름: 보이는 목록이 답한 검색어(shownQ)가 글자 그대로 들지 않아 그 검색이 놓칠 수
+	// 있는 표기(searchVariants). 이름 종류(곡은 작품 번호로 묶으므로 뺀다)마다 한 줄, 다섯 개까지. 첫 검색에
+	// 네 종류를 부른다. 링크는 그 표기를 검색어로 한 같은 목록(기간·지기·신청곡·id 필터 그대로).
+	const SEARCH_KINDS = SPELLING_KINDS.filter((spec) => spec.kind !== 'music');
+	const SEARCH_LINE_MAX = 5;
+	$: if (shownQ) SEARCH_KINDS.forEach((spec) => loadDuplicates(spec.kind));
+	$: searchLines =
+		shownQ && count !== null
+			? SEARCH_KINDS.map((spec) => {
+					const rows = searchVariants(duplicates[spec.kind], shownQ);
+					return {
+						kind: spec.kind,
+						label: spec.label,
+						rows: rows.slice(0, SEARCH_LINE_MAX).map((row) => ({
+							...row,
+							plays: (row.count ?? 0).toLocaleString(),
+							href: historyHref({ ...variantView, q: row.name })
+						})),
+						more: Math.max(rows.length - SEARCH_LINE_MAX, 0),
+						catalog: catalogViewHref(searchCatalogName(duplicates[spec.kind], shownQ), spec.kind)
+					};
+				}).filter((line) => line.rows.length)
+			: [];
 
 	onMount(() => {
 		load();
@@ -477,6 +507,20 @@
 					: ''}‘<a class="variant" href={row.href} data-sveltekit-reload>{row.name}</a>’ 선곡 {row.plays}회{/each}
 			(전체 기간). 이 목록에는 들지 않습니다. ·
 			<a href={catalogViewHref('', line.kind)}>표기 정리</a>
+		</p>
+	{/each}
+	<!-- 검색어와 표기만 다른 이름: 검색은 글자 그대로 찾으므로(icontains) 띄어쓰기·마침표·줄표만 다른 표기는
+	     놓칠 수 있다. 다른 칸(세부 제목 등)으로는 찾을 수 있어 '수 있습니다'라고만 하고, 링크는 그 표기로 검색한다 -->
+	{#each searchLines as line (line.kind)}
+		<p class="variants-note">
+			검색어와 표기만 다른 {line.label}: {#each line.rows as row, i (row.id)}{i ? ', ' : ''}‘<a
+					class="variant"
+					href={row.href}
+					data-sveltekit-reload>{row.name}</a
+				>’ 선곡 {row.plays}회{/each}{#if line.more}&nbsp;외
+				{line.more.toLocaleString()}개{/if}
+			(전체 기간). 이 검색에는 들지 않을 수 있습니다. ·
+			<a href={line.catalog}>표기 정리</a>
 		</p>
 	{/each}
 
