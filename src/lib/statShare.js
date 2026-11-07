@@ -13,3 +13,14 @@ export function clubShareText(mine, club, unit) {
 	if (mine == null || club == null || club === 0) return '';
 	return `클럽 ${club.toLocaleString()}${unit} 중 ${formatShare((mine / club) * 100)}`;
 }
+
+// 같은 줄 끝 괄호 안의 지난 학기 몫: '지난 학기 9.8%'. 학기마다 클럽이 튼 양이 달라 수끼리보다 몫끼리
+// 견주는 편이 공정하다(진행 중인 학기도). 없거나 클럽이 0 이면 '', 지기가 0 이면 '0.0%'(clubShareText 와 같다).
+/**
+ * @param {number | null | undefined} mine
+ * @param {number | null | undefined} club
+ */
+export function previousShareText(mine, club) {
+	if (mine == null || club == null || club === 0) return '';
+	return `지난 학기 ${formatShare((mine / club) * 100)}`;
+}

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { clubShareText } from '../../src/lib/statShare.js';
+import { clubShareText, previousShareText } from '../../src/lib/statShare.js';
 
 test('the share has the club count, the unit and one decimal', () => {
 	assert.equal(clubShareText(42, 342, '곡'), '클럽 342곡 중 12.3%');
@@ -22,4 +22,22 @@ test('no line when the club has nothing or a number is missing', () => {
 
 test('the club count has thousands separators', () => {
 	assert.equal(clubShareText(123, 1234, '곡'), '클럽 1,234곡 중 10.0%');
+});
+
+test("last 학기's share has one decimal", () => {
+	assert.equal(previousShareText(9, 92), '지난 학기 9.8%');
+	assert.equal(previousShareText(1, 3), '지난 학기 33.3%');
+	assert.equal(previousShareText(92, 92), '지난 학기 100.0%');
+});
+
+test('playing nothing last 학기 is still a share worth saying', () => {
+	assert.equal(previousShareText(0, 31), '지난 학기 0.0%');
+});
+
+test('no part when the club played nothing last 학기 or a number is missing', () => {
+	assert.equal(previousShareText(0, 0), '');
+	assert.equal(previousShareText(3, null), '');
+	assert.equal(previousShareText(3, undefined), '');
+	assert.equal(previousShareText(null, 31), '');
+	assert.equal(previousShareText(undefined, 31), '');
 });
