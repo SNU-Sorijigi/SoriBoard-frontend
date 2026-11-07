@@ -858,7 +858,7 @@
 					<option value={String(s.id)}>{semesterOptionLabel(s, today)}</option>
 				{/each}
 			</select>
-			<ScopeToggle bind:scope on:change={onScopeChange} />
+			<ScopeToggle bind:scope label="학기 결산 범위" on:change={onScopeChange} />
 			{#if scope === 'individual'}
 				<MemberSelect bind:userId bind:includeMentees bind:userName on:change={onMemberChange} />
 			{/if}
