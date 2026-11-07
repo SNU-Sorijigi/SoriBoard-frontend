@@ -78,6 +78,7 @@
 		cardHref
 	} from '$lib/statQuery.js';
 	import { loadStatusText, withPreviousFailure, withFailedLines } from '$lib/statCards.js';
+	import { clubShareText, previousShareText } from '$lib/statShare.js';
 	import {
 		readComposerId,
 		readComposerPeriod,
@@ -122,11 +123,12 @@
 	// 이번 학기 = 가장 최근 학기의 시작일부터 오늘까지(통계와 같다).
 	const current = currentSemesterRange();
 
-	const getJson = async (endpoint, id, extra = {}) => {
+	// withMember 가 false 면 지기를 빼고 같은 기간 클럽 전체를 묻는다(KPI 칸의 클럽 몫, 통계와 같다).
+	const getJson = async (endpoint, id, extra = {}, withMember = true) => {
 		const params = new URLSearchParams({
 			composer_id: id,
 			...composerPeriodParams({ period, start: customStart, end: customEnd }, current),
-			...composerMemberParams({ userId, includeMentees }),
+			...(withMember ? composerMemberParams({ userId, includeMentees }) : {}),
 			...extra
 		});
 		const res = await fetch(`/api/stats/${endpoint}?${params}`);
@@ -245,6 +247,17 @@
 			console.error('많이 튼 작곡가 순위 로딩 실패', e);
 		}
 	}
+	// 지기를 고르면 KPI 칸 아래에 같은 기간 클럽 전체가 이 작곡가를 튼 것 중 그 지기의 몫을 쓴다
+	// ('클럽 52곡 중 75.0%', 통계와 같다). 지기를 뺀 같은 기간의 요약이다. 카드가 아니다: 실패하면 줄만 없다(loadRank 와 같다).
+	let clubSummary = null;
+	async function loadClubSummary(id, gen) {
+		try {
+			const result = await getJson('summary', id, {}, false);
+			if (gen === cardGeneration) clubSummary = result;
+		} catch (e) {
+			if (gen === cardGeneration) console.error('작곡가 통계 로딩 실패 (클럽 요약)', e);
+		}
+	}
 	$: rankNote = composerRankNote(rank, composerId, summary?.total_plays, previousRank);
 	// 줄의 첫머리(많이 튼 작곡가 3위)는 통계의 그 표로 가는 링크다. 표에 없는 '100위 밖'은 글 그대로 둔다.
 	$: rankLead = composerRankLead(rank, composerId);
@@ -265,6 +278,7 @@
 		wholeSummary = null;
 		wholeError = false;
 		rank = null;
+		clubSummary = null;
 		timelineBucket = nextTimelineBucket();
 		loading = Object.fromEntries(CARD_KEYS.map((key) => [key, Boolean(id)]));
 		loadPreviousSummary();
@@ -273,6 +287,7 @@
 		if (!firsts) loading.firstWorks = false;
 		for (const key of CARD_KEYS) if (key !== 'firstWorks' || firsts) loadCard(key, id, gen);
 		loadRank(gen);
+		if (userId) loadClubSummary(id, gen);
 		// filter 는 아직 이전 값일 수 있으므로 기간·지기 변수를 바로 쓴다(nextTimelineBucket 과 같다).
 		if (!composerIsWholeRecord({ period, start: customStart, end: customEnd, userId })) {
 			loadWhole(id, gen);
@@ -415,6 +430,7 @@
 	// 실패하면 그 표는 지금과 같다. 앞 학기의 요청이 하나라도 실패하면 KPI 칸 아래에 그 학기를 밝히고,
 	// 실패한 요청만 다시 부르게 한다(통계와 같다).
 	let previousSummary = null;
+	let previousClubSummary = null; // 지기를 고르면: 앞 학기 클럽 전체의 이 작곡가 요약(지난 학기의 몫)
 	/** @type {Record<string, any>} 앞 학기의 독주자·지휘자·오케스트라 목록(LIMITS 의 키) */
 	let previousRanks = {};
 	let previousWorks = null; // 앞 학기의 곡 목록
@@ -435,6 +451,12 @@
 	};
 	const previousRequests = {
 		summary: { apply: (result) => (previousSummary = result) },
+		// 지기를 고를 때만: 지기를 뺀 앞 학기 클럽 전체(withMember: false). 지난 학기의 몫을 잰다.
+		clubSummary: {
+			endpoint: 'summary',
+			withMember: false,
+			apply: (result) => (previousClubSummary = result)
+		},
 		works: {
 			apply: (result) => (previousWorks = result),
 			extra: { limit: String(WORKS_LIMIT) }
@@ -458,13 +480,20 @@
 	async function askPrevious(endpoint) {
 		const gen = previousGeneration;
 		// 기록이 endpoint 를 밝히면 그것을 부른다(처음 튼 곡은 firsts). 실패 목록에는 기록의 키를 둔다.
-		const { apply, extra = {}, endpoint: path = endpoint } = previousRequests[endpoint];
+		const {
+			apply,
+			extra = {},
+			endpoint: path = endpoint,
+			withMember = true
+		} = previousRequests[endpoint];
 		try {
 			// getJson 은 extra 를 마지막에 넣으므로 기간의 semester_id 만 바뀌고 지기는 그대로다.
-			const result = await getJson(path, previousComposerId, {
-				...extra,
-				semester_id: String(previousTarget.id)
-			});
+			const result = await getJson(
+				path,
+				previousComposerId,
+				{ ...extra, semester_id: String(previousTarget.id) },
+				withMember
+			);
 			if (gen === previousGeneration) apply(result);
 		} catch (e) {
 			if (gen === previousGeneration) {
@@ -500,6 +529,7 @@
 		previousComposerId = id;
 		previousFailed = [];
 		previousSummary = null;
+		previousClubSummary = null;
 		previousRanks = {};
 		previousWorks = null;
 		previousGenres = null;
@@ -507,7 +537,9 @@
 		previousRank = null;
 		if (!previous || !id) return;
 		await Promise.allSettled([
-			...Object.keys(previousRequests).map(askPrevious),
+			...Object.keys(previousRequests)
+				.filter((key) => key !== 'clubSummary' || userId)
+				.map(askPrevious),
 			loadPreviousRank(previousGeneration)
 		]);
 	}
@@ -531,6 +563,24 @@
 			return [key, text ? { diff, before } : null];
 		})
 	);
+
+	// 지기를 고르면 총 선곡·타임·신청곡 칸에 클럽 몫 줄(통계와 같다). 앞 학기가 있으면 끝 괄호에 그 학기의 몫
+	// ('(지난 학기 40.0%)'). 불러오는 중이거나 실패했거나 클럽이 튼 것이 없으면 그 부분은 ''이다.
+	$: clubShares = userId
+		? Object.fromEntries(
+				[
+					['total_plays', '곡'],
+					['sessions', '타임'],
+					['requested', '곡']
+				].map(([key, unit]) => [
+					key,
+					{
+						text: clubShareText(summary?.[key], clubSummary?.[key], unit),
+						previous: previousShareText(previousSummary?.[key], previousClubSummary?.[key])
+					}
+				])
+			)
+		: {};
 
 	$: title = composer ? composer.name : composerError ? `작곡가 #${composerId}` : '작곡가';
 	// 머리말 기간: 백엔드가 돌려준 범위. 아직 없으면 보낼 범위로 짐작한다(학기는 학기 목록의 연도·학기로).
@@ -865,6 +915,15 @@
 					{/if}
 				</div>
 				<div class="kpi-label">총 선곡</div>
+				<!-- 지기를 고르면: 같은 기간 클럽 전체에서의 몫, 괄호에 지난 학기의 몫(한 줄로 넘어간다). 지난 학기 줄보다 위 -->
+				{#if clubShares.total_plays?.text}
+					<div class="kpi-change kpi-share">
+						{clubShares.total_plays.text}
+						{#if clubShares.total_plays.previous}
+							<span>({clubShares.total_plays.previous})</span>
+						{/if}
+					</div>
+				{/if}
 				<!-- 학기를 고르면 앞 학기와 견준 줄. 좁은 칸에서는 · 뒤에서만 줄을 바꾼다 -->
 				{#if changes.total_plays}
 					<div class="kpi-change">
@@ -876,6 +935,14 @@
 			<div class="kpi">
 				<div class="kpi-value">{count(summary?.sessions)}</div>
 				<div class="kpi-label">타임</div>
+				{#if clubShares.sessions?.text}
+					<div class="kpi-change kpi-share">
+						{clubShares.sessions.text}
+						{#if clubShares.sessions.previous}
+							<span>({clubShares.sessions.previous})</span>
+						{/if}
+					</div>
+				{/if}
 				{#if changes.sessions}
 					<div class="kpi-change">
 						<span>{changes.sessions.diff} ·</span>
@@ -899,6 +966,14 @@
 					{/if}
 				</div>
 				<div class="kpi-label">신청곡</div>
+				{#if clubShares.requested?.text}
+					<div class="kpi-change kpi-share">
+						{clubShares.requested.text}
+						{#if clubShares.requested.previous}
+							<span>({clubShares.requested.previous})</span>
+						{/if}
+					</div>
+				{/if}
 				{#if changes.requested}
 					<div class="kpi-change">
 						<span>{changes.requested.diff} ·</span>
@@ -1403,6 +1478,10 @@
 	}
 	.kpi-change span {
 		white-space: nowrap;
+	}
+	/* 좁은 칸에서도 '52곡' 같은 낱말 안에서는 줄을 바꾸지 않는다 */
+	.kpi-share {
+		word-break: keep-all;
 	}
 	.kpi-error,
 	.kpi-note {
