@@ -85,6 +85,35 @@ export function catalogEraHref(href, era) {
 	return query ? `${path}?${query}` : path;
 }
 
+// URL의 순서(?sort=birth): 'birth' = 출생 연도 순, 없거나 다른 값이면 '' = 받은 순서.
+/** @param {URLSearchParams} params */
+export const readCatalogSort = (params) => (params.get('sort') === 'birth' ? 'birth' : '');
+
+// 이 페이지의 경로에 순서를 담는다. 'birth' 가 아니면 뺀다. 다른 파라미터는 그대로 둔다.
+/**
+ * @param {string} href
+ * @param {string} sort
+ */
+export function catalogSortHref(href, sort) {
+	const [path, search = ''] = href.split('?');
+	const params = new URLSearchParams(search);
+	if (sort === 'birth') params.set('sort', 'birth');
+	else params.delete('sort');
+	const query = params.toString();
+	return query ? `${path}?${query}` : path;
+}
+
+// 출생 연도가 이른 순의 새 배열. 같은 해와 연도 없는 작곡가는 주어진 순서(많이 튼 순) 그대로,
+// 연도 없는 작곡가는 끝에 둔다.
+/** @param {CatalogComposer[]} composers */
+export function byBirthYear(composers) {
+	const known = composers.filter((c) => c.birth_year != null);
+	const unknown = composers.filter((c) => c.birth_year == null);
+	// Array.prototype.sort 는 안정 정렬이다.
+	known.sort((a, b) => /** @type {number} */ (a.birth_year) - /** @type {number} */ (b.birth_year));
+	return [...known, ...unknown];
+}
+
 // 통계 시대별 분포 표의 행마다 그 시대의 작곡가 정리 주소(?era=바로크). ERAS 밖의 이름은 null(글자 그대로).
 /** @param {string[]} labels */
 export const eraCatalogLinks = (labels) =>

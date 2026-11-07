@@ -5,6 +5,9 @@ import {
 	readCatalogQuery,
 	readCatalogEra,
 	catalogEraHref,
+	readCatalogSort,
+	catalogSortHref,
+	byBirthYear,
 	eraCatalogLinks,
 	eraOptions,
 	filterEra,
@@ -319,4 +322,47 @@ test('the 시대 line groups large counts', () => {
 		eraSummary(many, '낭만', false),
 		'낭만 작곡가 1,201명 (1,202명 중) · 선곡 1,234곡, 50.0%'
 	);
+});
+
+test('출생 연도 순 puts early years first, keeps the given order for ties and puts no year last', () => {
+	const list = [
+		{ ...composer(1, '고전'), birth_year: 1756 },
+		{ ...composer(2, '미상'), birth_year: null },
+		{ ...composer(3, '바로크'), birth_year: 1685 },
+		{ ...composer(4, '바로크'), birth_year: 1685 }
+	];
+	const before = JSON.stringify(list);
+	assert.deepEqual(
+		byBirthYear(list).map((c) => [c.id, c.birth_year]),
+		[
+			[3, 1685],
+			[4, 1685],
+			[1, 1756],
+			[2, null]
+		]
+	);
+	assert.equal(JSON.stringify(list), before);
+	assert.notEqual(byBirthYear(list), list);
+	assert.deepEqual(byBirthYear([]), []);
+});
+
+test('the URL order is birth or nothing', () => {
+	assert.equal(readCatalogSort(new URLSearchParams('sort=birth')), 'birth');
+	assert.equal(readCatalogSort(new URLSearchParams('')), '');
+	assert.equal(readCatalogSort(new URLSearchParams('sort=')), '');
+	assert.equal(readCatalogSort(new URLSearchParams('sort=name')), '');
+});
+
+test('the order goes into the page path and keeps the other parameters', () => {
+	const added = new URL(catalogSortHref('/stat/composers?q=bach&era=바로크', 'birth'), 'http://x');
+	assert.equal(added.pathname, '/stat/composers');
+	assert.equal(added.searchParams.get('q'), 'bach');
+	assert.equal(added.searchParams.get('era'), '바로크');
+	assert.equal(added.searchParams.get('sort'), 'birth');
+	const removed = new URL(catalogSortHref('/stat/composers?q=bach&sort=birth', ''), 'http://x');
+	assert.equal(removed.searchParams.get('q'), 'bach');
+	assert.equal(removed.searchParams.has('sort'), false);
+	assert.equal(catalogSortHref('/stat/composers?sort=birth', ''), '/stat/composers');
+	assert.equal(catalogSortHref('/stat/composers', ''), '/stat/composers');
+	assert.equal(catalogSortHref('/stat/composers', 'birth'), '/stat/composers?sort=birth');
 });

@@ -10,6 +10,9 @@
 		readCatalogQuery,
 		readCatalogEra,
 		catalogEraHref,
+		readCatalogSort,
+		catalogSortHref,
+		byBirthYear,
 		eraOptions,
 		filterEra,
 		eraLabel,
@@ -49,8 +52,10 @@
 	// 시대를 고른 채 저장해 다른 시대가 된 줄: 시대·검색·목록이 바뀔 때까지 그 자리에 둔다(바꿔 넣어야 다시 거른다).
 	/** @type {Set<number>} */
 	let keepIds = new Set();
+	// 순서('birth' = 출생 연도 순, '' = 받은 순서). 시대처럼 URL에 두고, 표기 정리로 가도 남긴다.
+	let sort = readCatalogSort($page.url.searchParams);
 	/** @param {string | null} kind */
-	const viewHref = (kind) => catalogEraHref(catalogViewHref(q, kind), era);
+	const viewHref = (kind) => catalogSortHref(catalogEraHref(catalogViewHref(q, kind), era), sort);
 
 	// 검색어는 두 보기가 함께 쓴다. 작곡가 목록으로 돌아올 때 목록이 다른 검색어의 답이면 다시 부른다.
 	/** @param {string | null} kind */
@@ -60,6 +65,10 @@
 		if (!kind && (!loaded || shownQ !== q)) load();
 	}
 
+	// received: 받은 순서(시대 미상 먼저, 많이 튼 순). composers: 보이는 순서. 정렬은 불러올 때와 단추를 누를 때만
+	// 한다($: 가 아니다): 저장한 줄은 출생 연도가 바뀌어도 그 자리에 남는다.
+	/** @type {import('$lib/composerCatalog.js').CatalogComposer[]} */
+	let received = [];
 	/** @type {import('$lib/composerCatalog.js').CatalogComposer[]} */
 	let composers = [];
 	let loaded = false;
@@ -81,7 +90,8 @@
 			if (!res.ok) throw new Error(`composers ${res.status}`);
 			const result = await res.json();
 			if (id !== requestId) return;
-			composers = unknownFirst(result);
+			received = unknownFirst(result);
+			composers = sort ? byBirthYear(received) : received;
 			keepIds = new Set();
 			loaded = true;
 			shownQ = asked;
@@ -123,6 +133,17 @@
 		era = e.currentTarget.value;
 		keepIds = new Set();
 		editingId = null;
+		goto(viewHref(spellingKind), { replaceState: true, keepFocus: true, noScroll: true });
+	}
+	// 출생 연도 순을 켜고 끈다. 끄면 각 줄을 받은 순서의 자리로 돌린다(저장한 값은 composers 의 것을 둔다).
+	function onSortToggle() {
+		sort = sort ? '' : 'birth';
+		editingId = null;
+		if (sort) composers = byBirthYear(composers);
+		else {
+			const order = new Map(received.map((c, i) => [c.id, i]));
+			composers = [...composers].sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+		}
 		goto(viewHref(spellingKind), { replaceState: true, keepFocus: true, noScroll: true });
 	}
 	// 검색란을 ✕(또는 Escape)로 비우면 곧바로 전체를 보인다. Enter 도 search 이벤트를 보내지만
@@ -342,13 +363,20 @@
 						>
 					{/each}
 				</select>
+				<button
+					class="tool-btn sort-toggle"
+					class:active={Boolean(sort)}
+					aria-pressed={Boolean(sort)}
+					title="출생 연도 순으로 보기"
+					on:click={onSortToggle}>출생 연도 순</button
+				>
 			</div>
 			<p class="result-count" aria-live="polite">
 				{#if loaded && !error && era}
-					{eraText}{#if shownQ}&nbsp;· '{shownQ}' 검색{/if}
+					{eraText}{#if shownQ}&nbsp;· '{shownQ}' 검색{/if}{#if sort}&nbsp;· 출생 연도 순{/if}
 				{:else if loaded && !error}
 					작곡가 {composers.length.toLocaleString()}명 · {unknownText}{#if shownQ}&nbsp;· '{shownQ}'
-						검색{/if}
+						검색{/if}{#if sort}&nbsp;· 출생 연도 순{/if}
 				{:else if error}
 					<span class="sr-only"
 						>작곡가 목록을 불러오지 못했습니다. 작곡가 목록 다시 시도로 다시 부를 수 있습니다.</span
@@ -649,6 +677,12 @@
 	.tool-btn:hover {
 		background: var(--secondary-secondary-200, #fdf1e4);
 	}
+	/* 처음 튼 카드의 '많이 튼 순'(TableCard)과 같다: 눌린 상태는 포인터가 올라가 있어도 유지한다 */
+	.sort-toggle.active,
+	.sort-toggle.active:hover {
+		background: var(--action-bg);
+		color: var(--action-fg);
+	}
 	.tool-btn:disabled {
 		cursor: default;
 		opacity: 0.6;
@@ -806,6 +840,7 @@
 		.view-toggle,
 		.search,
 		.era-filter,
+		.sort-toggle,
 		.actions,
 		.placeholder .tool-btn {
 			display: none;
