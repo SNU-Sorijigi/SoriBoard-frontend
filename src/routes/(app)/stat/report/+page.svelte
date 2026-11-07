@@ -34,6 +34,7 @@
 	import { DRILL_CARDS, WORKS_LIMIT } from '$lib/statDrill.js';
 	import { loadStatusText, withPreviousFailure } from '$lib/statCards.js';
 	import { pageTitle } from '$lib/statTitle.js';
+	import { clubShareText } from '$lib/statShare.js';
 	import { downloadCsvTable, tableCsv } from '$lib/csvTable.js';
 	import { downloadName, memberFileText } from '$lib/statFileName.js';
 	import { todayStamp } from '$lib/csv.js';
@@ -114,6 +115,29 @@
 		if (!res.ok) throw new Error(`${endpoint} ${res.status}`);
 		return res.json();
 	};
+	// 개인에서 지기를 고르면 총 선곡·타임·신청곡 칸 아래에 같은 학기 클럽 전체에서의 몫을 쓴다(통계와 같다,
+	// '클럽 342곡 중 12.3%'). 클럽의 요약은 지기 파라미터 없이 부르고, 실패하면 줄만 없다(오류 줄은 없다).
+	// 요약의 '다시 시도'가 그때 함께 다시 부른다(clubFailed).
+	let clubSummary = null;
+	let clubFailed = false;
+	function loadClubSummary(gen) {
+		clubFailed = false;
+		const params = new URLSearchParams({ semester_id: String(semester.id) });
+		fetch(`/api/stats/summary?${params}`)
+			.then((res) => {
+				if (!res.ok) throw new Error(`summary ${res.status}`);
+				return res.json();
+			})
+			.then((result) => {
+				if (gen === generation) clubSummary = result;
+			})
+			.catch((e) => {
+				if (gen !== generation) return;
+				console.error('학기 결산 로딩 실패 (클럽 요약)', e);
+				clubFailed = true;
+			});
+	}
+	const CLUB_UNITS = { total_plays: '곡', sessions: '타임', requested: '곡' };
 	// 요약·상위 10·시대·장르·처음 튼 작곡가·곡은 지난 학기와 견준다(지난 학기가 없으면 previous 는 null).
 	// 지난 학기는 previousExtra 로 부른다(상위 10 은 지난 학기의 상위 100, 아래 compared).
 	// 지난 학기만 실패하면 이 학기만으로 그리고, KPI 칸 아래 줄(previousFailed)이 그렇다고 알린다.
@@ -194,6 +218,16 @@
 	// KPI 칸은 이 학기의 요약, 그 아래 줄은 지난 학기의 요약과 견준다(없거나 실패하면 줄을 뺀다).
 	$: summary = data.summary?.current;
 	$: previousSummary = data.summary?.previous;
+	// 개인(지기를 골랐을 때)의 KPI 칸 아래 몫의 줄. 두 요약 중 하나라도 없으면(불러오는 중·실패) ''.
+	$: clubShares =
+		scope === 'individual' && userId
+			? Object.fromEntries(
+					Object.entries(CLUB_UNITS).map(([key, unit]) => [
+						key,
+						clubShareText(summary?.[key], clubSummary?.[key], unit)
+					])
+				)
+			: {};
 	// 선곡 다양성의 칸: 이 학기와 지난 학기의 다양성 응답의 summary(통계의 칸과 같은 값).
 	$: diversity = data.diversity?.current?.summary;
 	$: previousDiversity = data.diversity?.previous?.summary;
@@ -223,9 +257,12 @@
 		data = {};
 		errors = {};
 		loading = Object.fromEntries(CARD_KEYS.map((key) => [key, true]));
+		clubSummary = null;
+		clubFailed = false;
 		// 개인에서 지기를 고르지 않았으면 부르지 않는다(카드 대신 안내 문구).
 		if (scope === 'individual' && !userId) return;
 		for (const key of CARD_KEYS) loadCard(key, gen);
+		if (scope === 'individual') loadClubSummary(gen);
 	}
 
 	// 범위·지기·견습 포함을 바꾸면 URL 을 고치고(통계처럼) 이 학기를 다시 부른다(generation 이 늘어
@@ -257,6 +294,7 @@
 		loading[key] = true;
 		errors[key] = '';
 		loadCard(key, generation);
+		if (key === 'summary' && clubFailed) loadClubSummary(generation);
 	}
 
 	// 지난 학기 쪽만 실패한 카드(학기를 바꾸면 data 와 함께 비워진다). 다시 부르는 동안은 줄에서 뺀다.
@@ -912,6 +950,10 @@
 						{/if}
 					</div>
 					<div class="kpi-label">{name}</div>
+					<!-- 개인: 같은 학기 클럽 전체에서의 몫(통계와 같다). 지난 학기 줄보다 위 -->
+					{#if clubShares[key]}
+						<div class="kpi-change kpi-share">{clubShares[key]}</div>
+					{/if}
 					{#if change}
 						{@const [diff, before] = change.split(' · ')}
 						<!-- 좁은 칸(인쇄)에서는 · 뒤에서만 줄을 바꾼다 -->
@@ -1417,6 +1459,10 @@
 	}
 	.kpi-change span {
 		white-space: nowrap;
+	}
+	/* 좁은 칸(인쇄)에서도 '342곡' 같은 낱말 안에서는 줄을 바꾸지 않는다 */
+	.kpi-share {
+		word-break: keep-all;
 	}
 	.diversity-row {
 		grid-template-columns: repeat(2, 1fr);
