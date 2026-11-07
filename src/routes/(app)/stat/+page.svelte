@@ -1,5 +1,5 @@
 <script>
-	import { onMount, tick } from 'svelte';
+	import { onDestroy, onMount, tick } from 'svelte';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import ChartCard from '$lib/components/stat/ChartCard.svelte';
@@ -247,6 +247,8 @@
 
 	// 카드마다 자기를 덮는 가장 최근 요청의 응답만 반영한다. 늦게 도착한 이전 요청의 응답은 버린다.
 	const requests = createLatestRequests();
+	// 페이지를 떠나면 아직 기다리던 요청을 끊는다: 다음 페이지의 요청이 브라우저의 대기열에서 그 뒤에 서지 않게.
+	onDestroy(() => requests.abortAll());
 
 	async function load(keys) {
 		// 개인 범위인데 지기 미선택이면 로드 보류.

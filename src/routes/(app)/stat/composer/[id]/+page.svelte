@@ -1,5 +1,5 @@
 <script>
-	import { tick } from 'svelte';
+	import { onDestroy, tick } from 'svelte';
 	import { page } from '$app/stores';
 	import { afterNavigate, goto } from '$app/navigation';
 	import ChartCard from '$lib/components/stat/ChartCard.svelte';
@@ -453,6 +453,14 @@
 	let previousComposerId = null; // 그때의 작곡가(다시 시도도 같은 작곡가로 부른다)
 	let previousGeneration = 0; // 이전 보기의 늦은 응답은 버린다.
 	let previousAbort = new AbortController(); // 이전 보기의 요청은 끊는다(cardAbort 와 같다).
+	// 페이지를 떠나면 아직 기다리던 통계 요청을 끊는다(다음 페이지의 요청이 그 뒤에 서지 않게). 세대를 먼저
+	// 올려 끊긴 요청의 catch 가 기간이 바뀔 때처럼 조용하다.
+	onDestroy(() => {
+		++cardGeneration;
+		++previousGeneration;
+		cardAbort.abort();
+		previousAbort.abort();
+	});
 	/** @type {string[]} 실패한 앞 학기 요청(엔드포인트). KPI 칸 아래에 다시 시도와 함께 알린다. */
 	let previousFailed = [];
 	// 이번 학기는 id 가 아닌 날짜 범위라, 그 시작일의 학기보다 앞선 가장 최근 학기와 견준다(statBucket.js).
