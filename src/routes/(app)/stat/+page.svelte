@@ -107,7 +107,7 @@
 	} from '$lib/statFirsts.js';
 	import { memberFileText } from '$lib/statFileName.js';
 	import { pageTitle, periodTitle } from '$lib/statTitle.js';
-	import { clubShareText } from '$lib/statShare.js';
+	import { clubShareText, previousShareText } from '$lib/statShare.js';
 	import {
 		splitSpellings,
 		splitSpellingNote,
@@ -326,6 +326,7 @@
 	let previousTiles = null;
 	let previousFirstComposers = null;
 	let previousFirstWorks = null;
+	let previousClubSummary = null; // 개인 범위에서 앞 학기 클럽 전체의 요약(지난 학기의 몫)
 	/** @type {Record<string, any>} 순위 카드별 앞 학기의 목록(LIMITS 의 키) */
 	let previousRanks = {};
 	let previousAsked = null; // 마지막으로 부른 앞 학기 id(없으면 null)
@@ -343,6 +344,12 @@
 	// 월별 버킷이면 쓰지 않는 timeline 이 작다.
 	const previousRequests = {
 		summary: { apply: (result) => (previousSummary = result) },
+		// 개인 범위에서만: 지기를 뺀 앞 학기 클럽 전체(withMember: false). 지난 학기의 몫을 잰다.
+		clubSummary: {
+			endpoint: 'summary',
+			withMember: false,
+			apply: (result) => (previousClubSummary = result)
+		},
 		diversity: {
 			extra: { bucket: 'month' },
 			apply: (result) => {
@@ -374,10 +381,19 @@
 	async function askPrevious(endpoint) {
 		const id = previousToken;
 		// 기록이 endpoint 를 밝히면 그것을 부른다(키가 같은 엔드포인트를 둘이 나눠 쓸 때).
-		const { apply, extra = {}, endpoint: path = endpoint } = previousRequests[endpoint];
+		const {
+			apply,
+			extra = {},
+			endpoint: path = endpoint,
+			withMember = true
+		} = previousRequests[endpoint];
 		try {
 			// buildQuery 는 extra 를 마지막에 넣으므로 기간의 semester_id 만 바뀌고 지기는 그대로다.
-			const result = await getJson(path, { ...extra, semester_id: String(previousTarget.id) });
+			const result = await getJson(
+				path,
+				{ ...extra, semester_id: String(previousTarget.id) },
+				withMember
+			);
 			if (requests.isLatest('previousSummary', id)) apply(result);
 		} catch (e) {
 			if (requests.isLatest('previousSummary', id)) {
@@ -398,9 +414,15 @@
 		previousTiles = null;
 		previousFirstComposers = null;
 		previousFirstWorks = null;
+		previousClubSummary = null;
 		previousRanks = {};
 		if (!previous || (scope === 'individual' && !userId)) return;
-		await Promise.allSettled(Object.keys(previousRequests).map(askPrevious));
+		const individual = scope === 'individual' && userId;
+		await Promise.allSettled(
+			Object.keys(previousRequests)
+				.filter((key) => key !== 'clubSummary' || individual)
+				.map(askPrevious)
+		);
 	}
 	// 개인 범위에서 지기를 고르면 KPI 칸 아래에 같은 기간 클럽 전체에서의 몫을 쓴다('클럽 342곡 중 12.3%').
 	// 클럽의 요약은 지기를 뺀 같은 기간으로 요약과 함께 부르고, 실패하면 줄만 없다(statShare.js).
@@ -416,13 +438,23 @@
 			if (requests.isLatest('clubSummary', id)) console.error('통계 로딩 실패 (클럽 요약)', e);
 		}
 	}
+	// 앞 학기가 있으면 같은 줄 끝 괄호에 그 학기의 몫을 붙인다('(지난 학기 9.8%)'). 불러오는 중이거나
+	// 실패했거나 앞 학기에 클럽이 튼 것이 없으면 previous 는 ''이고 괄호를 쓰지 않는다.
 	$: clubShares =
 		scope === 'individual' && userId
-			? {
-					total_plays: clubShareText(summary?.total_plays, clubSummary?.total_plays, '곡'),
-					sessions: clubShareText(summary?.sessions, clubSummary?.sessions, '타임'),
-					requested: clubShareText(summary?.requested, clubSummary?.requested, '곡')
-				}
+			? Object.fromEntries(
+					[
+						['total_plays', '곡'],
+						['sessions', '타임'],
+						['requested', '곡']
+					].map(([key, unit]) => [
+						key,
+						{
+							text: clubShareText(summary?.[key], clubSummary?.[key], unit),
+							previous: previousShareText(previousSummary?.[key], previousClubSummary?.[key])
+						}
+					])
+				)
 			: {};
 	// 지난 학기 수치의 '다시 시도': 실패한 요청만 같은 토큰으로 다시 부른다. 새 토큰(begin)을 쓰면 아직
 	// 오지 않은 첫 요청의 응답까지 버려진다. 줄은 누르자마자 사라지므로 포커스를 KPI 칸으로 옮긴다.
@@ -1038,9 +1070,14 @@
 					{/if}
 				</div>
 				<div class="kpi-label">총 선곡</div>
-				<!-- 개인 범위: 같은 기간 클럽 전체에서의 몫. 지난 학기 줄보다 위 -->
-				{#if clubShares.total_plays}
-					<div class="kpi-change kpi-share">{clubShares.total_plays}</div>
+				<!-- 개인 범위: 같은 기간 클럽 전체에서의 몫, 괄호에 지난 학기의 몫(한 줄로 넘어간다). 지난 학기 줄보다 위 -->
+				{#if clubShares.total_plays?.text}
+					<div class="kpi-change kpi-share">
+						{clubShares.total_plays.text}
+						{#if clubShares.total_plays.previous}
+							<span>({clubShares.total_plays.previous})</span>
+						{/if}
+					</div>
 				{/if}
 				<!-- 학기를 고르면 앞 학기와 견준 줄. 좁은 칸에서는 · 뒤에서만 줄을 바꾼다 -->
 				{#if changes.total_plays}
@@ -1056,8 +1093,13 @@
 					{summary && summary.sessions != null ? summary.sessions.toLocaleString() : '—'}
 				</div>
 				<div class="kpi-label">타임</div>
-				{#if clubShares.sessions}
-					<div class="kpi-change kpi-share">{clubShares.sessions}</div>
+				{#if clubShares.sessions?.text}
+					<div class="kpi-change kpi-share">
+						{clubShares.sessions.text}
+						{#if clubShares.sessions.previous}
+							<span>({clubShares.sessions.previous})</span>
+						{/if}
+					</div>
 				{/if}
 				{#if changes.sessions}
 					<div class="kpi-change">
@@ -1081,8 +1123,13 @@
 					{/if}
 				</div>
 				<div class="kpi-label">신청곡</div>
-				{#if clubShares.requested}
-					<div class="kpi-change kpi-share">{clubShares.requested}</div>
+				{#if clubShares.requested?.text}
+					<div class="kpi-change kpi-share">
+						{clubShares.requested.text}
+						{#if clubShares.requested.previous}
+							<span>({clubShares.requested.previous})</span>
+						{/if}
+					</div>
 				{/if}
 				{#if changes.requested}
 					<div class="kpi-change">
