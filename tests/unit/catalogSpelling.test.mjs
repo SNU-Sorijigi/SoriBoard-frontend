@@ -200,6 +200,52 @@ test('the 표기 정리 search matches a piece by its composer too', () => {
 	assert.deepEqual(filterSpellingGroups([fifth, orphan], 'kv'), [orphan]);
 });
 
+test('the 표기 정리 search ignores spaces, periods, dashes and case, as the groups do', () => {
+	const rimsky = {
+		key: '림스키코르사코프',
+		count: 15,
+		rows: [
+			{ id: 20, name: '림스키-코르사코프', count: 12 },
+			{ id: 21, name: '림스키 코르사코프', count: 3 }
+		]
+	};
+	const names = [rimsky, bach, mozart];
+	for (const q of ['림스키코르사코프', '림스키 코르사코프', '림스키-코르사코프', '키코르']) {
+		assert.deepEqual(filterSpellingGroups(names, q), [rimsky], q);
+	}
+	for (const q of ['JS Bach', 'jsbach', 'J.S.Bach', 'j s  bach']) {
+		assert.deepEqual(filterSpellingGroups(names, q), [bach], q);
+	}
+	const fifth = {
+		key: 'op67',
+		count: 4,
+		rows: [
+			{ id: 10, name: '교향곡 5번 Op. 67', count: 3, composer_id: 7, composer_name: '베토벤' },
+			{ id: 11, name: '교향곡 제5번 op.67', count: 1, composer_id: 7, composer_name: '베토벤' }
+		]
+	};
+	const suite = {
+		key: 'bwv1007',
+		count: 2,
+		rows: [
+			{ id: 14, name: '무반주 첼로 모음곡 1번 BWV 1007', count: 1, composer_name: '바흐' },
+			{ id: 15, name: '무반주 첼로 모음곡 제1번 BWV1007', count: 1, composer_name: '바흐' }
+		]
+	};
+	assert.deepEqual(filterSpellingGroups([fifth, suite], 'op 67'), [fifth]);
+	assert.deepEqual(filterSpellingGroups([fifth, suite], 'bwv1007'), [suite]);
+	assert.deepEqual(filterSpellingGroups([fifth, suite], '베토벤'), [fifth]);
+	// a composer's name is matched the same way
+	assert.deepEqual(filterSpellingGroups([fifth, suite], '베 토 벤'), [fifth]);
+	// a search of only periods, dashes or spaces keeps the typed match: not every group
+	assert.deepEqual(filterSpellingGroups(names, '.'), [bach, mozart]);
+	assert.deepEqual(filterSpellingGroups(names, '-'), [rimsky]);
+	assert.deepEqual(filterSpellingGroups(names, ' . '), [bach, mozart]);
+	assert.deepEqual(filterSpellingGroups(names, '-.-'), []);
+	assert.deepEqual(filterSpellingGroups(names, '바흐'), []);
+	assert.deepEqual(filterSpellingGroups(names, 'jsmozart'), []);
+});
+
 test('a blank 표기 정리 search keeps every group', () => {
 	const groups = [bach, mozart];
 	assert.equal(filterSpellingGroups(groups, ''), groups);
