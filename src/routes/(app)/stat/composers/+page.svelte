@@ -8,7 +8,6 @@
 		ERAS,
 		UNKNOWN_ERA,
 		readCatalogQuery,
-		catalogHref,
 		composersSearch,
 		unknownFirst,
 		unknownSummary,
@@ -37,10 +36,12 @@
 	// 보기: null = 작곡가 목록, 아니면 표기 정리와 그 종류. 검색어처럼 URL에 둔다.
 	let spellingKind = readSpellingKind($page.url.searchParams);
 
+	// 검색어는 두 보기가 함께 쓴다. 작곡가 목록으로 돌아올 때 목록이 다른 검색어의 답이면 다시 부른다.
 	/** @param {string | null} kind */
 	function showView(kind) {
 		spellingKind = kind;
 		goto(catalogViewHref(q, kind), { replaceState: true, keepFocus: true, noScroll: true });
+		if (!kind && (!loaded || shownQ !== q)) load();
 	}
 
 	/** @type {import('$lib/composerCatalog.js').CatalogComposer[]} */
@@ -89,11 +90,12 @@
 			listCard.querySelector('.placeholder.error button')?.focus();
 	}
 
+	// 표기 정리는 받은 묶음을 제가 거르므로 목록만 다시 부른다(돌아오면 showView 가 부른다).
 	function onSearch() {
 		q = query.trim();
 		query = q;
-		goto(catalogHref(q), { replaceState: true, keepFocus: true, noScroll: true });
-		load();
+		goto(catalogViewHref(q, spellingKind), { replaceState: true, keepFocus: true, noScroll: true });
+		if (!spellingKind) load();
 	}
 	// 검색란을 ✕(또는 Escape)로 비우면 곧바로 전체를 보인다. Enter 도 search 이벤트를 보내지만
 	// (브라우저에 따라 submit 앞이나 뒤에) 그때는 submit 이 검색하므로 넘어간다.
@@ -221,7 +223,15 @@
 		</div>
 	</header>
 	{#if spellingKind}
-		<SpellingVariants kind={spellingKind} on:change={(e) => showView(e.detail)} />
+		<SpellingVariants
+			kind={spellingKind}
+			{q}
+			on:change={(e) => showView(e.detail)}
+			on:search={(e) => {
+				query = e.detail;
+				onSearch();
+			}}
+		/>
 	{:else}
 		<p class="hint">
 			시대는 출생 연도로 정해집니다. 시대를 고르면 출생 연도보다 앞섭니다(‘출생 연도로’는 보정

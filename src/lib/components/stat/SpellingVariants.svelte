@@ -5,12 +5,16 @@
 		duplicatesSearch,
 		rowLinks,
 		groupHeading,
-		spellingSummary
+		spellingSummary,
+		filterSpellingGroups
 	} from '$lib/catalogSpelling.js';
+	import MarkedText from '$lib/components/stat/MarkedText.svelte';
 
 	// 작곡가 정리의 '표기 정리': 표기만 다른 이름의 묶음(catalog/duplicates/)과 각 표기의 선곡 수.
 	// 읽기 전용이다. 종류가 바뀌면 다시 불러오고, 가장 최근 요청의 응답만 반영한다.
 	export let kind = 'composer';
+	// 페이지의 검색어(작곡가 목록과 같은 q). 묶음은 이미 다 받았으므로 여기서 거른다.
+	export let q = '';
 
 	const dispatch = createEventDispatcher();
 
@@ -61,10 +65,32 @@
 		dispatch('change', kind);
 	}
 
+	// 검색란(작곡가 목록의 것과 같다): 검색·Enter 로 찾고, ✕(또는 Escape)로 비우면 곧바로 모든 묶음을 보인다.
+	// 찾을 말은 페이지가 URL에 두고 q 로 돌려준다.
+	let query = q; // 검색란의 값
+	$: query = q;
+	function onSearch() {
+		query = query.trim();
+		dispatch('search', query);
+	}
+	// Enter 도 search 이벤트를 보내지만(브라우저에 따라 submit 앞이나 뒤에) 그때는 submit 이 검색하므로 넘어간다.
+	let enterKey = false;
+	const onSearchKeydown = (e) => (enterKey = e.key === 'Enter' && !e.isComposing);
+	function onSearchEvent(e) {
+		const byEnter = enterKey;
+		enterKey = false;
+		if (byEnter || e.currentTarget.value !== '' || !q) return;
+		query = '';
+		onSearch();
+	}
+
 	// 표는 불러온 종류의 열로 그린다(새 종류를 불러오는 동안에는 흐리게).
 	$: spec = SPELLING_KINDS.find((s) => s.kind === loadedKind);
 	$: extra = loadedKind === 'player' ? '악기' : loadedKind === 'music' ? '작곡가' : '';
 	$: columns = extra ? 4 : 3;
+	// 보이는 묶음: 검색어가 이름(곡이면 작곡가도)에 든 묶음. 검색어가 없으면 모두.
+	$: term = q.trim();
+	$: shown = filterSpellingGroups(groups, term);
 </script>
 
 <p class="hint">
@@ -73,16 +99,30 @@
 </p>
 
 <div class="toolbar">
-	<label class="kind">
-		종류
-		<select bind:value={kind} on:change={onKindChange}>
-			{#each SPELLING_KINDS as option}
-				<option value={option.kind}>{option.label}</option>
-			{/each}
-		</select>
-	</label>
+	<div class="controls">
+		<label class="kind">
+			종류
+			<select bind:value={kind} on:change={onKindChange}>
+				{#each SPELLING_KINDS as option}
+					<option value={option.kind}>{option.label}</option>
+				{/each}
+			</select>
+		</label>
+		<form class="search" role="search" on:submit|preventDefault={onSearch}>
+			<input
+				type="search"
+				bind:value={query}
+				on:keydown={onSearchKeydown}
+				on:search={onSearchEvent}
+				placeholder={kind === 'music' ? '곡, 작곡가' : '이름'}
+				aria-label="표기 정리 검색"
+			/>
+			<button type="submit">검색</button>
+		</form>
+	</div>
 	<p class="result-count" aria-live="polite">
-		{#if spec && !loading && !error}{spec.label} · {spellingSummary(groups)}{:else if error}
+		{#if spec && !loading && !error}{spec.label} · {spellingSummary(shown)}{#if term}&nbsp;· '{term}'
+				검색{/if}{:else if error}
 			<!-- 실패는 화면 낭독기에만 알린다(보이는 줄은 비운다). -->
 			<span class="sr-only"
 				>표기 정리를 불러오지 못했습니다. 표기 정리 다시 시도로 다시 부를 수 있습니다.</span
@@ -102,6 +142,8 @@
 		<div class="placeholder">불러오는 중...</div>
 	{:else if groups.length === 0}
 		<div class="placeholder" class:stale={loading}>{spec.empty}</div>
+	{:else if shown.length === 0}
+		<div class="placeholder" class:stale={loading}>'{term}'에 맞는 묶음이 없습니다</div>
 	{:else}
 		<!-- 긴 목록은 이 상자 안에서 스크롤해 머리줄이 남는다(작곡가 목록과 같다). 키보드로도 스크롤하게 포커스를 준다(DataTable 과 같다). -->
 		<!-- svelte-ignore a11y-no-noninteractive-tabindex -->
@@ -115,12 +157,12 @@
 						<th scope="col" class="id">id</th>
 					</tr>
 				</thead>
-				{#each groups as group}
+				{#each shown as group}
 					{@const heading = groupHeading(group)}
 					<tbody>
 						<tr class="group">
 							<th scope="rowgroup" colspan={columns}>
-								<span class="spelling">{heading.title}</span>
+								<span class="spelling"><MarkedText text={heading.title} q={term} /></span>
 								<span class="meta">{heading.meta}</span>
 							</th>
 						</tr>
@@ -129,9 +171,10 @@
 							<tr>
 								<th scope="row">
 									{#if links.name}
-										<a class="spelling" href={links.name}>{row.name}</a>
+										<a class="spelling" href={links.name}><MarkedText text={row.name} q={term} /></a
+										>
 									{:else}
-										<span class="spelling">{row.name}</span>
+										<span class="spelling"><MarkedText text={row.name} q={term} /></span>
 									{/if}
 								</th>
 								{#if loadedKind === 'player'}
@@ -139,9 +182,13 @@
 								{:else if loadedKind === 'music'}
 									<td>
 										{#if links.composer}
-											<a class="spelling" href={links.composer}>{row.composer_name}</a>
+											<a class="spelling" href={links.composer}
+												><MarkedText text={row.composer_name} q={term} /></a
+											>
+										{:else if row.composer_name}
+											<span class="spelling"><MarkedText text={row.composer_name} q={term} /></span>
 										{:else}
-											<span class="spelling">{row.composer_name ?? '—'}</span>
+											<span class="spelling">—</span>
 										{/if}
 									</td>
 								{/if}
@@ -187,11 +234,19 @@
 		gap: 12px 16px;
 		margin-bottom: 12px;
 	}
+	/* 종류와 검색란은 왼쪽에 나란히, 결과 줄은 오른쪽에 */
+	.controls {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 12px 16px;
+	}
 	.result-count {
 		min-height: 1.5em;
 		margin: 0;
 	}
-	.kind {
+	.kind,
+	.search {
 		display: flex;
 		align-items: center;
 		gap: 10px;
@@ -199,6 +254,10 @@
 		font-size: var(--small-medium-font-size, 13px);
 		color: var(--gray-gray-600, #7c7c7c);
 	}
+	.search {
+		margin: 0;
+	}
+	input,
 	select {
 		font-family: var(--medium-font-family, 'Noto Sans KR', sans-serif);
 		font-size: var(--medium-font-size, 16px);
@@ -208,6 +267,10 @@
 		background: var(--secondary-secondary-50, #fffdfc);
 		color: var(--gray-gray-950, #1a1a1a);
 	}
+	input[type='search'] {
+		width: 300px;
+	}
+	.search button,
 	.tool-btn {
 		font-family: var(--small-medium-font-family, 'Noto Sans KR', sans-serif);
 		font-size: var(--small-medium-font-size, 13px);
@@ -218,6 +281,7 @@
 		padding: 4px 12px;
 		cursor: pointer;
 	}
+	.search button:hover,
 	.tool-btn:hover {
 		background: var(--secondary-secondary-200, #fdf1e4);
 	}
@@ -335,7 +399,7 @@
 		clip: rect(0 0 0 0);
 		white-space: nowrap;
 	}
-	/* 인쇄: 작곡가 목록과 같다. 종류 고르기는 남기고 다시 시도는 빼며, 곡 이름은 낱말 사이에서만 줄을 바꾼다.
+	/* 인쇄: 작곡가 목록과 같다. 종류 고르기는 남기고 검색란과 다시 시도는 빼며(검색어는 개수 줄에 남는다), 곡 이름은 낱말 사이에서만 줄을 바꾼다.
 	   모든 묶음을 싣는다(스크롤 상자로 한 화면만큼 자르지 않는다). */
 	@media print {
 		:global(.list-scroll) {
@@ -345,6 +409,7 @@
 		.card {
 			box-shadow: none;
 		}
+		.search,
 		.placeholder .tool-btn {
 			display: none;
 		}
