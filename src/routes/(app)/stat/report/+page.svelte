@@ -1,5 +1,5 @@
 <script>
-	import { onMount, tick } from 'svelte';
+	import { onDestroy, onMount, tick } from 'svelte';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import EChart from '$lib/components/stat/EChart.svelte';
@@ -105,13 +105,14 @@
 	let previous = null;
 
 	// 지기 파라미터는 여기서 붙인다: 이 학기·지난 학기·다시 시도가 모두 같은 지기를 부른다.
-	const getJson = async (endpoint, id, extra = {}) => {
+	// signal 은 그 요청이 속한 보기의 것이다(abort): 보기가 바뀌면 끊긴다.
+	const getJson = async (endpoint, id, extra = {}, signal) => {
 		const params = new URLSearchParams({
 			semester_id: String(id),
 			...composerMemberParams(memberOf(scope, userId, includeMentees)),
 			...extra
 		});
-		const res = await fetch(`/api/stats/${endpoint}?${params}`);
+		const res = await fetch(`/api/stats/${endpoint}?${params}`, { signal });
 		if (!res.ok) throw new Error(`${endpoint} ${res.status}`);
 		return res.json();
 	};
@@ -125,8 +126,9 @@
 	let clubFailed = false;
 	function loadClubSummary(gen) {
 		clubFailed = false;
+		const { signal } = abort;
 		const askClub = (id, apply) =>
-			fetch(`/api/stats/summary?${new URLSearchParams({ semester_id: String(id) })}`)
+			fetch(`/api/stats/summary?${new URLSearchParams({ semester_id: String(id) })}`, { signal })
 				.then((res) => {
 					if (!res.ok) throw new Error(`summary ${res.status}`);
 					return res.json();
@@ -147,13 +149,14 @@
 	// 지난 학기는 previousExtra 로 부른다(상위 10 은 지난 학기의 상위 100, 아래 compared).
 	// 지난 학기만 실패하면 이 학기만으로 그리고, KPI 칸 아래 줄(previousFailed)이 그렇다고 알린다.
 	// 그 줄의 '다시 시도'(retryPrevious)는 실패한 카드의 지난 학기 쪽만 다시 부른다.
-	const withPrevious = async (endpoint, extra = {}, previousExtra = extra) => {
+	// 보기가 바뀌어 끊긴 지난 학기 요청(signal.aborted)은 실패로 적지 않는다(그 짝은 loadCard 가 버린다).
+	const withPrevious = async (signal, endpoint, extra = {}, previousExtra = extra) => {
 		const before = previous;
 		const pair = await loadWithPrevious(
-			() => getJson(endpoint, semester.id, extra),
-			before && (() => getJson(endpoint, before.id, previousExtra))
+			() => getJson(endpoint, semester.id, extra, signal),
+			before && (() => getJson(endpoint, before.id, previousExtra, signal))
 		);
-		if (pair.previousError) {
+		if (pair.previousError && !signal.aborted) {
 			console.error(`학기 결산 지난 학기 로딩 실패 (${endpoint})`, pair.previousError);
 		}
 		return pair;
@@ -179,7 +182,7 @@
 		firstWorks: ['firsts', { kind: 'work' }]
 	};
 	const cardRequests = Object.fromEntries(
-		Object.keys(compared).map((key) => [key, () => withPrevious(...compared[key])])
+		Object.keys(compared).map((key) => [key, (signal) => withPrevious(signal, ...compared[key])])
 	);
 	const CARD_KEYS = Object.keys(cardRequests);
 
@@ -246,9 +249,13 @@
 
 	// 다른 학기·범위·지기로 바꾸면 이전 보기의 늦은 응답은 버린다.
 	let generation = 0;
+	// 다른 보기로 바꾸면(generation 이 오르면) 이전 보기의 요청도 끊는다. 아직 브라우저에서 기다리던 요청은
+	// 서버에 가지 않는다. 끊긴 요청의 catch 는 세대가 지난 것이라 아무것도 하지 않는다.
+	// '다시 시도'는 세대를 그대로 두므로 지금의 signal 을 쓰고, 아무것도 끊지 않는다.
+	let abort = new AbortController();
 
 	function loadCard(key, gen) {
-		cardRequests[key]()
+		cardRequests[key](abort.signal)
 			.then((result) => {
 				if (gen === generation) data[key] = result;
 			})
@@ -264,6 +271,8 @@
 
 	function loadAll() {
 		const gen = ++generation;
+		abort.abort();
+		abort = new AbortController();
 		data = {};
 		errors = {};
 		loading = Object.fromEntries(CARD_KEYS.map((key) => [key, true]));
@@ -324,7 +333,7 @@
 			const [endpoint, extra, previousExtra = extra] = compared[key];
 			const still = () => gen === generation && data[key]?.current === current;
 			data[key] = { ...data[key], retryingPrevious: true };
-			getJson(endpoint, before.id, previousExtra)
+			getJson(endpoint, before.id, previousExtra, abort.signal)
 				.then((result) => {
 					if (still()) data[key] = { current, previous: result, previousError: null };
 				})
@@ -365,6 +374,12 @@
 	}
 
 	onMount(loadSemesters);
+	// 결산을 떠나면(통계·작곡가 링크) 아직 기다리던 요청을 끊어 다음 화면의 요청이 먼저 가게 한다.
+	// 세대를 올려 두므로 끊긴 요청의 catch 는 아무것도 적지 않는다.
+	onDestroy(() => {
+		++generation;
+		abort.abort();
+	});
 
 	// 학기 목록의 '다시 시도': 다시 부르는 동안 포커스는 안내 문구(semestersHint)에 두고,
 	// 학기를 고르면 학기 select 로 옮긴다(불러오기 전에는 select 가 꺼져 있어 포커스를 받지 못한다).
