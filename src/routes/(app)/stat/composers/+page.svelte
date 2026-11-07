@@ -60,14 +60,16 @@
 		loading = true;
 		error = '';
 		editingId = null;
+		// 물은 검색어를 기다리기 전에 잡아 둔다: 답을 기다리는 동안 표기 정리에서 q 가 바뀌어도 shownQ 는 답한 검색어다.
+		const asked = q;
 		try {
-			const res = await fetch(`/api/composers${composersSearch(q)}`);
+			const res = await fetch(`/api/composers${composersSearch(asked)}`);
 			if (!res.ok) throw new Error(`composers ${res.status}`);
 			const result = await res.json();
 			if (id !== requestId) return;
 			composers = unknownFirst(result);
 			loaded = true;
-			shownQ = q;
+			shownQ = asked;
 		} catch (e) {
 			if (id !== requestId) return;
 			console.error('작곡가 목록 로딩 실패', e);
