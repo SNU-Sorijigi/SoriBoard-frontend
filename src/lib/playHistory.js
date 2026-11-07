@@ -19,6 +19,9 @@ import { bucketRange, clipRange, semesterIdOf, semesterRangeOf } from './statBuc
 export const PAGE_SIZE = 50;
 // CSV 저장이 한 번에 받는 선곡 수(plays/ 의 limit 최댓값).
 export const EXPORT_PAGE_SIZE = 100;
+// 선곡 기록의 '모두 보기'(남은 선곡을 한 번에 불러온다)를 두는 목록의 최대 선곡 수. 한 학기는 넉넉히
+// 들고, 수천 곡의 전체 기간은 '더 보기'와 CSV 저장만 둔다.
+export const SHOW_ALL_LIMIT = 1000;
 const ID = /^[1-9]\d*$/;
 // 대상의 이름을 찾을 때 받는 순위의 길이(백엔드 limit 의 최댓값).
 const LOOKUP_LIMIT = 100;

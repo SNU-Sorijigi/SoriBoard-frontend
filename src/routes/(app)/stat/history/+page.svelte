@@ -14,7 +14,9 @@
 	import { semesterRangeOf } from '$lib/statBucket.js';
 	import { ongoingText, upcomingText } from '$lib/semesterReport.js';
 	import {
+		PAGE_SIZE,
 		EXPORT_PAGE_SIZE,
+		SHOW_ALL_LIMIT,
 		PLAY_CSV_HEADERS,
 		readHistoryQuery,
 		historyHref,
@@ -79,17 +81,21 @@
 	/** @type {HTMLElement | null} */
 	let listScroll = null;
 	// 가장 최근 요청의 응답만 반영한다. 필터를 바꾸면 진행 중인 '더 보기'의 응답도 버린다.
-	// 응답을 반영했으면(성공이든 실패든) true 를 돌려준다.
+	// 응답을 반영했으면(성공이든 실패든) true 를 돌려준다. limit 은 한 번에 받을 선곡 수.
 	let requestId = 0;
 
-	async function load(more = false) {
+	async function load(more = false, limit = PAGE_SIZE) {
 		const id = ++requestId;
 		const wanted = filter();
 		loading = true;
 		replacing = !more;
+		// 새 목록은 진행 중인 '모두 보기'도 멈춘다(그 반복은 다음 응답에서 false 를 받고 끝난다).
+		if (!more) restLoading = false;
 		error = '';
 		try {
-			const res = await fetch(`/api/plays?${playsParams(wanted, current, more ? offset : 0)}`);
+			const res = await fetch(
+				`/api/plays?${playsParams(wanted, current, more ? offset : 0, limit)}`
+			);
 			if (!res.ok) throw new Error(`plays ${res.status}`);
 			const result = await res.json();
 			if (id !== requestId) return false;
@@ -132,11 +138,37 @@
 	async function loadMore() {
 		const first = rows.length;
 		if (!(await load(true))) return;
+		await focusLoaded(first);
+	}
+	/** @param {number} first 새로 온 첫 행의 자리 */
+	async function focusLoaded(first) {
 		await tick();
 		const active = document.activeElement;
 		if (active && active !== document.body && !moreBar?.contains(active)) return;
 		const row = error ? null : listCard?.querySelectorAll('tbody tr')[first];
 		(row?.querySelector('a') ?? moreBar?.querySelector('button'))?.focus();
+	}
+
+	// '모두 보기': 남은 선곡을 CSV 저장과 같은 크기(EXPORT_PAGE_SIZE)의 쪽으로 끝까지 불러온다. 인쇄와
+	// 브라우저 찾기가 목록 전체를 보게 한다. 필터를 바꾸면(load 가 false) 멈추고, 한 쪽이 실패하면 받은
+	// 행을 남긴 채 '더 보기'의 '다시 시도'를 둔다. 도는 동안 단추는 둘 다 비활성(쪽 사이에 loading 이
+	// 잠깐 false 가 되어도 그렇다).
+	let restLoading = false;
+	let restRun = 0;
+	async function loadRest() {
+		const run = ++restRun;
+		const first = rows.length;
+		restLoading = true;
+		let done = false;
+		try {
+			while (count !== null && offset < count && !error) {
+				if (!(await load(true, EXPORT_PAGE_SIZE))) return;
+			}
+			done = true;
+		} finally {
+			if (run === restRun) restLoading = false;
+		}
+		if (done) await focusLoaded(first);
 	}
 
 	// 목록의 '다시 시도'도 누르면 '불러오는 중...'으로 바뀌어 사라지므로, 먼저 목록 카드로 포커스를 옮긴다.
@@ -535,10 +567,25 @@
 					aria-describedby="more-error">다시 시도</button
 				>
 			{:else if hasMore}
-				<button class="tool-btn" on:click={loadMore} disabled={loading}>
-					{loading ? '불러오는 중...' : '더 보기'}
+				<button class="tool-btn" on:click={loadMore} disabled={loading || restLoading}>
+					{loading && !restLoading ? '불러오는 중...' : '더 보기'}
 				</button>
-				<span class="more-count">{rows.length.toLocaleString()} / {count.toLocaleString()}</span>
+				<!-- 한 학기쯤(SHOW_ALL_LIMIT 곡 이하)의 목록만: 수천 곡을 한 페이지에 쌓지 않는다 -->
+				{#if count <= SHOW_ALL_LIMIT}
+					<button
+						class="tool-btn"
+						on:click={loadRest}
+						disabled={loading || restLoading}
+						title="남은 선곡을 모두 불러오기"
+					>
+						{restLoading
+							? `불러오는 중… ${rows.length.toLocaleString()} / ${count.toLocaleString()}`
+							: '모두 보기'}
+					</button>
+				{/if}
+				{#if !restLoading}
+					<span class="more-count">{rows.length.toLocaleString()} / {count.toLocaleString()}</span>
+				{/if}
 			{/if}
 		</div>
 	{/if}
