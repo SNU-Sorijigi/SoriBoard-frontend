@@ -206,23 +206,31 @@
 	// 띄어쓰기·마침표·줄표만 다른 표기는 그 검색에 들지 않는다(searchVariants, 선곡 기록과 같다). 묶음
 	// (catalog/duplicates/, 전체 기간)은 첫 검색이 답한 뒤 이 페이지에서 한 번만 부르고, 못 받으면 줄을 두지 않는다.
 	// 줄은 개수 줄처럼 보이는 목록이 답한 검색어(shownQ)를 따른다.
-	/** @type {any} */
-	let duplicates = null;
+	// 받은 묶음은 표기 정리와 나눠 쓴다(spellingAnswers: 종류 → 답, 받은 것만). 표기 정리가 먼저 받았으면
+	// 묻지 않고, 표기 정리를 보는 동안에는 그쪽이 묻게 둔다(줄은 작곡가 목록에만 있다).
+	/** @type {Record<string, any>} */
+	let spellingAnswers = {};
+	/**
+	 * @param {string} kind
+	 * @param {any} result
+	 */
+	const keepSpelling = (kind, result) => (spellingAnswers = { ...spellingAnswers, [kind]: result });
 	let duplicatesAsked = false;
 	async function loadDuplicates() {
-		if (duplicatesAsked) return;
+		if (duplicatesAsked || spellingAnswers[DEFAULT_KIND]) return;
 		duplicatesAsked = true;
 		try {
 			const res = await fetch(`/api/catalog/duplicates${duplicatesSearch(DEFAULT_KIND)}`);
 			if (!res.ok) throw new Error(`catalog/duplicates ${res.status}`);
-			duplicates = await res.json();
+			keepSpelling(DEFAULT_KIND, await res.json());
 		} catch (e) {
 			console.error('표기만 다른 이름 로딩 실패', e);
 		}
 	}
-	$: if (shownQ && loaded) loadDuplicates();
+	$: if (shownQ && loaded && !spellingKind) loadDuplicates();
 	const SEARCH_LINE_MAX = 5;
-	$: missed = shownQ && loaded && !error ? searchVariants(duplicates, shownQ) : [];
+	$: missed =
+		shownQ && loaded && !error ? searchVariants(spellingAnswers[DEFAULT_KIND], shownQ) : [];
 	// 다섯 개까지, 가장 많이 튼 것부터. 링크는 그 표기로 검색한 작곡가 목록(그 줄을 바로 고칠 수 있다).
 	$: missedRows = missed.slice(0, SEARCH_LINE_MAX).map((row) => ({
 		...row,
@@ -268,6 +276,8 @@
 		<SpellingVariants
 			kind={spellingKind}
 			{q}
+			answers={spellingAnswers}
+			on:loaded={(e) => keepSpelling(e.detail.kind, e.detail.result)}
 			on:change={(e) => showView(e.detail)}
 			on:search={(e) => {
 				query = e.detail;

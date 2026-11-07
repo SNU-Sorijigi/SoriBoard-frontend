@@ -13,6 +13,10 @@
 	// 작곡가 정리의 '표기 정리': 표기만 다른 이름의 묶음(catalog/duplicates/)과 각 표기의 선곡 수.
 	// 읽기 전용이다. 종류가 바뀌면 다시 불러오고, 가장 최근 요청의 응답만 반영한다.
 	export let kind = 'composer';
+	// 페이지가 이미 받은 답(종류 → catalog/duplicates/ 의 답). 있는 종류는 묻지 않고 곧바로 보인다.
+	// 새로 받은 답은 'loaded'로 페이지에 알려, 보기나 종류를 바꿔 돌아와도 다시 묻지 않게 한다.
+	/** @type {Record<string, any>} */
+	export let answers = {};
 	// 페이지의 검색어(작곡가 목록과 같은 q). 묶음은 이미 다 받았으므로 여기서 거른다.
 	export let q = '';
 
@@ -25,15 +29,29 @@
 	let error = '';
 	let requestId = 0;
 
-	/** @param {string} target */
-	async function load(target) {
+	// 받은 답이 있으면 곧바로 쓴다(requestId 를 올려 아직 오는 다른 종류의 답이 덮지 못하게).
+	// '다시 시도'(fresh)는 늘 묻는다.
+	/**
+	 * @param {string} target
+	 * @param {boolean} [fresh]
+	 */
+	async function load(target, fresh = false) {
 		const id = ++requestId;
-		loading = true;
 		error = '';
+		const known = fresh ? null : answers[target];
+		if (known) {
+			groups = known.groups ?? [];
+			loadedKind = target;
+			loading = false;
+			return;
+		}
+		loading = true;
 		try {
 			const res = await fetch(`/api/catalog/duplicates${duplicatesSearch(target)}`);
 			if (!res.ok) throw new Error(`catalog/duplicates ${res.status}`);
 			const result = await res.json();
+			// 늦게 온 답도 그 종류의 답이니 페이지에는 알린다(화면에는 가장 최근 요청의 답만).
+			dispatch('loaded', { kind: target, result });
 			if (id !== requestId) return;
 			groups = result.groups ?? [];
 			loadedKind = target;
@@ -55,7 +73,7 @@
 	async function retryList(e) {
 		const hadFocus = document.activeElement === e.currentTarget;
 		if (hadFocus) card?.focus();
-		await load(kind);
+		await load(kind, true);
 		if (!hadFocus || !error) return;
 		await tick();
 		if (document.activeElement === card) card.querySelector('.placeholder.error button')?.focus();
