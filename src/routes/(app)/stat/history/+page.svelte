@@ -12,7 +12,8 @@
 	import { downloadName, memberFileText } from '$lib/statFileName.js';
 	import { pageTitle, periodTitle } from '$lib/statTitle.js';
 	import { semesterRangeOf } from '$lib/statBucket.js';
-	import { ongoingText, upcomingText } from '$lib/semesterReport.js';
+	import { ongoingText, upcomingText, reportHref } from '$lib/semesterReport.js';
+	import { statQueryHref } from '$lib/statQuery.js';
 	import {
 		PAGE_SIZE,
 		EXPORT_PAGE_SIZE,
@@ -409,6 +410,14 @@
 		includeMentees,
 		requested
 	});
+	// '학기 결산' 링크(통계의 것과 같다): 기간이 학기면 그 학기의, 아니면 가장 최근의 시작한 학기의 결산.
+	// 지기를 골랐으면 그 지기(와 견습 포함)의 개인 결산. 검색어·id 필터·신청곡은 결산에 없으므로 잇지 않는다.
+	$: reportLink = statQueryHref(
+		new URL(reportHref(period), 'http://localhost'),
+		userId
+			? { scope: 'individual', userId, includeMentees }
+			: { scope: 'all', userId: null, includeMentees: false }
+	);
 	// 작곡가로 좁힌 목록은 그 작곡가 페이지를 링크한다(행의 작곡가 링크와 같은 기간·지기).
 	$: composerTarget = targets.find((t) => t.param === 'composer_id');
 	$: composerLink =
@@ -445,6 +454,7 @@
 			{#if ongoing}<span class="period">{ongoing}</span>{/if}
 			{#if upcoming}<span class="period">{upcoming}</span>{/if}
 			<a class="stat-link" href={statLink}>통계</a>
+			<a class="stat-link" href={reportLink}>학기 결산</a>
 			<!-- 작곡가 페이지의 '선곡 기록'이 이 목록을 연다(#38): 거꾸로 가는 링크 -->
 			{#if composerLink}
 				<a class="stat-link" href={composerLink} title="이 작곡가 페이지 열기">작곡가 페이지</a>
