@@ -10,6 +10,7 @@ import {
 	targetHistoryHref,
 	statHref,
 	playsParams,
+	clubPlaysParams,
 	appendPage,
 	targetLookup,
 	targetName,
@@ -150,6 +151,59 @@ test('plays/ gets the search, the 지기 and 신청곡, and the offset after the
 		}
 	);
 	assert.deepEqual(params({ period: 'all', includeMentees: true }, 0), { limit: '50' });
+});
+
+const club = (filter) => {
+	const p = clubPlaysParams({ ...DEFAULT, ...filter }, CURRENT_RANGE);
+	return p && Object.fromEntries(p);
+};
+
+test('the club count asks nothing under 전체 지기', () => {
+	assert.equal(club({}), null);
+	assert.equal(club({ period: 'all', q: '바흐', includeMentees: true }), null);
+});
+
+test('the club count asks one row of the same plays, without the 지기 or 견습', () => {
+	assert.deepEqual(club({ period: 'all', userId: '2', includeMentees: true }), { limit: '1' });
+	// 지기의 목록과 다른 것은 user_id·include_mentees 와 limit 뿐이다(offset 은 없다).
+	const filter = {
+		period: 'all',
+		q: ' 첼로 ',
+		userId: '2',
+		includeMentees: true,
+		requested: 'true'
+	};
+	const mine = params(filter);
+	delete mine.user_id;
+	delete mine.include_mentees;
+	assert.deepEqual(club(filter), { ...mine, limit: '1' });
+	assert.deepEqual(club(filter), { q: '첼로', requested: 'true', limit: '1' });
+});
+
+test('the club count keeps the period: 이번 학기, a 학기 and 직접 지정', () => {
+	assert.deepEqual(club({ userId: '2' }), { ...CURRENT_RANGE, limit: '1' });
+	assert.deepEqual(club({ period: '3', userId: '2' }), { semester_id: '3', limit: '1' });
+	assert.deepEqual(
+		club({ period: 'custom', start: '2025-03-01', end: '2025-06-30', userId: '2' }),
+		{ start: '2025-03-01', end: '2025-06-30', limit: '1' }
+	);
+});
+
+test('the club count keeps every id filter as the list sends it', () => {
+	const targets = [
+		{ param: 'composer_id', id: '4' },
+		{ param: 'music_id', id: '20' },
+		{ param: 'player_id', id: '12' },
+		{ param: 'conductor_id', id: '3' },
+		{ param: 'orchestra_id', id: '5' }
+	];
+	const filter = { period: '3', userId: '7', requested: 'false', targets };
+	const mine = params(filter);
+	delete mine.user_id;
+	assert.deepEqual(club(filter), { ...mine, limit: '1' });
+	for (const { param, id } of targets) assert.equal(club(filter)[param], id);
+	assert.equal(club(filter).semester_id, '3');
+	assert.equal(club(filter).requested, 'false');
 });
 
 test('an id filter from the drill-down is read, written and sent to plays/', () => {

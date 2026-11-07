@@ -14,6 +14,7 @@
 	import { semesterRangeOf } from '$lib/statBucket.js';
 	import { ongoingText, upcomingText, reportHref } from '$lib/semesterReport.js';
 	import { statQueryHref } from '$lib/statQuery.js';
+	import { clubShareText } from '$lib/statShare.js';
 	import {
 		PAGE_SIZE,
 		EXPORT_PAGE_SIZE,
@@ -23,6 +24,7 @@
 		historyHref,
 		statHref,
 		playsParams,
+		clubPlaysParams,
 		appendPage,
 		fetchAllPlays,
 		playCsvRow,
@@ -77,6 +79,11 @@
 	/** @type {import('$lib/playHistory.js').Play[]} */
 	let rows = [];
 	let count = null; // 조건에 맞는 선곡 수(plays/ 의 count)
+	// 지기를 골랐을 때 같은 조건에서 클럽 전체가 튼 선곡 수. 보이는 목록(shownList)의 것만 두어, 새 수가 옛 클럽
+	// 수와 짝지어지지 않는다. 없으면(전체 지기·불러오는 중·실패) null.
+	/** @type {number | null} */
+	let clubCount = null;
+	let shownList = 0; // 보이는 목록을 부른 load 의 requestId
 	let offset = 0; // 지금까지 받은 행 수(다음 쪽의 offset)
 	let loading = false;
 	// 새 목록(검색·필터 변경, '다시 시도')을 부르는 중. 보이던 행은 답이 올 때까지 흐리게 남긴다(작곡가 정리와 같다).
@@ -97,6 +104,21 @@
 		// 새 목록은 진행 중인 '모두 보기'도 멈춘다(그 반복은 다음 응답에서 false 를 받고 끝난다).
 		if (!more) restLoading = false;
 		error = '';
+		// 지기를 골랐으면 같은 조건의 클럽 수도 함께 묻는다(새 목록만). 목록은 이 답을 기다리지 않고, 실패하면 몫을
+		// 쓰지 않는다. 목록보다 먼저 오면 목록과 함께, 늦게 오면 그 목록이 아직 보일 때만 쓴다.
+		const clubQuery = more ? null : clubPlaysParams(wanted, current);
+		/** @type {number | null | undefined} undefined: 아직 답이 없다 */
+		let club = clubQuery ? undefined : null;
+		if (clubQuery) {
+			fetch(`/api/plays?${clubQuery}`)
+				.then((res) => (res.ok ? res.json() : null))
+				.then((result) => (typeof result?.count === 'number' ? result.count : null))
+				.catch(() => null)
+				.then((answer) => {
+					club = answer;
+					if (shownList === id) clubCount = answer;
+				});
+		}
 		try {
 			const res = await fetch(
 				`/api/plays?${playsParams(wanted, current, more ? offset : 0, limit)}`
@@ -111,6 +133,8 @@
 				rows = result.results;
 				offset = result.results.length;
 				shownQ = wanted.q;
+				shownList = id;
+				clubCount = club ?? null;
 				// 새 목록은 맨 위부터 보인다(상자가 남아 있으면 스크롤을 되돌린다).
 				if (listScroll) listScroll.scrollTop = 0;
 			}
@@ -125,6 +149,8 @@
 				rows = [];
 				count = null;
 				offset = 0;
+				shownList = 0;
+				clubCount = null;
 			}
 		} finally {
 			if (id === requestId) {
@@ -430,6 +456,7 @@
 			includeMentees
 		});
 	$: hasMore = count !== null && offset < count;
+	$: shareText = clubShareText(count, clubCount, '곡');
 	// 인쇄본에만: 불러온 행만 실린다는 말('n / N'과 더 보기·모두 보기가 보일 때와 같은 조건).
 	$: printNote = hasMore ? partialPrintText(rows.length, count) : '';
 	// 탭 제목: id 필터(이름을 찾기 전에는 '작곡가 #12'), 지기, 기간(이번 학기는 빼고).
@@ -542,7 +569,8 @@
 	<div class="result-bar">
 		<p class="result-count" aria-live="polite">
 			{#if count !== null}
-				총 {count.toLocaleString()}곡{#if shownQ}&nbsp;· '{shownQ}' 검색{/if}
+				총 {count.toLocaleString()}곡{#if shownQ}&nbsp;· '{shownQ}' 검색{/if}{#if shareText}&nbsp;·
+					<span title="같은 조건에서 클럽 전체가 튼 선곡 중 이 지기의 몫">{shareText}</span>{/if}
 			{/if}
 			<!-- 목록이 실패하면 화면 낭독기에만 알린다('더 보기'의 실패는 그 '다시 시도'가 말한다). -->
 			{#if error && rows.length === 0}<span class="sr-only"

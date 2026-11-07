@@ -217,6 +217,17 @@ export function playsParams(filter, current, offset = 0, limit = PAGE_SIZE) {
 	return params;
 }
 
+// 지기를 고른 목록과 같은 조건(기간·검색·신청곡·id 필터)에서 클럽 전체가 튼 선곡 수를 묻는 쿼리.
+// 수(count)만 쓰므로 한 행(limit=1)만 받는다. 지기를 고르지 않았으면(전체 지기) null 이다.
+/**
+ * @param {HistoryFilter} filter
+ * @param {{ start: string, end: string }} current
+ */
+export function clubPlaysParams(filter, current) {
+	if (!filter.userId) return null;
+	return playsParams({ ...filter, userId: null, includeMentees: false }, current, 0, 1);
+}
+
 // id 필터의 이름을 찾는 요청: 그 대상으로 거른 전체 기간의 순위(stats/<card>). 이름은 URL에
 // 두지 않는다(이름은 겹칠 수 있고, 링크가 틀린 이름을 보이면 안 된다). 필터가 없으면 null.
 /** @param {HistoryTarget | null | undefined} target */
