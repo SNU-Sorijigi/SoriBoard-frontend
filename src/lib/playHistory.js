@@ -397,10 +397,42 @@ export function recordingParts(play) {
 	return { number: trim(play.cd_id), source: trim(play.source) };
 }
 
+// 그 타임의 지기와 견습 지기, 한 사람에 하나씩: 이름, 견습인지, 보일 글자('이름' 또는 '이름(견습)').
+/**
+ * @param {Play} play
+ * @returns {{ name: string, mentee: boolean, text: string }[]}
+ */
+export function jigiEntries(play) {
+	return [
+		...(play.jigi_names ?? []).map((name) => ({ name, mentee: false, text: name })),
+		...(play.mentee_names ?? []).map((name) => ({ name, mentee: true, text: `${name}(견습)` }))
+	];
+}
+
 // 그 타임의 지기와 견습 지기, 한 사람에 하나씩(견습은 '이름(견습)').
 /** @param {Play} play */
 export function jigiNames(play) {
-	return [...(play.jigi_names ?? []), ...(play.mentee_names ?? []).map((name) => `${name}(견습)`)];
+	return jigiEntries(play).map((entry) => entry.text);
+}
+
+// 선곡의 지기 이름 하나 → 목록의 다른 조건(기간·검색어·신청곡·id 필터)은 그대로 두고 그 지기만 고른
+// 선곡 기록. 견습 이름(mentee)이면 견습 포함을 켜고, 지기 이름이면 끈다. plays/ 는 이름만 주므로 지기
+// 목록(users, /api/user/ 의 { id, name })에서 이름이 같은 사람을 찾는다. 목록이 없거나, 그 이름이 없거나
+// 둘 이상이면(동명이인) 짐작하지 않고 null. 목록이 이미 그 지기(견습 이름이면 견습 포함까지)여도 null.
+/**
+ * @param {string} name
+ * @param {boolean} mentee
+ * @param {{ id: number | string, name: string }[] | null | undefined} users
+ * @param {HistoryFilter} view
+ */
+export function jigiHistoryHref(name, mentee, users, view) {
+	if (!name || !Array.isArray(users)) return null;
+	const matches = users.filter((user) => user?.name === name);
+	if (matches.length !== 1) return null;
+	const userId = readId(String(matches[0].id));
+	if (!userId) return null;
+	if (String(view.userId ?? '') === userId && (!mentee || view.includeMentees)) return null;
+	return historyHref({ ...view, userId, includeMentees: mentee });
 }
 
 // 그 타임의 지기와 견습 지기.

@@ -23,6 +23,8 @@ import {
 	performersText,
 	recordingParts,
 	jigiNames,
+	jigiEntries,
+	jigiHistoryHref,
 	jigiText,
 	fetchAllPlays,
 	playCsvRow,
@@ -869,5 +871,118 @@ test('bucketHistoryLinks opens a whole 학기 in the 학기 list by semester_id,
 			semesters
 		),
 		['/stat/history?start=2025-09-01&end=2025-09-30&user_id=12']
+	);
+});
+
+test('jigiEntries gives each 지기 and 견습 with its flag, in jigiNames order', () => {
+	const play = { jigi_names: ['가상일', '가상이'], mentee_names: ['가상사'] };
+	assert.deepEqual(jigiEntries(play), [
+		{ name: '가상일', mentee: false, text: '가상일' },
+		{ name: '가상이', mentee: false, text: '가상이' },
+		{ name: '가상사', mentee: true, text: '가상사(견습)' }
+	]);
+	assert.deepEqual(
+		jigiEntries(play).map((entry) => entry.text),
+		jigiNames(play)
+	);
+	assert.deepEqual(jigiEntries({}), []);
+	assert.deepEqual(jigiEntries({ mentee_names: ['가상사'] }), [
+		{ name: '가상사', mentee: true, text: '가상사(견습)' }
+	]);
+});
+
+test("jigiHistoryHref opens one 지기's plays and keeps the rest of the list", () => {
+	const users = [
+		{ id: 1, name: '가상일' },
+		{ id: 2, name: '가상이' },
+		{ id: 4, name: '가상사' },
+		{ id: 7, name: '가상동' },
+		{ id: 8, name: '가상동' }
+	];
+	const view = {
+		period: '3',
+		start: '',
+		end: '',
+		q: 'bach',
+		userId: null,
+		includeMentees: false,
+		requested: 'true',
+		targets: [{ param: 'composer_id', id: '5' }]
+	};
+	// 지기 이름: 기간·검색어·신청곡·id 필터는 그대로, 그 지기만.
+	assert.equal(
+		jigiHistoryHref('가상일', false, users, view),
+		'/stat/history?semester_id=3&q=bach&user_id=1&requested=true&composer_id=5'
+	);
+	// 견습 이름: 견습 포함을 켠다.
+	assert.equal(
+		jigiHistoryHref('가상사', true, users, view),
+		'/stat/history?semester_id=3&q=bach&user_id=4&include_mentees=true&requested=true&composer_id=5'
+	);
+	// 직접 지정, 다른 지기를 고른 목록: 그 지기로 바꾸고, 지기 이름이면 견습 포함을 끈다.
+	const custom = {
+		...view,
+		period: 'custom',
+		start: '2026-03-01',
+		end: '2026-06-30',
+		q: '',
+		requested: '',
+		targets: [],
+		userId: '1',
+		includeMentees: true
+	};
+	assert.equal(
+		jigiHistoryHref('가상이', false, users, custom),
+		'/stat/history?start=2026-03-01&end=2026-06-30&user_id=2'
+	);
+	// 목록이 이미 그 지기면 링크하지 않는다(견습 포함이 켜져 있어도 지기 이름은 그 지기다).
+	assert.equal(jigiHistoryHref('가상일', false, users, custom), null);
+	assert.equal(jigiHistoryHref('가상일', false, users, { ...custom, includeMentees: false }), null);
+	// 견습 이름은 견습 포함까지 켜져 있어야 이미 그 목록이다.
+	const sa = { ...view, userId: '4' };
+	assert.equal(
+		jigiHistoryHref('가상사', true, users, sa),
+		'/stat/history?semester_id=3&q=bach&user_id=4&include_mentees=true&requested=true&composer_id=5'
+	);
+	assert.equal(jigiHistoryHref('가상사', true, users, { ...sa, includeMentees: true }), null);
+	assert.equal(jigiHistoryHref('가상사', false, users, sa), null);
+	// 숫자 userId 도 같은 지기로 본다.
+	assert.equal(jigiHistoryHref('가상사', false, users, { ...sa, userId: 4 }), null);
+});
+
+test('jigiHistoryHref never guesses: unknown, duplicated or missing users give null', () => {
+	const view = {
+		period: 'all',
+		start: '',
+		end: '',
+		q: '',
+		userId: null,
+		includeMentees: false,
+		requested: '',
+		targets: []
+	};
+	const users = [
+		{ id: 1, name: '가상일' },
+		{ id: 7, name: '가상동' },
+		{ id: 8, name: '가상동' }
+	];
+	assert.equal(jigiHistoryHref('가상일', false, users, view), '/stat/history?period=all&user_id=1');
+	assert.equal(jigiHistoryHref('가상구', false, users, view), null);
+	assert.equal(jigiHistoryHref('가상동', false, users, view), null);
+	assert.equal(jigiHistoryHref('가상동', true, users, view), null);
+	// 이름은 그대로 견준다(앞뒤 공백·견습 표시가 붙은 글자는 다른 이름).
+	assert.equal(jigiHistoryHref(' 가상일', false, users, view), null);
+	assert.equal(jigiHistoryHref('가상일(견습)', true, users, view), null);
+	assert.equal(jigiHistoryHref('', false, users, view), null);
+	// 지기 목록을 아직 못 받았거나 못 받았으면.
+	assert.equal(jigiHistoryHref('가상일', false, [], view), null);
+	assert.equal(jigiHistoryHref('가상일', false, undefined, view), null);
+	assert.equal(jigiHistoryHref('가상일', false, null, view), null);
+	// id 가 쓸 수 없는 값이면.
+	assert.equal(jigiHistoryHref('가상영', false, [{ id: 0, name: '가상영' }], view), null);
+	assert.equal(jigiHistoryHref('가상영', false, [{ name: '가상영' }], view), null);
+	assert.equal(
+		jigiHistoryHref('가상영', false, [{ id: '9', name: '가상영' }], view),
+		'/stat/history?period=all&user_id=9'
 	);
 });
