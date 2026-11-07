@@ -191,6 +191,57 @@ export function spellingVariants(response, id) {
 	return [...others.values()].sort(byCount);
 }
 
+// 백엔드가 이름을 견주는 꼴(catalog.py 의 normalize_name): NFKC, 소문자, 공백·마침표·줄표(모든 Pd) 없이.
+// 파이썬의 casefold 와 달리 ß 같은 몇 글자는 그대로 남는다(그런 묶음은 찾지 못할 뿐, 잘못 찾지는 않는다).
+/** @param {string | null | undefined} text */
+export const normalizeName = (text) =>
+	String(text ?? '')
+		.normalize('NFKC')
+		.toLowerCase()
+		.replace(/[\s.\p{Pd}]/gu, '');
+
+// 선곡 기록의 검색(plays/ 의 q, icontains)이 놓칠 수 있는 표기: 다듬은 검색어가 key 에 든 묶음(이름 종류의
+// 묶음은 다듬은 이름이 key 다)에서, 이름에 검색어가 글자 그대로 들지 않고 선곡이 있는 행. 각 행과 그 묶음.
+/**
+ * @param {{ groups?: SpellingGroup[] | null } | null | undefined} response
+ * @param {string | null | undefined} q
+ * @returns {{ row: SpellingRow, group: SpellingGroup }[]}
+ */
+function searchMisses(response, q) {
+	const groups = response?.groups;
+	const term = (q ?? '').trim().toLowerCase();
+	const key = normalizeName(term);
+	if (!key || !Array.isArray(groups)) return [];
+	/** @type {{ row: SpellingRow, group: SpellingGroup }[]} */
+	const missed = [];
+	for (const group of groups) {
+		if (typeof group?.key !== 'string' || !group.key.includes(key)) continue;
+		for (const row of Array.isArray(group.rows) ? group.rows : []) {
+			if (typeof row?.name !== 'string' || !(Number(row.count) > 0)) continue;
+			if (!row.name.toLowerCase().includes(term)) missed.push({ row, group });
+		}
+	}
+	return missed.sort((a, b) => byCount(a.row, b.row));
+}
+
+// 그 행들(한 종류의 응답에서), 가장 많이 튼 것부터. 자르지 않는다. 응답이 없거나 틀렸거나 검색어가 비었으면 [].
+/**
+ * @param {{ groups?: SpellingGroup[] | null } | null | undefined} response
+ * @param {string | null | undefined} q
+ * @returns {SpellingRow[]}
+ */
+export const searchVariants = (response, q) => searchMisses(response, q).map(({ row }) => row);
+
+// 그 줄의 '표기 정리' 링크가 찾을 이름: 가장 많이 튼 놓친 행이 든 묶음의, 가장 많이 튼 표기. 없으면 ''.
+/**
+ * @param {{ groups?: SpellingGroup[] | null } | null | undefined} response
+ * @param {string | null | undefined} q
+ */
+export function searchCatalogName(response, q) {
+	const [first] = searchMisses(response, q);
+	return first ? String(first.group.rows[0]?.name ?? first.row.name) : '';
+}
+
 // 작곡가 페이지의 '표기만 다른 이름': 그 작곡가가 든 묶음의 다른 표기들.
 /**
  * @param {{ groups?: SpellingGroup[] | null } | null | undefined} response

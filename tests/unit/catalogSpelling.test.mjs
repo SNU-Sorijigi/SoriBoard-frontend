@@ -21,7 +21,10 @@ import {
 	firstSpellingSplits,
 	firstSpellingNote,
 	FIRST_SPELLING_LEAD,
-	FIRST_MUSIC_LEAD
+	FIRST_MUSIC_LEAD,
+	normalizeName,
+	searchVariants,
+	searchCatalogName
 } from '../../src/lib/catalogSpelling.js';
 import { readHistoryQuery } from '../../src/lib/playHistory.js';
 import { readCatalogQuery } from '../../src/lib/composerCatalog.js';
@@ -953,4 +956,151 @@ test('no answer, a malformed one or an empty one gives no rows and no line', () 
 	assert.equal(firstSpellingNote([]), '');
 	assert.equal(firstSpellingNote(null), '');
 	assert.equal(firstSpellingNote(undefined), '');
+});
+
+test('names are normalized as the backend compares them', () => {
+	assert.equal(normalizeName('J. S. Bach'), 'jsbach');
+	assert.equal(normalizeName('Wiener\u2013Philharmoniker'), 'wienerphilharmoniker');
+	assert.equal(normalizeName('Wiener-Philharmoniker'), 'wienerphilharmoniker');
+	assert.equal(normalizeName('\uFF21\uFF22\uFF23'), 'abc');
+	assert.equal(normalizeName('가상\u3000작곡가'), '가상작곡가');
+	assert.equal(normalizeName(''), '');
+	assert.equal(normalizeName('  '), '');
+	assert.equal(normalizeName(' . - '), '');
+	assert.equal(normalizeName(null), '');
+	assert.equal(normalizeName(undefined), '');
+});
+
+const searchAnswer = {
+	kind: 'composer',
+	groups: [
+		{
+			key: 'jsbach',
+			count: 16,
+			rows: [
+				{ id: 2, name: 'J. S. Bach', count: 12 },
+				{ id: 1, name: 'J.S. Bach', count: 4 },
+				{ id: 3, name: 'Bach J S', count: 0 }
+			]
+		}
+	]
+};
+const names = (rows) => rows.map((row) => row.name);
+
+test('a search misses the spellings that do not contain it, played ones only', () => {
+	assert.deepEqual(names(searchVariants(searchAnswer, 'J.S. Bach')), ['J. S. Bach']);
+	assert.deepEqual(names(searchVariants(searchAnswer, '  j.s. bach ')), ['J. S. Bach']);
+	assert.deepEqual(names(searchVariants(searchAnswer, 'JS Bach')), ['J. S. Bach', 'J.S. Bach']);
+	assert.deepEqual(names(searchVariants(searchAnswer, 'J. S. Bach')), ['J.S. Bach']);
+	// 'J S' contains neither 'J. S.' nor 'J.S.' letter for letter
+	assert.deepEqual(names(searchVariants(searchAnswer, 'J S')), ['J. S. Bach', 'J.S. Bach']);
+});
+
+test('a search every spelling contains, or no group key contains, misses nothing', () => {
+	assert.deepEqual(searchVariants(searchAnswer, 'bach'), []);
+	assert.deepEqual(searchVariants(searchAnswer, 'Bach'), []);
+	assert.deepEqual(searchVariants(searchAnswer, 'Händel'), []);
+	assert.deepEqual(searchVariants(searchAnswer, 'Bach JS'), []);
+});
+
+test('no search, no answer or a malformed one misses nothing', () => {
+	for (const q of ['', '   ', ' . ', null, undefined]) {
+		assert.deepEqual(searchVariants(searchAnswer, q), []);
+		assert.equal(searchCatalogName(searchAnswer, q), '');
+	}
+	for (const answer of [
+		null,
+		undefined,
+		{},
+		{ groups: 'x' },
+		{ groups: [] },
+		{ groups: [null, { rows: null }, { key: 3, rows: [{ id: 1, name: 'x', count: 1 }] }] },
+		{ groups: [{ key: 'jsbach', rows: [null, { id: 9, count: 2 }] }] }
+	]) {
+		assert.deepEqual(searchVariants(answer, 'JS Bach'), [], JSON.stringify(answer));
+		assert.equal(searchCatalogName(answer, 'JS Bach'), '');
+	}
+});
+
+test('two matching groups give the rows of both, most played first', () => {
+	const answer = {
+		groups: [
+			searchAnswer.groups[0],
+			{
+				key: 'jsbachgesellschaft',
+				count: 9,
+				rows: [
+					{ id: 5, name: 'J.S.Bach Gesellschaft', count: 6 },
+					{ id: 6, name: 'J. S. Bach-Gesellschaft', count: 3 }
+				]
+			},
+			{ key: 'cpebach', count: 2, rows: [{ id: 7, name: 'C.P.E. Bach', count: 2 }] }
+		]
+	};
+	assert.deepEqual(names(searchVariants(answer, 'JS Bach')), [
+		'J. S. Bach',
+		'J.S.Bach Gesellschaft',
+		'J.S. Bach',
+		'J. S. Bach-Gesellschaft'
+	]);
+	assert.deepEqual(names(searchVariants(answer, 'J.S. Bach')), [
+		'J. S. Bach',
+		'J.S.Bach Gesellschaft',
+		'J. S. Bach-Gesellschaft'
+	]);
+});
+
+test('rows of the same count come by name, and the list is not capped', () => {
+	const rows = [
+		'Z Y Wolke',
+		'Z.Y. Wolke',
+		'Z. Y. Wolke',
+		'Z-Y Wolke',
+		'Z.Y Wolke',
+		'Z.Y.Wolke',
+		'ZY Wolke'
+	];
+	const answer = {
+		groups: [{ key: 'zywolke', rows: rows.map((name, i) => ({ id: i + 1, name, count: 2 })) }]
+	};
+	assert.deepEqual(names(searchVariants(answer, 'ZY Wolke')), [
+		'Z Y Wolke',
+		'Z-Y Wolke',
+		'Z. Y. Wolke',
+		'Z.Y Wolke',
+		'Z.Y. Wolke',
+		'Z.Y.Wolke'
+	]);
+});
+
+test('표기 정리 is searched for the most played spelling of the most played missed row’s group', () => {
+	assert.equal(searchCatalogName(searchAnswer, 'J.S. Bach'), 'J. S. Bach');
+	assert.equal(searchCatalogName(searchAnswer, 'JS Bach'), 'J. S. Bach');
+	assert.equal(searchCatalogName(searchAnswer, 'J. S. Bach'), 'J. S. Bach');
+	assert.equal(searchCatalogName(searchAnswer, 'bach'), '');
+	const answer = {
+		groups: [
+			{
+				key: 'jsbach',
+				rows: [
+					{ id: 2, name: 'J. S. Bach', count: 12 },
+					{ id: 1, name: 'J.S. Bach', count: 4 }
+				]
+			},
+			{
+				key: 'jsbachgesellschaft',
+				rows: [
+					{ id: 5, name: 'J.S.Bach Gesellschaft', count: 20 },
+					{ id: 6, name: 'J. S. Bach Gesellschaft', count: 6 }
+				]
+			}
+		]
+	};
+	// 'J. S. Bach' misses 'J.S. Bach' (4) and 'J.S.Bach Gesellschaft' (20): the latter's group leads.
+	assert.equal(searchCatalogName(answer, 'J. S. Bach'), 'J.S.Bach Gesellschaft');
+	// and the 표기 정리 link opens that kind searched for it
+	assert.equal(
+		catalogViewHref(searchCatalogName(answer, 'J. S. Bach'), 'player'),
+		'/stat/composers?q=J.S.Bach+Gesellschaft&view=spelling&kind=player'
+	);
 });
