@@ -29,7 +29,9 @@ import {
 	fetchAllPlays,
 	playCsvRow,
 	historyPeriod,
-	bucketHistoryLinks
+	bucketHistoryLinks,
+	SHOW_ALL_LIMIT,
+	partialPrintText
 } from '../../src/lib/playHistory.js';
 
 const read = (search) => readHistoryQuery(new URLSearchParams(search));
@@ -985,4 +987,30 @@ test('jigiHistoryHref never guesses: unknown, duplicated or missing users give n
 		jigiHistoryHref('가상영', false, [{ id: '9', name: '가상영' }], view),
 		'/stat/history?period=all&user_id=9'
 	);
+});
+
+test('partialPrintText: 인쇄본에 불러온 행만 실릴 때의 말', () => {
+	const showAll = (n, total) =>
+		`이 인쇄본에는 불러온 ${n}곡만 있습니다(총 ${total}곡 중). 화면에서 모두 보기를 누른 뒤 인쇄하면 모두 실립니다.`;
+	const csv = (n, total) =>
+		`이 인쇄본에는 불러온 ${n}곡만 있습니다(총 ${total}곡 중). 모든 선곡은 CSV 저장으로 받을 수 있습니다.`;
+	assert.equal(SHOW_ALL_LIMIT, 1000);
+	// 모두 보기가 있는 목록(1,000곡 이하)은 그것을 권한다.
+	assert.equal(partialPrintText(50, 218), showAll('50', '218'));
+	assert.equal(partialPrintText(100, 218), showAll('100', '218'));
+	// 더 긴 목록은 CSV 저장을. 숫자는 천 단위로 끊는다.
+	assert.equal(partialPrintText(50, 1262), csv('50', '1,262'));
+	assert.equal(partialPrintText(1050, 1262), csv('1,050', '1,262'));
+	// 경계: 1,000곡은 모두 보기, 1,001곡은 CSV 저장.
+	assert.equal(partialPrintText(50, 1000), showAll('50', '1,000'));
+	assert.equal(partialPrintText(50, 1001), csv('50', '1,001'));
+	// 다 불러왔으면, 빈 목록이면, 개수를 모르면 말하지 않는다.
+	assert.equal(partialPrintText(1000, 1000), '');
+	assert.equal(partialPrintText(218, 218), '');
+	assert.equal(partialPrintText(0, 0), '');
+	assert.equal(partialPrintText(0, null), '');
+	assert.equal(partialPrintText(50, null), '');
+	// 경계는 인자로 바꿀 수 있다.
+	assert.equal(partialPrintText(50, 218, 100), csv('50', '218'));
+	assert.equal(partialPrintText(50, 100, 100), showAll('50', '100'));
 });

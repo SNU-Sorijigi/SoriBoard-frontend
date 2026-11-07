@@ -304,6 +304,21 @@ export function appendPage(rows, page) {
 	return [...rows, ...page.filter((row) => !seen.has(row.id))];
 }
 
+// 인쇄본에 불러온 행만 실릴 때 개수 줄 아래에 붙이는 말. 다 불러왔거나 개수를 모르면(null) ''.
+// 모두 보기가 있는 목록(showAllLimit 곡 이하)은 그것을, 더 긴 목록은 CSV 저장을 권한다.
+/**
+ * @param {number} loaded 불러온 행 수
+ * @param {number | null} count 조건에 맞는 선곡 수
+ * @param {number} [showAllLimit]
+ */
+export function partialPrintText(loaded, count, showAllLimit = SHOW_ALL_LIMIT) {
+	if (typeof count !== 'number' || !(loaded < count)) return '';
+	const head = `이 인쇄본에는 불러온 ${loaded.toLocaleString()}곡만 있습니다(총 ${count.toLocaleString()}곡 중).`;
+	return count <= showAllLimit
+		? `${head} 화면에서 모두 보기를 누른 뒤 인쇄하면 모두 실립니다.`
+		: `${head} 모든 선곡은 CSV 저장으로 받을 수 있습니다.`;
+}
+
 // 조건에 맞는 선곡을 모두 받는다(CSV 저장). fetchPage(offset) 은 plays/ 의 한 쪽
 // ({ count, results })을 돌려준다. count 만큼 받았거나 빈 쪽이 오면 멈춘다. 쪽이 밀려 같은 선곡이
 // 다시 오면 한 번만 남긴다(appendPage). onProgress(받은 수, count)로 진행을 알린다.
