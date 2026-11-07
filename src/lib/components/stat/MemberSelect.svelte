@@ -12,6 +12,10 @@
 
 	const dispatch = createEventDispatcher();
 	const errorId = 'member-list-error';
+	// 받은 지기 목록(읽기 전용, /api/user/ 의 항목들). 받기 전이나 못 받았으면 [].
+	// 안의 users 를 그대로 내보내지 않고 따로 둔다: users 를 bind 하면 부모가 되돌려 준 값에 select 가
+	// 링크의 지기를 다시 고르지 않는다(Svelte 4).
+	export let loadedUsers = [];
 	let users = [];
 	// 목록을 못 받으면 알림창 대신 select 아래에 짧게 적는다.
 	let listError = '';
@@ -57,6 +61,7 @@
 
 	// 현역과 OB 가 다 있으면 두 묶음(optgroup)으로, 한쪽뿐이면 예전처럼 한 줄로 늘어놓는다.
 	$: groups = memberGroups(users);
+	$: loadedUsers = users;
 	$: userName = users.find((user) => String(user.id) === String(userId))?.name ?? '';
 
 	function onUserChange(e) {

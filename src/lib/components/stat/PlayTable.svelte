@@ -5,14 +5,15 @@
 		workParts,
 		performersText,
 		recordingParts,
-		jigiNames,
+		jigiEntries,
+		jigiHistoryHref,
 		playWorkHref
 	} from '$lib/playHistory.js';
 	import { composerHref } from '$lib/composerStats.js';
 	import MarkedText from './MarkedText.svelte';
 
 	// 선곡 기록의 결과 표. 음반 칸은 음반 번호 아래에 음원 종류를 작게 둔다. 날짜·타임은 그 타임 화면으로, 작곡가는 그 작곡가 페이지로,
-	// 곡 제목은 그 곡의 선곡 기록으로 가는 링크다.
+	// 곡 제목은 그 곡의 선곡 기록으로, 지기 이름은 그 지기만 고른 선곡 기록으로 가는 링크다.
 	/** @type {import('$lib/playHistory.js').Play[]} */
 	export let rows = [];
 	export let label = '선곡 기록';
@@ -20,17 +21,22 @@
 	// 없으면 전체 기간·전체 지기.
 	/** @type {import('$lib/composerStats.js').ComposerPeriod | undefined} */
 	export let composerPeriod = undefined;
-	// 목록의 기간·지기·id 필터({ period, start, end, userId, includeMentees, targets }), 곡 제목 링크에 쓴다.
-	// 없으면 전체 기간·전체 지기, 필터 없음.
-	/** @type {Parameters<typeof playWorkHref>[1]} */
+	// 목록의 조건(기간·검색어·지기·신청곡·id 필터), 곡 제목과 지기 이름 링크에 쓴다. 곡 제목 링크는 검색어와
+	// 신청곡을 뺀다. 없으면 전체 기간·전체 지기, 필터 없음.
+	/** @type {import('$lib/playHistory.js').HistoryFilter} */
 	export let listView = {
 		period: 'all',
 		start: '',
 		end: '',
+		q: '',
 		userId: null,
 		includeMentees: false,
+		requested: '',
 		targets: []
 	};
+	// 지기 목록(MemberSelect 가 받은 /api/user/). 이름을 그 지기의 id 로 잇는다. 비었으면 이름은 글자로만 둔다.
+	/** @type {{ id: number | string, name: string }[]} */
+	export let users = [];
 	// 보이는 행이 답한 검색어. 있으면 백엔드가 찾는 칸(작곡가·곡 제목·세부 제목·연주)에서 그 말을 표시한다.
 	export let q = '';
 </script>
@@ -86,8 +92,19 @@
 					{#if recording.source}<div class="semi recording">{recording.source}</div>{/if}
 				</td>
 				<td>
-					{#each jigiNames(play) as name, i}{#if i}{', '}{/if}<span class="jigi">{name}</span
-						>{/each}
+					<!-- 지기 이름 링크도 선곡 기록 자신으로 가므로 새로 불러온다 -->
+					{#each jigiEntries(play) as jigi, i}{@const jigiLink = jigiHistoryHref(
+							jigi.name,
+							jigi.mentee,
+							users,
+							listView
+						)}{#if i}{', '}{/if}{#if jigiLink}<a
+								class="jigi"
+								href={jigiLink}
+								data-sveltekit-reload
+								title={jigi.mentee ? '이 지기의 선곡만 보기 (견습 포함)' : '이 지기의 선곡만 보기'}
+								>{jigi.text}</a
+							>{:else}<span class="jigi">{jigi.text}</span>{/if}{/each}
 				</td>
 				<td class="narrow">{play.is_requested ? '신청곡' : ''}</td>
 			</tr>
@@ -130,14 +147,16 @@
 	}
 	.session a,
 	.composer,
-	.work {
+	.work,
+	a.jigi {
 		color: inherit;
 		text-decoration-color: var(--gray-gray-500, #656667);
 		text-underline-offset: 3px;
 	}
 	.session a:hover,
 	.composer:hover,
-	.work:hover {
+	.work:hover,
+	a.jigi:hover {
 		text-decoration-thickness: 2px;
 	}
 	.semi {

@@ -230,7 +230,7 @@
 		}
 	}
 	// id 필터마다 그 대상의 다른 표기와, 지금 조건에서 그 id 만 바꾼 링크(없으면 줄을 두지 않는다).
-	// 조건을 바꾸면 링크도 따라 바뀌도록 filter() 대신 값을 하나하나 적는다.
+	// 조건을 바꾸면 링크도 따라 바뀌도록 filter() 대신 값을 하나하나 적는다. 표(PlayTable)의 링크도 이것을 쓴다.
 	$: variantView = {
 		period,
 		start: customStart,
@@ -328,6 +328,7 @@
 	let exportTotal = 0;
 	let exportError = '';
 	let userName = ''; // 고른 지기의 이름(MemberSelect)
+	let users = []; // MemberSelect 가 받은 지기 목록(표의 지기 이름 링크가 이름을 id 로 잇는다)
 	let exportButton;
 
 	async function exportCsv() {
@@ -486,6 +487,7 @@
 				bind:userId
 				bind:includeMentees
 				bind:userName
+				bind:loadedUsers={users}
 				emptyLabel="전체 지기"
 				on:change={onMemberChange}
 			/>
@@ -571,7 +573,8 @@
 				<PlayTable
 					{rows}
 					composerPeriod={{ period, start: customStart, end: customEnd, userId, includeMentees }}
-					listView={{ period, start: customStart, end: customEnd, userId, includeMentees, targets }}
+					listView={variantView}
+					{users}
 					q={shownQ}
 				/>
 			</div>
