@@ -330,6 +330,28 @@ export function partialPrintText(loaded, count, showAllLimit = SHOW_ALL_LIMIT) {
 		: `${head} 모든 선곡은 CSV 저장으로 받을 수 있습니다.`;
 }
 
+// 빈 목록의 말과, '전체 지기에서 찾기'(지기만 풀기)를 보일지. 지기를 골랐고 같은 조건의 클럽 수가
+// 0 이 아니면 보인다: 수를 알면 말에 넣고, 모르면(불러오는 중·실패) 수 없이 보인다. 클럽도 0 이거나
+// 시작하지 않은 학기면 오늘의 말 그대로이고 보이지 않는다. '전체 기간에서 찾기'는 페이지가 기간으로 정한다.
+/**
+ * @param {{ period: string, userId: number | string | null, upcoming?: string | boolean }} filter
+ * @param {number | null | undefined} clubCount 같은 조건(지기·견습 없이)의 클럽 선곡 수
+ * @returns {{ text: string, widenMember: boolean }}
+ */
+export function emptyListText({ period, userId, upcoming }, clubCount) {
+	const wholePeriod = period === ALL;
+	if (upcoming && !wholePeriod)
+		return { text: '아직 시작하지 않은 학기입니다.', widenMember: false };
+	const where = wholePeriod ? '' : '이 기간에는 ';
+	const widenMember = !!userId && clubCount !== 0;
+	if (widenMember && typeof clubCount === 'number')
+		return {
+			text: `${where}이 지기의 선곡이 없습니다 · 클럽 전체 ${clubCount.toLocaleString()}곡`,
+			widenMember
+		};
+	return { text: `${where}조건에 맞는 선곡이 없습니다`, widenMember };
+}
+
 // 조건에 맞는 선곡을 모두 받는다(CSV 저장). fetchPage(offset) 은 plays/ 의 한 쪽
 // ({ count, results })을 돌려준다. count 만큼 받았거나 빈 쪽이 오면 멈춘다. 쪽이 밀려 같은 선곡이
 // 다시 오면 한 번만 남긴다(appendPage). onProgress(받은 수, count)로 진행을 알린다.

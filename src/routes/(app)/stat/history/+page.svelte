@@ -33,7 +33,8 @@
 		targetText,
 		historyFileTags,
 		historyPeriod,
-		partialPrintText
+		partialPrintText,
+		emptyListText
 	} from '$lib/playHistory.js';
 	import {
 		SPELLING_KINDS,
@@ -368,6 +369,13 @@
 		period = ALL;
 		apply();
 	}
+	// 빈 목록에서 지기만 전체 지기로 넓힌다(견습 포함도 끈다). 지기 select 로 전체 지기를 고른 것과 같다.
+	function widenMember(e) {
+		if (document.activeElement === e.currentTarget) listCard?.focus();
+		userId = null;
+		includeMentees = false;
+		apply();
+	}
 	function onMemberChange(e) {
 		userId = e.detail.userId;
 		includeMentees = e.detail.includeMentees;
@@ -484,6 +492,8 @@
 		});
 	$: hasMore = count !== null && offset < count;
 	$: shareText = clubShareText(count, clubCount, '곡');
+	// 빈 목록의 말과 '전체 지기에서 찾기'. clubCount 는 보이는 목록의 것이라 늦게 와도 그 목록과 맞는다.
+	$: emptyList = emptyListText({ period, userId, upcoming }, clubCount);
 	// 인쇄본에만: 불러온 행만 실린다는 말('n / N'과 더 보기·모두 보기가 보일 때와 같은 조건).
 	$: printNote = hasMore ? partialPrintText(rows.length, count) : '';
 	// 탭 제목: id 필터(이름을 찾기 전에는 '작곡가 #12'), 지기, 기간(이번 학기는 빼고).
@@ -658,18 +668,21 @@
 				>
 			</div>
 		{:else if count === 0}
-			{#if period !== ALL}
-				<div class="placeholder">
-					{upcoming ? '아직 시작하지 않은 학기입니다.' : '이 기간에는 조건에 맞는 선곡이 없습니다'}
+			<div class="placeholder">
+				{emptyList.text}
+				{#if period !== ALL}
 					<button
 						class="tool-btn"
 						on:click={widenPeriod}
 						title="기간만 전체 기간으로 바꿔 다시 찾기">전체 기간에서 찾기</button
 					>
-				</div>
-			{:else}
-				<div class="placeholder">조건에 맞는 선곡이 없습니다</div>
-			{/if}
+				{/if}
+				{#if emptyList.widenMember}
+					<button class="tool-btn" on:click={widenMember} title="지기만 전체 지기로 바꿔 다시 찾기"
+						>전체 지기에서 찾기</button
+					>
+				{/if}
+			</div>
 		{/if}
 	</section>
 
