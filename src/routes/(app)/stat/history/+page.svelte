@@ -41,6 +41,7 @@
 		duplicatesSearch,
 		spellingKindOf,
 		spellingVariants,
+		spellingNameOf,
 		searchVariants,
 		searchCatalogName,
 		variantHistoryHref
@@ -296,7 +297,9 @@
 					...row,
 					plays: (row.count ?? 0).toLocaleString(),
 					href: variantHistoryHref(variantView, target, row.id)
-				}))
+				})),
+				// 표기 정리를 그 이름(묶음에 적힌 그대로)으로 찾아 연다: 그 묶음이 맨 앞에, 이름에 표시가 된다
+				catalog: catalogViewHref(spellingNameOf(duplicates[kind], target.id), kind)
 			};
 		})
 		.filter((line) => line.rows.length);
@@ -572,7 +575,7 @@
 					? ', '
 					: ''}‘<a class="variant" href={row.href} data-sveltekit-reload>{row.name}</a>’ 선곡 {row.plays}회{/each}
 			(전체 기간). 이 목록에는 들지 않습니다. ·
-			<a href={catalogViewHref('', line.kind)}>표기 정리</a>
+			<a href={line.catalog}>표기 정리</a>
 		</p>
 	{/each}
 	<!-- 검색어와 표기만 다른 이름: 검색은 글자 그대로 찾으므로(icontains) 띄어쓰기·마침표·줄표만 다른 표기는

@@ -236,6 +236,24 @@ export function spellingVariants(response, id) {
 	return [...others.values()].sort(byCount);
 }
 
+// 그 id 의 행이 묶음에 적힌 이름(곡은 제목만): 그 줄의 '표기 정리' 링크가 찾을 이름. id 는
+// spellingVariants 처럼 문자열로 견준다. 응답이 없거나 틀렸거나, 묶음에 없거나 이름이 글자가 아니면 ''.
+/**
+ * @param {{ groups?: SpellingGroup[] | null } | null | undefined} response
+ * @param {number | string | null | undefined} id
+ */
+export function spellingNameOf(response, id) {
+	const groups = response?.groups;
+	if (id == null || !Array.isArray(groups)) return '';
+	const wanted = String(id);
+	for (const group of groups) {
+		const rows = Array.isArray(group?.rows) ? group.rows : [];
+		const row = rows.find((row) => row && String(row.id) === wanted);
+		if (row) return typeof row.name === 'string' ? row.name : '';
+	}
+	return '';
+}
+
 // 백엔드가 이름을 견주는 꼴(catalog.py 의 normalize_name): NFKC, 소문자, 공백·마침표·줄표(모든 Pd) 없이.
 // 파이썬의 casefold 와 달리 ß 같은 몇 글자는 그대로 남는다(그런 묶음은 찾지 못할 뿐, 잘못 찾지는 않는다).
 /** @param {string | null | undefined} text */

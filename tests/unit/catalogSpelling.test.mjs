@@ -16,6 +16,7 @@ import {
 	composerVariants,
 	spellingKindOf,
 	spellingVariants,
+	spellingNameOf,
 	variantHistoryHref,
 	splitSpellings,
 	splitSpellingNote,
@@ -495,6 +496,47 @@ test('no group, no answer or a malformed one gives no other rows', () => {
 	assert.deepEqual(
 		spellingVariants({ groups: [{ rows: [{ id: 5, name: 'A', count: 1 }] }] }, 5),
 		[]
+	);
+});
+
+test("the filtered row's own stored name, for 선곡 기록's 표기 정리 link", () => {
+	assert.equal(spellingNameOf(variantsResponse, 2), 'J.S. Bach');
+	assert.equal(spellingNameOf(variantsResponse, '2'), 'J.S. Bach');
+	assert.equal(spellingNameOf(variantsResponse, 8), '바 흐');
+	// A piece in two groups: its title, not its composer.
+	assert.equal(spellingNameOf(musicResponse, 5), 'Suites Op. 10 & Op. 11');
+	assert.equal(spellingNameOf(musicResponse, '6'), 'Suite op.10');
+});
+
+test('no row with that id, no answer or a malformed one gives no name', () => {
+	for (const id of [3, null, undefined, '02', '']) {
+		assert.equal(spellingNameOf(variantsResponse, id), '');
+	}
+	for (const response of [null, undefined, {}, { groups: null }, { groups: {} }]) {
+		assert.equal(spellingNameOf(response, 2), '');
+	}
+	assert.equal(spellingNameOf({ groups: [null, { key: 'x' }, { rows: null }] }, 2), '');
+	assert.equal(spellingNameOf({ groups: [{ rows: [null, { id: 2, name: 7 }] }] }, 2), '');
+	assert.equal(spellingNameOf({ groups: [{ rows: [{ id: 2 }] }] }, 2), '');
+});
+
+test("선곡 기록's 표기 정리 link searches the filtered name, of its kind", () => {
+	assert.equal(
+		catalogViewHref(spellingNameOf(variantsResponse, 2), 'composer'),
+		'/stat/composers?q=J.S.+Bach&view=spelling'
+	);
+	assert.equal(
+		catalogViewHref(spellingNameOf(variantsResponse, 2), 'player'),
+		'/stat/composers?q=J.S.+Bach&view=spelling&kind=player'
+	);
+	assert.equal(
+		catalogViewHref(spellingNameOf(musicResponse, 5), 'music'),
+		'/stat/composers?q=Suites+Op.+10+%26+Op.+11&view=spelling&kind=music'
+	);
+	// No row: the whole list of that kind, as before.
+	assert.equal(
+		catalogViewHref(spellingNameOf(variantsResponse, 3), 'composer'),
+		'/stat/composers?view=spelling'
 	);
 });
 
