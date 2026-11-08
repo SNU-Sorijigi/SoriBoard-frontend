@@ -101,6 +101,7 @@
 		composerWorksCsv,
 		composerFirstsTable,
 		composerIsWholeRecord,
+		composerEmptyText,
 		composerWholeDates,
 		composerDayHref,
 		composerHref,
@@ -331,6 +332,14 @@
 		period = ALL;
 		onPeriodChange();
 	}
+	// 고른 지기가 이 작곡가를 튼 적이 없을 때 지기만 전체 지기로 넓힌다(견습 포함도 끈다). 지기 select 로
+	// 전체 지기를 고른 것과 같고 기간은 그대로다(단추가 사라지므로 포커스는 h1 으로).
+	function widenMember(e) {
+		if (document.activeElement === e.currentTarget) heading?.focus();
+		userId = null;
+		includeMentees = false;
+		applyMember();
+	}
 
 	// 표기 정리의 묶음(catalog/duplicates/, 전체 기간·전체 지기): 모든 작곡가에 같으므로 종류마다(작곡가,
 	// 독주자, 지휘자, 오케스트라) 처음 한 번만 부르고 둔다(다른 작곡가로 옮겨 가거나 기간·지기를 바꿔도 다시
@@ -421,6 +430,9 @@
 	// 지기도 같다(링크의 지기가 목록에 없어 전체 지기로 되돌릴 때도 MemberSelect 가 change 를 보낸다).
 	function onMemberChange(e) {
 		({ userId, includeMentees } = e.detail);
+		applyMember();
+	}
+	function applyMember() {
 		const url = new URL($page.url);
 		writeComposerMember(url.searchParams, { userId, includeMentees });
 		goto(url, { replaceState: true, keepFocus: true, noScroll: true });
@@ -828,7 +840,8 @@
 	$: wholeFirstLink = composerDayHref(composerId, wholeSummary?.date_start);
 	$: wholeLastLink = composerDayHref(composerId, wholeSummary?.date_end);
 	// 기간에 이 작곡가의 선곡이 없을 때 카드 대신 보이는 말. 화면 낭독기의 로드 상태도 같은 말을 한다.
-	$: emptyText = `${period === ALL ? '아직' : '이 기간에는'} ${userId ? '이 지기가 ' : ''}이 작곡가의 곡을 튼 적이 없습니다.`;
+	// 지기를 골랐으면 같은 기간 클럽 전체의 수를 붙이고 '전체 지기에서 보기'를 둔다(클럽도 0 이면 두지 않는다).
+	$: emptyState = composerEmptyText({ period, userId }, clubSummary?.total_plays);
 	// 화면 낭독기에 알릴 로드 상태(통계와 같다): 작곡가 정보나 카드를 불러오는 동안과 작곡가를 찾을 수 없을 때는
 	// 비우고, 다 끝나면 실패한 카드의 이름(페이지 순서)이나 다 불러왔음을, 선곡이 없는 기간이면 그 말을 한다.
 	// 처음 튼 곡을 묻지 않으면 loading·errors 가 없어 이름에 들지 않는다.
@@ -849,7 +862,7 @@
 			!composerId || notFound || (!composer && !composerError) || CARD_KEYS.some((k) => loading[k])
 				? ''
 				: summary?.total_plays === 0
-					? emptyText
+					? emptyState.text
 					: loadStatusText(loading, errors, cardNames),
 			previousFailed.length ? semesterLabel(previousTarget) : ''
 		),
@@ -1161,9 +1174,9 @@
 		{#if summary && summary.total_plays === 0}
 			<div class="empty-hint">
 				{#if period === ALL}
-					{emptyText}
+					{emptyState.text}
 				{:else}
-					{emptyText}
+					{emptyState.text}
 					{#if !composerIsWholeRecord({ period, start: customStart, end: customEnd })}
 						<button
 							class="tool-btn"
@@ -1171,6 +1184,11 @@
 							title="기간만 전체 기간으로 바꿔 다시 보기">전체 기간에서 보기</button
 						>
 					{/if}
+				{/if}
+				{#if emptyState.widenMember}
+					<button class="tool-btn" on:click={widenMember} title="지기만 전체 지기로 바꿔 다시 보기"
+						>전체 지기에서 보기</button
+					>
 				{/if}
 			</div>
 		{:else}

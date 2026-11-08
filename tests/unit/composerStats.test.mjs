@@ -28,7 +28,8 @@ import {
 	composerFirstsTable,
 	composerWorksCsv,
 	composerIsWholeRecord,
-	composerWholeDates
+	composerWholeDates,
+	composerEmptyText
 } from '../../src/lib/composerStats.js';
 import { readHistoryQuery, workHistoryHref } from '../../src/lib/playHistory.js';
 import { toCsvTable, tableCsv } from '../../src/lib/csvTable.js';
@@ -1135,4 +1136,55 @@ test("previous rank lead: the note has ' (<previous lead>)' right after its lead
 		composerRankNote(SEM2, 4, 32, SEM2).slice(composerRankLead(SEM2, 4).length),
 		` (${composerPreviousRankLead(SEM2, 4)}) · 이 기간 선곡 222곡 중 32곡 (14.4%)`
 	);
+});
+
+test('composerEmptyText: 지기를 고르지 않으면 오늘의 말이고 지기 버튼은 없다', () => {
+	assert.deepEqual(composerEmptyText({ period: 'all', userId: null }, null), {
+		text: '아직 이 작곡가의 곡을 튼 적이 없습니다.',
+		widenMember: false
+	});
+	assert.deepEqual(composerEmptyText({ period: '12', userId: null }, 12), {
+		text: '이 기간에는 이 작곡가의 곡을 튼 적이 없습니다.',
+		widenMember: false
+	});
+	assert.deepEqual(composerEmptyText({ period: 'current' }, undefined), {
+		text: '이 기간에는 이 작곡가의 곡을 튼 적이 없습니다.',
+		widenMember: false
+	});
+});
+
+test('composerEmptyText: 지기를 골랐고 클럽이 튼 적이 있으면 그 수와 지기 버튼', () => {
+	assert.deepEqual(composerEmptyText({ period: '12', userId: '7' }, 12), {
+		text: '이 기간에는 이 지기가 이 작곡가의 곡을 튼 적이 없습니다 · 클럽 전체 12곡',
+		widenMember: true
+	});
+	assert.deepEqual(composerEmptyText({ period: 'all', userId: 7 }, 1234), {
+		text: `아직 이 지기가 이 작곡가의 곡을 튼 적이 없습니다 · 클럽 전체 ${(1234).toLocaleString()}곡`,
+		widenMember: true
+	});
+	assert.equal(
+		composerEmptyText({ period: 'custom', userId: '7' }, 1).text,
+		'이 기간에는 이 지기가 이 작곡가의 곡을 튼 적이 없습니다 · 클럽 전체 1곡'
+	);
+});
+
+test('composerEmptyText: 클럽 수를 모르면 수 없이 지기 버튼, 클럽도 0이면 오늘의 말', () => {
+	for (const unknown of [null, undefined]) {
+		assert.deepEqual(composerEmptyText({ period: '12', userId: '7' }, unknown), {
+			text: '이 기간에는 이 지기가 이 작곡가의 곡을 튼 적이 없습니다.',
+			widenMember: true
+		});
+		assert.deepEqual(composerEmptyText({ period: 'all', userId: '7' }, unknown), {
+			text: '아직 이 지기가 이 작곡가의 곡을 튼 적이 없습니다.',
+			widenMember: true
+		});
+	}
+	assert.deepEqual(composerEmptyText({ period: '12', userId: '7' }, 0), {
+		text: '이 기간에는 이 지기가 이 작곡가의 곡을 튼 적이 없습니다.',
+		widenMember: false
+	});
+	assert.deepEqual(composerEmptyText({ period: 'all', userId: '7' }, 0), {
+		text: '아직 이 지기가 이 작곡가의 곡을 튼 적이 없습니다.',
+		widenMember: false
+	});
 });

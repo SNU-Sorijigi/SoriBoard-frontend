@@ -124,6 +124,22 @@ export function composerIsWholeRecord({ period, start = '', end = '', userId = n
 	return !userId && (period === ALL || (period === CUSTOM && !start && !end));
 }
 
+// 기간에 이 작곡가의 선곡이 없을 때 카드 대신 보이는 말과, '전체 지기에서 보기'(지기만 풀기)를 보일지.
+// 선곡 기록의 빈 목록(emptyListText)과 같다: 지기를 골랐고 같은 기간의 클럽 수가 0 이 아니면 보인다.
+// 수를 알면 말에 넣고, 모르면(불러오는 중·실패) 수 없이 보인다. 클럽도 0 이면 오늘의 말 그대로이고 보이지 않는다.
+/**
+ * @param {{ period: string, userId?: number | string | null }} filter
+ * @param {number | null | undefined} clubCount 같은 기간(지기·견습 없이) 클럽이 이 작곡가를 튼 선곡 수
+ * @returns {{ text: string, widenMember: boolean }}
+ */
+export function composerEmptyText({ period, userId = null }, clubCount) {
+	const text = `${period === ALL ? '아직' : '이 기간에는'} ${userId ? '이 지기가 ' : ''}이 작곡가의 곡을 튼 적이 없습니다`;
+	const widenMember = !!userId && clubCount !== 0;
+	if (widenMember && typeof clubCount === 'number')
+		return { text: `${text} · 클럽 전체 ${clubCount.toLocaleString()}곡`, widenMember };
+	return { text: `${text}.`, widenMember };
+}
+
 // 처음·마지막 튼 날 칸 아래의 줄: 기간·지기 없는 stats/summary(whole)의 날짜. 보기가 전체 기록이거나
 // whole 이 없으면 null(줄이 없다). 날짜가 없으면 ''.
 /**
