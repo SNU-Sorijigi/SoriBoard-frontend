@@ -25,7 +25,9 @@ import {
 	birthYearError,
 	composerPatch,
 	patchErrorText,
-	replaceComposer
+	replaceComposer,
+	catalogCsv,
+	catalogFileParts
 } from '../../src/lib/composerCatalog.js';
 
 const composer = (id, era, extra = {}) => ({
@@ -417,4 +419,29 @@ test('the order goes into the page path and keeps the other parameters', () => {
 	assert.equal(catalogSortHref('/stat/composers?sort=birth', ''), '/stat/composers');
 	assert.equal(catalogSortHref('/stat/composers', ''), '/stat/composers');
 	assert.equal(catalogSortHref('/stat/composers', 'birth'), '/stat/composers?sort=birth');
+});
+
+test('the CSV has the table columns, its values and its order', () => {
+	const csv = catalogCsv([
+		composer(3, '바로크', { era_override: '바로크', birth_year: 1810, num_time_music: 1234 }),
+		composer(1, '바로크', { era_override: '가상', birth_year: 1700 }),
+		composer(2, '')
+	]);
+	assert.deepEqual(csv.headers, ['작곡가', '시대', '비고', '출생 연도', '선곡 수']);
+	assert.deepEqual(csv.rows, [
+		['작곡가 3', '바로크', '보정', 1810, 1234],
+		['작곡가 1', '바로크', '저장된 ‘가상’ 무시됨', 1700, 9],
+		['작곡가 2', '미상', '', '', 8]
+	]);
+	assert.deepEqual(catalogCsv([]), {
+		headers: ['작곡가', '시대', '비고', '출생 연도', '선곡 수'],
+		rows: []
+	});
+});
+
+test('the CSV file name has the chosen 시대 and search word, if any', () => {
+	assert.deepEqual(catalogFileParts('미상', ''), ['시대 미상']);
+	assert.deepEqual(catalogFileParts('바로크', 'bach'), ['바로크', 'bach']);
+	assert.deepEqual(catalogFileParts('', ' bach '), ['bach']);
+	assert.deepEqual(catalogFileParts('', ''), []);
 });

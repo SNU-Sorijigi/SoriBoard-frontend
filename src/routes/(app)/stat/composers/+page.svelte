@@ -25,8 +25,13 @@
 		birthYearError,
 		composerPatch,
 		patchErrorText,
-		replaceComposer
+		replaceComposer,
+		catalogCsv,
+		catalogFileParts
 	} from '$lib/composerCatalog.js';
+	import { downloadCsvTable } from '$lib/csvTable.js';
+	import { downloadName } from '$lib/statFileName.js';
+	import { todayStamp } from '$lib/csv.js';
 	import {
 		readSpellingKind,
 		catalogViewHref,
@@ -274,6 +279,16 @@
 	// 빈 목록: ‘'bach'에 맞는 바로크 작곡가가 없습니다’(검색어·시대가 없으면 그 말을 뺀다).
 	$: emptyText = `${shownQ ? `'${shownQ}'에 맞는 ` : ''}${era ? `${eraLabel(era)} ` : ''}작곡가가 없습니다`;
 
+	// CSV 저장: 표가 보이는 줄을 그 순서로, 저장된 값으로(열린 수정 칸의 값은 넣지 않는다). 파일 이름의 검색어는 보이는
+	// 목록이 답한 검색어(shownQ)다: 새 검색을 부르는 동안에도 이전 목록이 보인다.
+	$: canExport = loaded && !error && shown.length > 0;
+	function exportCsv() {
+		if (!canExport) return;
+		const csv = catalogCsv(shown);
+		const name = downloadName(['작곡가 정리', catalogFileParts(era, shownQ), todayStamp()], 'csv');
+		downloadCsvTable(name, csv.headers, csv.rows);
+	}
+
 	// 검색어와 표기만 다른 작곡가: 목록의 검색(composers/ 의 q, icontains)은 이름만 글자 그대로 찾으므로,
 	// 띄어쓰기·마침표·줄표만 다른 표기는 그 검색에 들지 않는다(searchVariants, 선곡 기록과 같다). 묶음
 	// (catalog/duplicates/, 전체 기간)은 첫 검색이 답한 뒤 이 페이지에서 한 번만 부르고, 못 받으면 줄을 두지 않는다.
@@ -396,6 +411,12 @@
 					aria-pressed={Boolean(sort)}
 					title="출생 연도 순으로 보기"
 					on:click={onSortToggle}>출생 연도 순</button
+				>
+				<button
+					class="tool-btn csv-save"
+					on:click={exportCsv}
+					disabled={!canExport}
+					title="보이는 작곡가 목록을 CSV로 저장">CSV 저장</button
 				>
 			</div>
 			<p class="result-count" aria-live="polite">
@@ -876,6 +897,7 @@
 		.search,
 		.era-filter,
 		.sort-toggle,
+		.csv-save,
 		.actions,
 		.placeholder .tool-btn {
 			display: none;

@@ -189,6 +189,30 @@ export function eraCell(composer) {
 	return { era: composer.era || UNKNOWN_ERA, note };
 }
 
+// CSV 저장: 보이는 줄을 주어진 순서 그대로. 시대·비고는 시대 칸의 글자(eraCell), 출생 연도가 없으면 빈 칸
+// (화면의 '—' 는 눈을 위한 것), 선곡 수는 천 단위 쉼표 없는 수.
+/** @param {CatalogComposer[]} composers */
+export function catalogCsv(composers) {
+	return {
+		headers: ['작곡가', '시대', '비고', '출생 연도', '선곡 수'],
+		rows: composers.map((c) => {
+			const { era, note } = eraCell(c);
+			return [c.name, era, note, c.birth_year ?? '', c.num_time_music ?? 0];
+		})
+	};
+}
+
+// CSV 파일 이름의 보기 조각: 고른 시대('시대 미상'), 검색어. 없는 것은 뺀다.
+/**
+ * @param {string} era
+ * @param {string} q
+ */
+export function catalogFileParts(era, q) {
+	const parts = era ? [eraLabel(era)] : [];
+	const term = q.trim();
+	return term ? [...parts, term] : parts;
+}
+
 // 수정 칸의 처음 값. 시대 '' = 출생 연도로 정함(보정 없음).
 /**
  * @param {CatalogComposer} composer
