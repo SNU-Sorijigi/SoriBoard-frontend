@@ -76,7 +76,7 @@
 		genrePair,
 		monthlyTable
 	} from '$lib/semesterReport.js';
-	import { catalogEraHref, UNKNOWN_ERA } from '$lib/composerCatalog.js';
+	import { catalogEraHref, eraCatalogLinks, UNKNOWN_ERA } from '$lib/composerCatalog.js';
 
 	// 시대 미상 경고의 '작곡가 정리' 링크: 시대 미상 작곡가만 골라 연다.
 	const unknownEraHref = catalogEraHref('/stat/composers', UNKNOWN_ERA);
@@ -666,10 +666,18 @@
 		table: pair?.current.labels.length ? mixTable(pair.current, pair.previous, nameHeader) : null,
 		subtitle: mixSubtitle(pair, now, before),
 		// 통계의 시대별 분포 카드와 같은 경고: 이번 학기의 시대 미상이 20%를 넘으면 그 비율(표의 '미상' 칸과 같은 수)
-		note: key === 'eras' ? unknownEraNote(pair?.current) : ''
+		note: key === 'eras' ? unknownEraNote(pair?.current) : '',
+		links: [],
+		linkTitle: ''
+	});
+	// 통계처럼 시대 표의 이름은 작곡가 정리의 그 시대로 간다(지난 학기에만 있는 행도). ERAS 밖의 이름은 글자 그대로.
+	const withEraLinks = (card) => ({
+		...card,
+		links: card.table ? eraCatalogLinks(card.table.rows.map((row) => row[0])) : [],
+		linkTitle: '작곡가 정리에서 이 시대의 작곡가 보기 (모든 기간)'
 	});
 	$: mixCards = [
-		mixCard('eras', 'diversity', '시대별 분포', eras, '시대', label, previousLabel),
+		withEraLinks(mixCard('eras', 'diversity', '시대별 분포', eras, '시대', label, previousLabel)),
 		mixCard('genres', 'diversity', '장르별 분포', genres, '장르', label, previousLabel)
 	];
 
@@ -1152,6 +1160,8 @@
 								<div class="mix-table">
 									<ReportTable
 										table={card.table}
+										links={card.links}
+										linkTitle={card.linkTitle}
 										labelledby={`report-${card.key}`}
 										describedby={`report-${card.key}-sub`}
 									/>
