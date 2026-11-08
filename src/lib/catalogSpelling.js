@@ -193,6 +193,41 @@ export function filterSpellingGroups(groups, q) {
 	);
 }
 
+/** @typedef {{ kind: string, label: string, count: number }} SpellingHit */
+
+// 표기 정리의 검색이 보이는 종류(kind)에서 아무 묶음도 찾지 못했을 때: 이미 받은 다른 종류의 답(answers: 종류 →
+// catalog/duplicates/ 의 답) 가운데 그 검색어에 맞는 묶음이 있는 종류와 그 수, SPELLING_KINDS 의 순서로.
+// 보이는 종류, 받지 않았거나 groups 가 없는 답, 맞는 묶음이 없는 종류는 뺀다. 검색어가 비었으면 [].
+/**
+ * @param {Record<string, { groups?: SpellingGroup[] | null } | null | undefined> | null | undefined} answers
+ * @param {string} kind
+ * @param {string | null | undefined} term
+ * @returns {SpellingHit[]}
+ */
+export function otherSpellingHits(answers, kind, term) {
+	if (!(term ?? '').trim()) return [];
+	return SPELLING_KINDS.flatMap(({ kind: other, label }) => {
+		const groups = answers?.[other]?.groups;
+		if (other === kind || !Array.isArray(groups)) return [];
+		const count = filterSpellingGroups(groups, term).length;
+		return count > 0 ? [{ kind: other, label, count }] : [];
+	});
+}
+
+// 그 빈 목록의 줄: 다른 종류에 맞는 묶음이 없으면 지금 그대로('가상바흐'에 맞는 묶음이 없습니다), 있으면 보이는
+// 종류와 그 수를 덧붙인다: '가상바흐'에 맞는 작곡가 묶음이 없습니다 · 곡 1묶음 · 지휘자 2묶음.
+/**
+ * @param {string} kind
+ * @param {string} term
+ * @param {SpellingHit[]} hits
+ */
+export function searchEmptyText(kind, term, hits) {
+	if (!hits?.length) return `'${term}'에 맞는 묶음이 없습니다`;
+	const label = kindSpec(kind)?.label ?? '';
+	const counts = hits.map((hit) => `${hit.label} ${hit.count.toLocaleString()}묶음`).join(' · ');
+	return `'${term}'에 맞는 ${label ? `${label} ` : ''}묶음이 없습니다 · ${counts}`;
+}
+
 // 선곡 기록의 id 필터(composer_id 등) → 그 catalog/duplicates/ 의 kind. 없으면 null.
 /**
  * @param {string | null | undefined} param

@@ -13,6 +13,8 @@ import {
 	spellingCsv,
 	spellingFileParts,
 	filterSpellingGroups,
+	otherSpellingHits,
+	searchEmptyText,
 	composerVariants,
 	spellingKindOf,
 	spellingVariants,
@@ -328,6 +330,129 @@ test('a blank 표기 정리 search keeps every group', () => {
 	assert.equal(filterSpellingGroups(groups, undefined), groups);
 	assert.deepEqual(filterSpellingGroups(null, 'bach'), []);
 	assert.deepEqual(filterSpellingGroups(undefined, ''), []);
+});
+
+// 표기 정리's empty search: the other 종류 with groups for the word (made-up names).
+const fugue = {
+	key: 'op1',
+	count: 3,
+	rows: [
+		{ id: 3, name: '가상 푸가 Op. 1', count: 2, composer_id: 3, composer_name: '가상바흐' },
+		{ id: 4, name: '가상 푸가 op.1', count: 1, composer_id: 3, composer_name: '가상바흐' }
+	]
+};
+const conductors = {
+	key: '가상지휘자',
+	count: 3,
+	rows: [
+		{ id: 1, name: '가상 지휘자', count: 2 },
+		{ id: 2, name: '가상-지휘자', count: 1 }
+	]
+};
+const composerGroup = {
+	key: '가상작곡가',
+	count: 2,
+	rows: [
+		{ id: 1, name: '가상-작곡가', count: 1 },
+		{ id: 2, name: '가상 작곡가', count: 1 }
+	]
+};
+
+test('an empty 표기 정리 search names the other kinds whose groups have the word', () => {
+	const answers = {
+		music: { kind: 'music', groups: [fugue] },
+		conductor: { kind: 'conductor', groups: [conductors] }
+	};
+	assert.deepEqual(otherSpellingHits(answers, 'composer', '가상바흐'), [
+		{ kind: 'music', label: '곡', count: 1 }
+	]);
+	// the shown kind is never listed, even when it matches
+	assert.deepEqual(otherSpellingHits(answers, 'music', '가상바흐'), []);
+	assert.deepEqual(otherSpellingHits(answers, 'conductor', '가상'), [
+		{ kind: 'music', label: '곡', count: 1 }
+	]);
+	// counted by group, as the count line does
+	assert.deepEqual(
+		otherSpellingHits({ music: { groups: [fugue, { ...fugue, key: 'op2' }] } }, 'composer', '푸가'),
+		[{ kind: 'music', label: '곡', count: 2 }]
+	);
+});
+
+test("the other kinds come in SPELLING_KINDS' order, whatever the answers' order", () => {
+	const answers = {
+		music: { groups: [fugue] },
+		orchestra: { groups: [] },
+		conductor: { groups: [conductors] },
+		player: { groups: [] }
+	};
+	assert.deepEqual(otherSpellingHits(answers, 'composer', '가상'), [
+		{ kind: 'conductor', label: '지휘자', count: 1 },
+		{ kind: 'music', label: '곡', count: 1 }
+	]);
+	assert.deepEqual(
+		otherSpellingHits({ ...answers, composer: { groups: [composerGroup] } }, 'player', '가상'),
+		[
+			{ kind: 'composer', label: '작곡가', count: 1 },
+			{ kind: 'conductor', label: '지휘자', count: 1 },
+			{ kind: 'music', label: '곡', count: 1 }
+		]
+	);
+});
+
+test('a kind not loaded, or a malformed answer, is skipped', () => {
+	const answers = {
+		player: null,
+		conductor: undefined,
+		orchestra: { message: 'failed' },
+		music: { groups: [fugue] }
+	};
+	assert.deepEqual(otherSpellingHits(answers, 'composer', '가상'), [
+		{ kind: 'music', label: '곡', count: 1 }
+	]);
+	assert.deepEqual(otherSpellingHits({}, 'composer', '가상'), []);
+	assert.deepEqual(otherSpellingHits(null, 'composer', '가상'), []);
+	assert.deepEqual(otherSpellingHits(undefined, 'composer', '가상'), []);
+});
+
+test('a blank search names no other kind', () => {
+	const answers = { music: { groups: [fugue] }, conductor: { groups: [conductors] } };
+	assert.deepEqual(otherSpellingHits(answers, 'composer', ''), []);
+	assert.deepEqual(otherSpellingHits(answers, 'composer', '  '), []);
+	assert.deepEqual(otherSpellingHits(answers, 'composer', undefined), []);
+});
+
+test('the other kinds are matched loosely, as the 표기 정리 search is', () => {
+	const answers = { conductor: { groups: [conductors] } };
+	assert.deepEqual(otherSpellingHits(answers, 'composer', '가상지휘자'), [
+		{ kind: 'conductor', label: '지휘자', count: 1 }
+	]);
+	assert.deepEqual(otherSpellingHits(answers, 'composer', '가상.지휘자'), [
+		{ kind: 'conductor', label: '지휘자', count: 1 }
+	]);
+	assert.deepEqual(otherSpellingHits(answers, 'composer', '없는이름'), []);
+});
+
+test("the empty line names the shown kind and the other kinds' groups", () => {
+	assert.equal(searchEmptyText('composer', '가상바흐', []), "'가상바흐'에 맞는 묶음이 없습니다");
+	assert.equal(
+		searchEmptyText('composer', '가상바흐', undefined),
+		"'가상바흐'에 맞는 묶음이 없습니다"
+	);
+	assert.equal(
+		searchEmptyText('composer', '가상바흐', [{ kind: 'music', label: '곡', count: 1 }]),
+		"'가상바흐'에 맞는 작곡가 묶음이 없습니다 · 곡 1묶음"
+	);
+	assert.equal(
+		searchEmptyText('composer', '가상', [
+			{ kind: 'music', label: '곡', count: 1 },
+			{ kind: 'conductor', label: '지휘자', count: 2 }
+		]),
+		"'가상'에 맞는 작곡가 묶음이 없습니다 · 곡 1묶음 · 지휘자 2묶음"
+	);
+	assert.equal(
+		searchEmptyText('player', '가상', [{ kind: 'music', label: '곡', count: 1234 }]),
+		"'가상'에 맞는 연주자 묶음이 없습니다 · 곡 1,234묶음"
+	);
 });
 
 test('every kind has a label and an empty text', () => {

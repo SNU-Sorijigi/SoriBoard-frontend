@@ -7,6 +7,8 @@
 		groupHeading,
 		spellingSummary,
 		filterSpellingGroups,
+		otherSpellingHits,
+		searchEmptyText,
 		spellingCsv,
 		spellingFileParts
 	} from '$lib/catalogSpelling.js';
@@ -115,6 +117,38 @@
 	$: term = q.trim();
 	$: shown = filterSpellingGroups(groups, term);
 
+	// 검색어가 보이는 종류에서 아무 묶음도 찾지 못하면 다른 종류에도 묻는다(받지 않은 종류만, 이 방문에서 한 번씩).
+	// 받은 답은 'loaded'로 페이지에 맡기고(answers 로 돌아온다), 못 받으면 넘어간다(다시 묻지 않는다).
+	/** @type {Set<string>} */
+	const askedKinds = new Set();
+	/** @param {string} target */
+	async function askOther(target) {
+		askedKinds.add(target);
+		try {
+			const res = await fetch(`/api/catalog/duplicates${duplicatesSearch(target)}`);
+			if (!res.ok) throw new Error(`catalog/duplicates ${res.status}`);
+			dispatch('loaded', { kind: target, result: await res.json() });
+		} catch (e) {
+			console.error('표기 정리 다른 종류 로딩 실패', e);
+		}
+	}
+	$: if (term && spec && !loading && !error && groups.length > 0 && shown.length === 0) {
+		for (const { kind: other } of SPELLING_KINDS) {
+			if (other !== loadedKind && !answers[other] && !askedKinds.has(other)) askOther(other);
+		}
+	}
+	// 맞는 묶음이 있는 다른 종류: 빈 줄에 그 수를 적고, 종류마다 'OO에서 보기'로 그 종류를 고른다.
+	$: hits = otherSpellingHits(answers, loadedKind, term);
+	// 단추는 종류를 바꾸면 사라지므로 먼저 종류 고르기로 포커스를 옮긴다.
+	/** @type {HTMLSelectElement} */
+	let kindSelect;
+	/** @param {string} target */
+	function showKind(target) {
+		kindSelect?.focus();
+		kind = target;
+		dispatch('change', target);
+	}
+
 	// CSV 저장: 표가 보이는 묶음을 그 순서로, 표의 열로(prop kind 가 아니라 불러온 종류 loadedKind 로). 새 종류를
 	// 부르는 동안(표는 이전 종류를 흐리게 보인다), 실패했을 때와 보이는 묶음이 없을 때는 저장하지 않는다.
 	$: canExport = Boolean(spec) && !loading && !error && shown.length > 0;
@@ -138,7 +172,7 @@
 	<div class="controls">
 		<label class="kind">
 			종류
-			<select bind:value={kind} on:change={onKindChange}>
+			<select bind:value={kind} bind:this={kindSelect} on:change={onKindChange}>
 				{#each SPELLING_KINDS as option}
 					<option value={option.kind}>{option.label}</option>
 				{/each}
@@ -185,7 +219,16 @@
 	{:else if groups.length === 0}
 		<div class="placeholder" class:stale={loading}>{spec.empty}</div>
 	{:else if shown.length === 0}
-		<div class="placeholder" class:stale={loading}>'{term}'에 맞는 묶음이 없습니다</div>
+		<div class="placeholder" class:stale={loading}>
+			{searchEmptyText(loadedKind, term, hits)}
+			{#each hits as hit (hit.kind)}
+				<button
+					class="tool-btn"
+					title="종류를 바꿔 같은 검색어로 보기"
+					on:click={() => showKind(hit.kind)}>{hit.label}에서 보기</button
+				>
+			{/each}
+		</div>
 	{:else}
 		<!-- 긴 목록은 이 상자 안에서 스크롤해 머리줄이 남는다(작곡가 목록과 같다). 키보드로도 스크롤하게 포커스를 준다(DataTable 과 같다). -->
 		<!-- svelte-ignore a11y-no-noninteractive-tabindex -->
