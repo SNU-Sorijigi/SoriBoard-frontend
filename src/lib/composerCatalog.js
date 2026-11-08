@@ -175,6 +175,20 @@ export function eraSummary(composers, era, searched) {
 	);
 }
 
+// 빈 목록의 말과, '모든 시대에서 보기'(시대만 풀기)를 보일지: ‘'bach'에 맞는 바로크 작곡가가 없습니다’(검색어·시대가
+// 없으면 그 말을 뺀다). 시대를 골랐고 받은 목록(모든 시대의 답)에 작곡가가 있으면 그 수를 붙이고 보인다. 선곡 기록의
+// 빈 목록(playHistory.js emptyListText)·작곡가 페이지(composerStats.js composerEmptyText)와 같다.
+/**
+ * @param {{ q: string, era: string }} filter
+ * @param {number} total 받은 목록(모든 시대)의 작곡가 수
+ * @returns {{ text: string, widenEra: boolean }}
+ */
+export function catalogEmptyText({ q, era }, total) {
+	const text = `${q ? `'${q}'에 맞는 ` : ''}${era ? `${eraLabel(era)} ` : ''}작곡가가 없습니다`;
+	const widenEra = !!era && total > 0;
+	return { text: widenEra ? `${text} · 모든 시대 ${total.toLocaleString()}명` : text, widenEra };
+}
+
 // era_override 가 시대를 정하는가(ERAS 밖의 자유 입력은 백엔드가 무시한다).
 /** @param {{ era_override?: string | null }} composer */
 export const hasOverride = (composer) => ERAS.includes(composer.era_override ?? '');

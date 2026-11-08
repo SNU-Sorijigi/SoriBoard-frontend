@@ -13,6 +13,7 @@ import {
 	filterEra,
 	eraLabel,
 	eraSummary,
+	catalogEmptyText,
 	catalogHref,
 	composersSearch,
 	unknownFirst,
@@ -354,6 +355,36 @@ test('the 시대 line gives its composers, plays and share of every listed play'
 	assert.equal(eraSummary(eraList(), '중세', false), '중세 작곡가 0명 (5명 중) · 선곡 0곡, 0.0%');
 	assert.equal(eraLabel('미상'), '시대 미상');
 	assert.equal(eraLabel('고전'), '고전');
+});
+
+test('an empty list in one 시대 names the composers in every 시대 and offers to widen', () => {
+	assert.deepEqual(catalogEmptyText({ q: 'mozart', era: '바로크' }, 2), {
+		text: "'mozart'에 맞는 바로크 작곡가가 없습니다 · 모든 시대 2명",
+		widenEra: true
+	});
+	assert.deepEqual(catalogEmptyText({ q: '', era: '중세' }, 1234), {
+		text: '중세 작곡가가 없습니다 · 모든 시대 1,234명',
+		widenEra: true
+	});
+	assert.deepEqual(catalogEmptyText({ q: 'x', era: '미상' }, 3), {
+		text: "'x'에 맞는 시대 미상 작곡가가 없습니다 · 모든 시대 3명",
+		widenEra: true
+	});
+});
+
+test('an empty list keeps the old text without a 시대 or without hits in any 시대', () => {
+	assert.deepEqual(catalogEmptyText({ q: 'zzz', era: '바로크' }, 0), {
+		text: "'zzz'에 맞는 바로크 작곡가가 없습니다",
+		widenEra: false
+	});
+	assert.deepEqual(catalogEmptyText({ q: 'zzz', era: '' }, 0), {
+		text: "'zzz'에 맞는 작곡가가 없습니다",
+		widenEra: false
+	});
+	assert.deepEqual(catalogEmptyText({ q: '', era: '' }, 0), {
+		text: '작곡가가 없습니다',
+		widenEra: false
+	});
 });
 
 test('the 시대 line leaves out the share while searching or when nothing was played', () => {

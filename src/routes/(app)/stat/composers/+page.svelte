@@ -17,6 +17,7 @@
 		filterEra,
 		eraLabel,
 		eraSummary,
+		catalogEmptyText,
 		composersSearch,
 		unknownFirst,
 		unknownSummaryParts,
@@ -161,6 +162,12 @@
 		await tick();
 		eraSelect?.focus();
 	}
+	// 빈 목록의 '모든 시대에서 보기': 시대만 푼다(검색어·순서는 그대로, 새 요청 없이). 버튼이 사라지므로 포커스를
+	// 먼저 시대 고르기로 옮긴다.
+	function widenEra() {
+		eraSelect?.focus();
+		setEra('');
+	}
 	// 출생 연도 순을 켜고 끈다. 끄면 각 줄을 받은 순서의 자리로 돌린다(저장한 값은 composers 의 것을 둔다).
 	function onSortToggle() {
 		sort = sort ? '' : 'birth';
@@ -276,8 +283,9 @@
 	$: shown = filterEra(composers, era, keepIds);
 	$: eraChoices = eraOptions(composers);
 	$: eraText = era ? eraSummary(composers, era, Boolean(shownQ)) : '';
-	// 빈 목록: ‘'bach'에 맞는 바로크 작곡가가 없습니다’(검색어·시대가 없으면 그 말을 뺀다).
-	$: emptyText = `${shownQ ? `'${shownQ}'에 맞는 ` : ''}${era ? `${eraLabel(era)} ` : ''}작곡가가 없습니다`;
+	// 빈 목록: ‘'bach'에 맞는 바로크 작곡가가 없습니다’(검색어·시대가 없으면 그 말을 뺀다). 시대를 골랐고 다른 시대에
+	// 맞는 작곡가가 있으면 ' · 모든 시대 2명'을 붙이고 '모든 시대에서 보기'를 둔다(검색은 모든 시대에서 했다).
+	$: emptyState = catalogEmptyText({ q: shownQ, era }, composers.length);
 
 	// CSV 저장: 표가 보이는 줄을 그 순서로, 저장된 값으로(열린 수정 칸의 값은 넣지 않는다). 파일 이름의 검색어는 보이는
 	// 목록이 답한 검색어(shownQ)다: 새 검색을 부르는 동안에도 이전 목록이 보인다.
@@ -468,7 +476,12 @@
 				</div>
 			{:else if loaded && shown.length === 0}
 				<div class="placeholder" class:stale={loading}>
-					{emptyText}
+					{emptyState.text}
+					{#if emptyState.widenEra}
+						<button class="tool-btn" on:click={widenEra} title="시대만 모든 시대로 바꿔 다시 보기"
+							>모든 시대에서 보기</button
+						>
+					{/if}
 				</div>
 			{:else if loaded}
 				<!-- 긴 목록은 이 상자 안에서 스크롤해 머리줄이 남는다. 키보드로도 스크롤하게 포커스를 준다(DataTable 과 같다). -->
