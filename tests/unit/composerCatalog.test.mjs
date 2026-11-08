@@ -18,6 +18,7 @@ import {
 	unknownFirst,
 	unknownCount,
 	unknownSummary,
+	unknownSummaryParts,
 	hasOverride,
 	eraCell,
 	draftOf,
@@ -115,6 +116,57 @@ test('the 시대 미상 summary groups large counts', () => {
 	];
 	assert.equal(unknownSummary(list, false), '시대 미상 1명 (선곡 1,234곡, 61.7%)');
 	assert.equal(unknownSummary(list, true), '시대 미상 1명 (선곡 1,234곡)');
+});
+
+test('the 시대 미상 summary splits into the linked head, the plain rest and the count', () => {
+	assert.deepEqual(unknownSummaryParts(measured(), false), {
+		head: '시대 미상 6명',
+		rest: ' (선곡 169곡, 31.3%)',
+		count: 6
+	});
+	assert.deepEqual(unknownSummaryParts(measured(), true), {
+		head: '시대 미상 6명',
+		rest: ' (선곡 169곡)',
+		count: 6
+	});
+	const none = [composer(1, '낭만'), composer(2, '고전')];
+	assert.deepEqual(unknownSummaryParts(none, false), { head: '시대 미상 0명', rest: '', count: 0 });
+	assert.deepEqual(unknownSummaryParts([], true), { head: '시대 미상 0명', rest: '', count: 0 });
+});
+
+test('head and rest together give the 시대 미상 summary', () => {
+	const list = measured();
+	const cases = [
+		list,
+		replaceComposer(list, { ...list[0], birth_year: 1810, era: '낭만' }),
+		[composer(1, '낭만'), composer(2, '고전')],
+		[],
+		[composer(1, '낭만', { num_time_music: 5 }), composer(2, '미상', { num_time_music: 0 })],
+		[composer(1, '낭만', { num_time_music: 0 }), composer(2, '미상', { num_time_music: 0 })],
+		[composer(1, '미상', { num_time_music: 1234 }), composer(2, '낭만', { num_time_music: 766 })]
+	];
+	for (const c of cases) {
+		for (const searched of [false, true]) {
+			const { head, rest } = unknownSummaryParts(c, searched);
+			assert.equal(head + rest, unknownSummary(c, searched));
+		}
+	}
+});
+
+test('the 시대 미상 link keeps the search and the order', () => {
+	const href = new URL(
+		catalogEraHref(catalogSortHref('/stat/composers?q=bach', 'birth'), '미상'),
+		'http://x'
+	);
+	assert.deepEqual(
+		[
+			href.pathname,
+			href.searchParams.get('q'),
+			href.searchParams.get('sort'),
+			href.searchParams.get('era')
+		],
+		['/stat/composers', 'bach', 'birth', '미상']
+	);
 });
 
 test('the era cell says when an override decides it, or is ignored', () => {

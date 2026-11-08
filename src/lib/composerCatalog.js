@@ -52,15 +52,30 @@ export const unknownCount = (composers) => composers.filter((c) => c.era === UNK
  * @param {boolean} searched
  */
 export function unknownSummary(composers, searched) {
+	const { head, rest } = unknownSummaryParts(composers, searched);
+	return head + rest;
+}
+
+// unknownSummary 를 둘로: head('시대 미상 6명', 개수 줄에서 ?era=미상 링크가 된다)와 rest(' (선곡 169곡,
+// 31.3%)', 시대 미상이 없으면 ''), 그리고 시대 미상 작곡가 수.
+/**
+ * @param {CatalogComposer[]} composers
+ * @param {boolean} searched
+ */
+export function unknownSummaryParts(composers, searched) {
 	const unknown = composers.filter((c) => c.era === UNKNOWN_ERA);
 	const head = `시대 미상 ${unknown.length.toLocaleString()}명`;
-	if (unknown.length === 0) return head;
+	if (unknown.length === 0) return { head, rest: '', count: 0 };
 	const plays = (/** @type {CatalogComposer[]} */ list) =>
 		list.reduce((sum, c) => sum + (c.num_time_music || 0), 0);
 	const unknownPlays = plays(unknown);
 	const total = plays(composers);
 	const share = !searched && total > 0 ? `, ${formatShare((unknownPlays / total) * 100)}` : '';
-	return `${head} (선곡 ${unknownPlays.toLocaleString()}곡${share})`;
+	return {
+		head,
+		rest: ` (선곡 ${unknownPlays.toLocaleString()}곡${share})`,
+		count: unknown.length
+	};
 }
 
 // URL의 시대(?era=바로크). ERAS 밖의 값이나 없으면 '' = 모든 시대.

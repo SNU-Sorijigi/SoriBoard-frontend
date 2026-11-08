@@ -19,7 +19,7 @@
 		eraSummary,
 		composersSearch,
 		unknownFirst,
-		unknownSummary,
+		unknownSummaryParts,
 		eraCell,
 		draftOf,
 		birthYearError,
@@ -54,8 +54,13 @@
 	let keepIds = new Set();
 	// 순서('birth' = 출생 연도 순, '' = 받은 순서). 시대처럼 URL에 두고, 표기 정리로 가도 남긴다.
 	let sort = readCatalogSort($page.url.searchParams);
-	/** @param {string | null} kind */
-	const viewHref = (kind) => catalogSortHref(catalogEraHref(catalogViewHref(q, kind), era), sort);
+	// toEra: 담을 시대(기본은 지금의 시대). 개수 줄의 '시대 미상 N명' 링크는 미상을 담는다.
+	/**
+	 * @param {string | null} kind
+	 * @param {string} [toEra]
+	 */
+	const viewHref = (kind, toEra = era) =>
+		catalogSortHref(catalogEraHref(catalogViewHref(q, kind), toEra), sort);
 
 	// 검색어는 두 보기가 함께 쓴다. 작곡가 목록으로 돌아올 때 목록이 다른 검색어의 답이면 다시 부른다.
 	/** @param {string | null} kind */
@@ -128,12 +133,28 @@
 	}
 
 	// 시대를 바꾸면 받은 목록을 다시 거른다(새 검색처럼 수정 칸을 닫는다).
-	/** @param {Event & { currentTarget: HTMLSelectElement }} e */
-	function onEraChange(e) {
-		era = e.currentTarget.value;
+	/** @param {string} value */
+	function setEra(value) {
+		era = value;
 		keepIds = new Set();
 		editingId = null;
 		goto(viewHref(spellingKind), { replaceState: true, keepFocus: true, noScroll: true });
+	}
+	/** @param {Event & { currentTarget: HTMLSelectElement }} e */
+	const onEraChange = (e) => setEra(e.currentTarget.value);
+	// 개수 줄의 '시대 미상 N명': 시대 고르기에서 시대 미상을 고른 것과 같다. 새 탭으로 열기는 브라우저에 맡긴다.
+	// 링크는 시대 줄로 바뀌며 사라지므로, 포커스가 링크에 있었으면 시대 고르기로 옮긴다.
+	/** @type {HTMLSelectElement} */
+	let eraSelect;
+	/** @param {MouseEvent & { currentTarget: HTMLAnchorElement }} e */
+	async function openUnknown(e) {
+		if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+		e.preventDefault();
+		const hadFocus = document.activeElement === e.currentTarget;
+		setEra(UNKNOWN_ERA);
+		if (!hadFocus) return;
+		await tick();
+		eraSelect?.focus();
 	}
 	// 출생 연도 순을 켜고 끈다. 끄면 각 줄을 받은 순서의 자리로 돌린다(저장한 값은 composers 의 것을 둔다).
 	function onSortToggle() {
@@ -246,7 +267,7 @@
 		}
 	}
 
-	$: unknownText = unknownSummary(composers, Boolean(shownQ));
+	$: unknownParts = unknownSummaryParts(composers, Boolean(shownQ));
 	$: shown = filterEra(composers, era, keepIds);
 	$: eraChoices = eraOptions(composers);
 	$: eraText = era ? eraSummary(composers, era, Boolean(shownQ)) : '';
@@ -355,11 +376,17 @@
 					<button type="submit">검색</button>
 				</form>
 				<!-- 개수는 받은 목록(지금의 검색)에서 센다 -->
-				<select class="era-filter" aria-label="시대" value={era} on:change={onEraChange}>
+				<select
+					class="era-filter"
+					aria-label="시대"
+					value={era}
+					bind:this={eraSelect}
+					on:change={onEraChange}
+				>
 					<option value="">모든 시대</option>
 					{#each eraChoices as choice (choice.era)}
 						<option value={choice.era}
-							>{choice.era}{loaded ? ` (${choice.count.toLocaleString()}명)` : ''}</option
+							>{eraLabel(choice.era)}{loaded ? ` (${choice.count.toLocaleString()}명)` : ''}</option
 						>
 					{/each}
 				</select>
@@ -375,8 +402,12 @@
 				{#if loaded && !error && era}
 					{eraText}{#if shownQ}&nbsp;· '{shownQ}' 검색{/if}{#if sort}&nbsp;· 출생 연도 순{/if}
 				{:else if loaded && !error}
-					작곡가 {composers.length.toLocaleString()}명 · {unknownText}{#if shownQ}&nbsp;· '{shownQ}'
-						검색{/if}{#if sort}&nbsp;· 출생 연도 순{/if}
+					작곡가 {composers.length.toLocaleString()}명 · {#if unknownParts.count}<a
+							href={viewHref(null, UNKNOWN_ERA)}
+							title="시대 미상 작곡가만 보기"
+							on:click={openUnknown}>{unknownParts.head}</a
+						>{:else}{unknownParts.head}{/if}{unknownParts.rest}{#if shownQ}&nbsp;· '{shownQ}' 검색{/if}{#if sort}&nbsp;·
+						출생 연도 순{/if}
 				{:else if error}
 					<span class="sr-only"
 						>작곡가 목록을 불러오지 못했습니다. 작곡가 목록 다시 시도로 다시 부를 수 있습니다.</span
@@ -621,6 +652,10 @@
 		min-height: 1.5em;
 		margin: 0;
 	}
+	.result-count a {
+		color: var(--primary-primary-800, #6a5134);
+		text-underline-offset: 3px;
+	}
 	/* 선곡 기록의 '검색어와 표기만 다른' 줄과 같은 모양 */
 	.variants-note {
 		margin: 8px 0 0;
@@ -844,6 +879,11 @@
 		.actions,
 		.placeholder .tool-btn {
 			display: none;
+		}
+		/* 개수 줄의 '시대 미상 N명' 링크는 글자로 싣는다 */
+		.result-count a {
+			color: inherit;
+			text-decoration: none;
 		}
 		/* 이름은 낱말 사이에서만 줄을 바꾼다(선곡 기록과 같다) */
 		table {
