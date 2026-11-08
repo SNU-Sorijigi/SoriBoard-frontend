@@ -25,6 +25,7 @@ import {
 	upcomingText,
 	semesterOptionLabel,
 	semesterUpcoming,
+	reportEmptyText,
 	eraPair,
 	genrePair,
 	monthlyTable
@@ -1027,4 +1028,47 @@ test('chartTieNote leaves out 표로 보기 when the tie runs to the end of a fu
 test('chartTieNote is empty without a list', () => {
 	assert.equal(chartTieNote(null, 12, 100, '작곡가가', '명'), '');
 	assert.equal(chartTieNote(undefined, 10, 100, '곡이', '곡'), '');
+});
+
+test('reportEmptyText: 시작 전 학기와 전체 보기는 단추 없이 오늘의 말', () => {
+	for (const userId of [null, 7]) {
+		assert.deepEqual(reportEmptyText({ upcoming: true, userId }, 342), {
+			text: '아직 시작하지 않은 학기입니다.',
+			widenMember: false
+		});
+	}
+	for (const clubCount of [342, 0, null, undefined]) {
+		assert.deepEqual(reportEmptyText({ upcoming: false, userId: null }, clubCount), {
+			text: '이 학기에는 선곡이 없습니다.',
+			widenMember: false
+		});
+	}
+});
+
+test('reportEmptyText: 개인에서 클럽의 선곡 수를 알면 말에 넣고 전체 결산 보기를 보인다', () => {
+	assert.deepEqual(reportEmptyText({ upcoming: false, userId: 7 }, 342), {
+		text: '이 학기에 이 지기가 튼 곡이 없습니다 · 클럽 전체 342곡',
+		widenMember: true
+	});
+	assert.deepEqual(reportEmptyText({ upcoming: false, userId: '7', includeMentees: true }, 342), {
+		text: '이 학기에 이 지기가 지기·견습으로 튼 곡이 없습니다 · 클럽 전체 342곡',
+		widenMember: true
+	});
+	assert.equal(
+		reportEmptyText({ upcoming: false, userId: 7 }, 1234).text,
+		'이 학기에 이 지기가 튼 곡이 없습니다 · 클럽 전체 1,234곡'
+	);
+});
+
+test('reportEmptyText: 클럽도 0 이면 단추가 없고, 수를 모르면 수 없이 단추를 보인다', () => {
+	assert.deepEqual(reportEmptyText({ upcoming: false, userId: 7 }, 0), {
+		text: '이 학기에 이 지기가 튼 곡이 없습니다.',
+		widenMember: false
+	});
+	for (const clubCount of [null, undefined]) {
+		assert.deepEqual(reportEmptyText({ upcoming: false, userId: 7 }, clubCount), {
+			text: '이 학기에 이 지기가 튼 곡이 없습니다.',
+			widenMember: true
+		});
+	}
 });

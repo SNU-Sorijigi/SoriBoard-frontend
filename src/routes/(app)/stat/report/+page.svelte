@@ -70,6 +70,7 @@
 		upcomingText,
 		semesterOptionLabel,
 		semesterUpcoming,
+		reportEmptyText,
 		kpiChangeText,
 		evennessChangeText,
 		eraPair,
@@ -857,11 +858,12 @@
 
 	// 선곡이 없는 학기에 카드 대신 보이는 말. 화면 낭독기의 로드 상태도 같은 말을 한다.
 	// 개인에서는 그 지기의 선곡만 센 요약이므로, 학기가 아니라 이 지기가 튼 곡이 없다고 한다(통계와 같은 말).
-	$: emptyText = upcoming
-		? '아직 시작하지 않은 학기입니다.'
-		: scope === 'individual' && userId
-			? `이 학기에 이 지기가 ${includeMentees ? '지기·견습으로 ' : ''}튼 곡이 없습니다.`
-			: '이 학기에는 선곡이 없습니다.';
+	// 같은 학기 클럽의 선곡 수(clubSummary)를 알면 덧붙이고, 클럽도 0 이면 '전체 결산 보기'를 숨긴다.
+	$: emptyState = reportEmptyText(
+		{ upcoming: !!upcoming, userId: scope === 'individual' ? userId : null, includeMentees },
+		clubSummary?.total_plays
+	);
+	$: emptyText = emptyState.text;
 	// 로드 상태에 이름을 대는 카드(페이지 순서). 한 요청이 여러 카드를 그린다: 다양성 응답은
 	// 시대·장르별 분포·선곡 다양성·월별 선곡이 함께 쓰고, 넷 다 제 오류와 다시 시도를 띄운다.
 	const cardNames = [
@@ -1045,7 +1047,7 @@
 					<button class="tool-btn" on:click={showStarted}>
 						{semesterLabel(started)} 결산 보기
 					</button>
-				{:else if !upcoming && scope === 'individual' && userId}
+				{:else if emptyState.widenMember}
 					<button class="tool-btn" on:click={showAll}>전체 결산 보기</button>
 				{/if}
 			</div>

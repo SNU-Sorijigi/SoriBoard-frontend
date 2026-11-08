@@ -119,6 +119,25 @@ export function semesterOptionLabel(semester, today) {
 	return semesterUpcoming(semester, today) ? `${label} (시작 전)` : label;
 }
 
+// 선곡이 없는 학기에 카드 대신 보이는 말과, '전체 결산 보기'(개인 → 전체)를 보일지. 화면 낭독기도 같은 말을 한다.
+// 개인에서는 그 지기의 선곡만 센 요약이므로 이 지기가 튼 곡이 없다고 한다. 작곡가 페이지(composerEmptyText)와
+// 같다: 같은 학기 클럽의 선곡 수가 0 이 아니면 단추를 보이고, 수를 알면 말에 넣는다(모르면 수 없이 보인다).
+// 클럽도 0 이면 단추가 없다. 시작 전 학기와 전체 보기는 단추가 없다(시작 전 학기의 단추는 페이지가 따로 단다).
+/**
+ * @param {{ upcoming: boolean, userId?: number | string | null, includeMentees?: boolean }} view
+ * @param {number | null | undefined} clubCount 같은 학기(지기 파라미터 없이) 클럽의 선곡 수
+ * @returns {{ text: string, widenMember: boolean }}
+ */
+export function reportEmptyText({ upcoming, userId = null, includeMentees = false }, clubCount) {
+	if (upcoming) return { text: '아직 시작하지 않은 학기입니다.', widenMember: false };
+	if (!userId) return { text: '이 학기에는 선곡이 없습니다.', widenMember: false };
+	const text = `이 학기에 이 지기가 ${includeMentees ? '지기·견습으로 ' : ''}튼 곡이 없습니다`;
+	const widenMember = clubCount !== 0;
+	if (widenMember && typeof clubCount === 'number')
+		return { text: `${text} · 클럽 전체 ${clubCount.toLocaleString()}곡`, widenMember };
+	return { text: `${text}.`, widenMember };
+}
+
 // 시대·장르처럼 지난 학기와 견주는 카드의 응답 한 쌍. 두 요청은 함께 보낸다.
 // 이 학기가 실패하면 카드가 실패하고, 지난 학기만 실패하면 이 학기만으로 그린다(previousError).
 // loadBefore 가 없으면(지난 학기 없음) previous 는 null 이다.
