@@ -127,6 +127,45 @@ export function spellingSummary(groups) {
 	return `${groups.length.toLocaleString()}묶음 · 표기 ${rows.toLocaleString()}개`;
 }
 
+// CSV 저장: 보이는 묶음을 그 순서로, 표기마다 한 줄. 묶음은 보이는 순서의 번호(1, 2, …; 곡은 두 묶음의 제목이
+// 같을 수 있어 이름 대신 번호)로 그 묶음의 모든 줄에 같다. 묶음 안은 받은 순서(가장 많이 튼 것부터). 이름은 저장된
+// 그대로(띄어쓰기·점이 다른 것이 요점이다), 악기·작곡가가 없으면 빈 칸(화면의 '—' 는 눈을 위한 것), 선곡 수는
+// 천 단위 쉼표 없는 수, id 는 '#' 없는 수. 열은 표와 같다.
+/**
+ * @param {string} kind
+ * @param {SpellingGroup[]} groups
+ * @returns {{ headers: string[], rows: unknown[][] }}
+ */
+export function spellingCsv(kind, groups) {
+	const extra = kind === 'player' ? 'instrument' : kind === 'music' ? 'composer_name' : '';
+	const headers = ['묶음', kind === 'music' ? '곡' : '표기'];
+	if (extra) headers.push(kind === 'music' ? '작곡가' : '악기');
+	headers.push('선곡 수', 'id');
+	const rows = groups.flatMap((group, i) =>
+		(Array.isArray(group?.rows) ? group.rows : []).map((row) => [
+			i + 1,
+			String(row.name ?? ''),
+			...(extra ? [row[extra] ?? ''] : []),
+			Number(row.count) || 0,
+			row.id
+		])
+	);
+	return { headers, rows };
+}
+
+// CSV 파일 이름의 보기 조각: 종류('곡'), 검색어. 검색어가 비었으면 종류만, 모르는 종류는 [].
+/**
+ * @param {string} kind
+ * @param {string | null | undefined} q
+ * @returns {string[]}
+ */
+export function spellingFileParts(kind, q) {
+	const label = kindSpec(kind)?.label;
+	if (!label) return [];
+	const term = (q ?? '').trim();
+	return term ? [label, term] : [label];
+}
+
 // 표기 정리의 검색: 어느 행의 이름(곡이면 작곡가도)에 검색어가 든 묶음만, 그 묶음은 모든 행 그대로.
 // 묶음처럼 띄어쓰기·점·줄표·대소문자를 가리지 않는다: 쓴 그대로 들거나, 둘 다 normalizeName 꼴로 들면
 // 찾는다('림스키코르사코프' → 림스키-코르사코프). 점·줄표·공백뿐인 검색어는 쓴 그대로만 견준다(모든 묶음이

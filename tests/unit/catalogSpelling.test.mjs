@@ -10,6 +10,8 @@ import {
 	rowLinks,
 	groupHeading,
 	spellingSummary,
+	spellingCsv,
+	spellingFileParts,
 	filterSpellingGroups,
 	composerVariants,
 	spellingKindOf,
@@ -144,6 +146,77 @@ test('the summary counts groups and spellings', () => {
 		]),
 		'2묶음 · 표기 5개'
 	);
+});
+
+test('the 표기 정리 CSV has one row per spelling, numbered by its group, values as stored', () => {
+	const groups = [
+		{
+			key: 'jsbach',
+			count: 1240,
+			rows: [
+				{ id: 12, name: 'J.S.  Bach', count: 1234 },
+				{ id: 3, name: 'J. S. Bach', count: 6 }
+			]
+		},
+		{ key: 'gfake', count: 0, rows: [{ id: 40, name: 'G. Fake', count: 0 }] }
+	];
+	assert.deepEqual(spellingCsv('composer', groups), {
+		headers: ['묶음', '표기', '선곡 수', 'id'],
+		rows: [
+			[1, 'J.S.  Bach', 1234, 12],
+			[1, 'J. S. Bach', 6, 3],
+			[2, 'G. Fake', 0, 40]
+		]
+	});
+	assert.deepEqual(spellingCsv('conductor', groups).headers, ['묶음', '표기', '선곡 수', 'id']);
+	assert.deepEqual(spellingCsv('orchestra', []), {
+		headers: ['묶음', '표기', '선곡 수', 'id'],
+		rows: []
+	});
+});
+
+test('the 표기 정리 CSV adds the instrument of a player and the composer of a piece', () => {
+	const players = [
+		{
+			key: 'player',
+			count: 4,
+			rows: [
+				{ id: 1, name: 'Pla Yer', count: 3, instrument: 'piano' },
+				{ id: 2, name: 'Pla.Yer', count: 1 }
+			]
+		}
+	];
+	assert.deepEqual(spellingCsv('player', players), {
+		headers: ['묶음', '표기', '악기', '선곡 수', 'id'],
+		rows: [
+			[1, 'Pla Yer', 'piano', 3, 1],
+			[1, 'Pla.Yer', '', 1, 2]
+		]
+	});
+	const pieces = [
+		{
+			key: 'op9',
+			count: 4,
+			rows: [
+				{ id: 7, name: 'Fake Suite Op. 9', count: 3, composer_id: 1, composer_name: 'G. Fake' },
+				{ id: 8, name: 'Fake Suite op.9', count: 1, composer_id: null, composer_name: null }
+			]
+		}
+	];
+	assert.deepEqual(spellingCsv('music', pieces), {
+		headers: ['묶음', '곡', '작곡가', '선곡 수', 'id'],
+		rows: [
+			[1, 'Fake Suite Op. 9', 'G. Fake', 3, 7],
+			[1, 'Fake Suite op.9', '', 1, 8]
+		]
+	});
+});
+
+test('the 표기 정리 CSV file is named by its kind and search term', () => {
+	assert.deepEqual(spellingFileParts('music', ' bach '), ['곡', 'bach']);
+	assert.deepEqual(spellingFileParts('composer', ''), ['작곡가']);
+	assert.deepEqual(spellingFileParts('player', '   '), ['연주자']);
+	assert.deepEqual(spellingFileParts('nope', 'bach'), []);
 });
 
 const bach = {

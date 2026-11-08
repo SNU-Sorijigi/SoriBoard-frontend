@@ -6,9 +6,14 @@
 		rowLinks,
 		groupHeading,
 		spellingSummary,
-		filterSpellingGroups
+		filterSpellingGroups,
+		spellingCsv,
+		spellingFileParts
 	} from '$lib/catalogSpelling.js';
 	import MarkedText from '$lib/components/stat/MarkedText.svelte';
+	import { downloadCsvTable } from '$lib/csvTable.js';
+	import { downloadName } from '$lib/statFileName.js';
+	import { todayStamp } from '$lib/csv.js';
 
 	// 작곡가 정리의 '표기 정리': 표기만 다른 이름의 묶음(catalog/duplicates/)과 각 표기의 선곡 수.
 	// 읽기 전용이다. 종류가 바뀌면 다시 불러오고, 가장 최근 요청의 응답만 반영한다.
@@ -109,6 +114,19 @@
 	// 보이는 묶음: 검색어가 이름(곡이면 작곡가도)에 든 묶음. 검색어가 없으면 모두.
 	$: term = q.trim();
 	$: shown = filterSpellingGroups(groups, term);
+
+	// CSV 저장: 표가 보이는 묶음을 그 순서로, 표의 열로(prop kind 가 아니라 불러온 종류 loadedKind 로). 새 종류를
+	// 부르는 동안(표는 이전 종류를 흐리게 보인다), 실패했을 때와 보이는 묶음이 없을 때는 저장하지 않는다.
+	$: canExport = Boolean(spec) && !loading && !error && shown.length > 0;
+	function exportCsv() {
+		if (!canExport) return;
+		const csv = spellingCsv(loadedKind, shown);
+		const name = downloadName(
+			['표기 정리', spellingFileParts(loadedKind, term), todayStamp()],
+			'csv'
+		);
+		downloadCsvTable(name, csv.headers, csv.rows);
+	}
 </script>
 
 <p class="hint">
@@ -137,6 +155,12 @@
 			/>
 			<button type="submit">검색</button>
 		</form>
+		<button
+			class="tool-btn csv-save"
+			on:click={exportCsv}
+			disabled={!canExport}
+			title="보이는 표기 정리 묶음을 CSV로 저장">CSV 저장</button
+		>
 	</div>
 	<p class="result-count" aria-live="polite">
 		{#if spec && !loading && !error}{spec.label} · {spellingSummary(shown)}{#if term}&nbsp;· '{term}'
@@ -306,6 +330,10 @@
 	.tool-btn:hover {
 		background: var(--secondary-secondary-200, #fdf1e4);
 	}
+	.tool-btn:disabled {
+		cursor: default;
+		opacity: 0.6;
+	}
 	.card {
 		background: var(--secondary-secondary-50, #fffdfc);
 		border: 1px solid var(--gray-gray-300, #d4d4d4);
@@ -431,6 +459,7 @@
 			box-shadow: none;
 		}
 		.search,
+		.csv-save,
 		.placeholder .tool-btn {
 			display: none;
 		}
