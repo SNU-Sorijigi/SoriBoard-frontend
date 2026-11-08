@@ -115,6 +115,7 @@
 		catalogViewHref,
 		DEFAULT_KIND,
 		MUSIC_SPLIT_LEAD,
+		drillSplitNote,
 		firstSpellingSplits,
 		firstSpellingNote,
 		FIRST_SPELLING_LEAD,
@@ -676,6 +677,8 @@
 	$: orchestraSplit = splitSpellingNote(splitSpellings(duplicates.orchestra, orchestras));
 	// 곡 이름(작곡가 - 곡)은 길어서 2묶음까지.
 	$: worksSplit = splitSpellingNote(splitSpellings(duplicates.music, works), 2, MUSIC_SPLIT_LEAD);
+	// 열린 패널의 곡 중 작품 번호가 같은 곡(패널이 보이는 이름으로).
+	$: drillSplit = drill ? drillSplitNote(duplicates.music, drillWorks, drill) : '';
 	// 카드의 줄: 상위 N위 줄 뒤에 표기 줄을 ' · '로 잇고, 표기 줄이 있으면 그 종류의 표기 정리로 잇는다.
 	const withSplit = (capNote, split) => [capNote, split].filter(Boolean).join(' · ');
 	const splitLink = (split, kind) =>
@@ -1523,6 +1526,13 @@
 					retryPrevious={loadPreviousDrill}
 					scopeLabel={viewLabel}
 					{fileTag}
+					note={drillSplit}
+					noteLink={drillSplit
+						? {
+								href: catalogViewHref(drill.card === 'composers' ? drill.name : '', 'music'),
+								text: '표기 정리'
+							}
+						: null}
 					historyLink={drillHistoryLink}
 					workLink={drillWorkLink}
 					composerLink={drill.card === 'composers'

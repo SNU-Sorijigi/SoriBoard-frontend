@@ -5,6 +5,7 @@
 import { catalogHref } from './composerCatalog.js';
 import { composerHref } from './composerStats.js';
 import { historyHref, targetHistoryHref } from './playHistory.js';
+import { workLabel } from './statDrill.js';
 import { ALL } from './statPeriod.js';
 import { pageTitle } from './statTitle.js';
 
@@ -392,6 +393,19 @@ export function splitSpellingNote(groups, max = 3, lead = '표기만 다른 이�
 		.join('; ');
 	const rest = groups.length - Math.min(groups.length, max);
 	return `${lead} 따로 셉니다: ${shown}${rest > 0 ? ` 외 ${rest.toLocaleString()}묶음` : ''}`;
+}
+
+// 통계의 drill-down 패널(그 대상의 stats/works): 많이 튼 곡 카드와 같은 줄을, 패널의 표가 보이는 곡 이름으로
+// (작곡가의 패널이면 '작곡가 - ' 없이: workLabel). 2묶음까지 적고 나머지는 ' 외 N묶음'. 대상이나 응답이 없으면 ''.
+/**
+ * @param {{ groups?: SpellingGroup[] | null } | null | undefined} duplicates
+ * @param {{ items?: (SplitRow & { composer_id?: number | null })[] | null } | null | undefined} works
+ * @param {import('./statDrill.js').DrillTarget | null | undefined} target
+ */
+export function drillSplitNote(duplicates, works, target) {
+	if (!target || !Array.isArray(works?.items)) return '';
+	const items = works.items.map((item) => ({ ...item, name: workLabel(item, target) }));
+	return splitSpellingNote(splitSpellings(duplicates, { items }), 2, MUSIC_SPLIT_LEAD);
 }
 
 // 통계의 처음 튼 작곡가·곡 줄의 머리. 곡은 작곡가와 작품 번호가 같은 곡이라 '표기만 다른'이라고 하지 않는다.

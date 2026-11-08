@@ -21,6 +21,7 @@ import {
 	splitSpellings,
 	splitSpellingNote,
 	MUSIC_SPLIT_LEAD,
+	drillSplitNote,
 	firstSpellingSplits,
 	firstSpellingNote,
 	FIRST_SPELLING_LEAD,
@@ -1264,4 +1265,104 @@ test('표기 정리 is searched for the most played spelling of the most played 
 		catalogViewHref(searchCatalogName(answer, 'J. S. Bach'), 'player'),
 		'/stat/composers?q=J.S.Bach+Gesellschaft&view=spelling&kind=player'
 	);
+});
+
+// 통계의 drill-down 패널: 그 대상의 stats/works('작곡가 - 곡')에 같은 곡 묶음의 행이 둘 이상이면 그 줄.
+const drillMusic = {
+	kind: 'music',
+	groups: [
+		{
+			key: 'op1',
+			count: 9,
+			rows: [
+				{ id: 11, name: '모음곡 1번 Op. 1', count: 6, composer_id: 1, composer_name: '가나' },
+				{ id: 12, name: 'Suite No. 1 Op. 1', count: 3, composer_id: 1, composer_name: '가나' }
+			]
+		},
+		{
+			key: 'op2',
+			count: 4,
+			rows: [
+				{ id: 21, name: '소나타 Op. 2', count: 2, composer_id: 1, composer_name: '가나' },
+				{ id: 22, name: 'Sonata Op. 2', count: 2, composer_id: 1, composer_name: '가나' }
+			]
+		},
+		{
+			key: 'op3',
+			count: 2,
+			rows: [
+				{ id: 31, name: '서곡 Op. 3', count: 1, composer_id: 1, composer_name: '가나' },
+				{ id: 32, name: 'Overture Op. 3', count: 1, composer_id: 1, composer_name: '가나' }
+			]
+		}
+	]
+};
+const drillWorksOf = (items) => ({
+	total_plays: items.reduce((sum, item) => sum + item.count, 0),
+	items: items.map(([id, name, count]) => ({ id, name, count, composer_id: 1 }))
+});
+const composerDrill = {
+	card: 'composers',
+	param: 'composer_id',
+	noun: '작곡가',
+	id: 1,
+	name: '가나'
+};
+const soloistDrill = { card: 'soloists', param: 'player_id', noun: '연주자', id: 5, name: '다라' };
+
+test("a composer's drill-down panel names its split pieces as its table does, without the composer", () => {
+	const works = drillWorksOf([
+		[11, '가나 - 모음곡 1번 Op. 1', 6],
+		[40, '가나 - 노래 Op. 9', 4],
+		[12, '가나 - Suite No. 1 Op. 1', 3]
+	]);
+	const note = drillSplitNote(drillMusic, works, composerDrill);
+	assert.ok(note.startsWith('작품 번호가 같은 곡은 따로 셉니다:'));
+	assert.equal(
+		note,
+		`${MUSIC_SPLIT_LEAD} 따로 셉니다: ‘모음곡 1번 Op. 1’ 6회 + ‘Suite No. 1 Op. 1’ 3회`
+	);
+});
+
+test("a soloist's drill-down panel keeps each piece's composer in the note", () => {
+	const works = drillWorksOf([
+		[12, '가나 - Suite No. 1 Op. 1', 2],
+		[11, '가나 - 모음곡 1번 Op. 1', 1]
+	]);
+	assert.equal(
+		drillSplitNote(drillMusic, works, soloistDrill),
+		'작품 번호가 같은 곡은 따로 셉니다: ‘가나 - Suite No. 1 Op. 1’ 2회 + ‘가나 - 모음곡 1번 Op. 1’ 1회'
+	);
+});
+
+test('the drill-down note names two split pieces, then counts the rest', () => {
+	const works = drillWorksOf([
+		[11, '가나 - 모음곡 1번 Op. 1', 6],
+		[12, '가나 - Suite No. 1 Op. 1', 3],
+		[21, '가나 - 소나타 Op. 2', 2],
+		[22, '가나 - Sonata Op. 2', 2],
+		[31, '가나 - 서곡 Op. 3', 1],
+		[32, '가나 - Overture Op. 3', 1]
+	]);
+	assert.equal(
+		drillSplitNote(drillMusic, works, composerDrill),
+		'작품 번호가 같은 곡은 따로 셉니다: ‘모음곡 1번 Op. 1’ 6회 + ‘Suite No. 1 Op. 1’ 3회; ' +
+			'‘소나타 Op. 2’ 2회 + ‘Sonata Op. 2’ 2회 외 1묶음'
+	);
+});
+
+test('no split piece, no groups, no works or no panel gives no drill-down note', () => {
+	const one = drillWorksOf([
+		[11, '가나 - 모음곡 1번 Op. 1', 6],
+		[40, '가나 - 노래 Op. 9', 4]
+	]);
+	const both = drillWorksOf([
+		[11, '가나 - 모음곡 1번 Op. 1', 6],
+		[12, '가나 - Suite No. 1 Op. 1', 3]
+	]);
+	assert.equal(drillSplitNote(drillMusic, one, composerDrill), '');
+	assert.equal(drillSplitNote(undefined, both, composerDrill), '');
+	assert.equal(drillSplitNote(drillMusic, null, composerDrill), '');
+	assert.equal(drillSplitNote(drillMusic, both, null), '');
+	assert.equal(drillSplitNote(drillMusic, drillWorksOf([]), composerDrill), '');
 });

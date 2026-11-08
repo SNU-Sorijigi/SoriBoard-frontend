@@ -29,6 +29,8 @@
 	export let retryPrevious = null; // 주면 그 알림에 앞 학기만 다시 부르는 '다시 시도' 단추가 보인다.
 	/** @type {string | string[]} */
 	export let fileTag = ''; // 내려받는 파일 이름에서 제목 뒤에 붙는 보기(기간, 지기 등, statFileName.js)
+	export let note = ''; // 표 아래의 알림(예: 작품 번호가 같은 곡을 따로 센다, drillSplitNote)
+	export let noteLink = null; // { href, text }: 알림 뒤에 붙는 링크(예: 표기 정리), ChartCard 와 같다
 
 	const dispatch = createEventDispatcher();
 	let panel;
@@ -116,6 +118,11 @@
 	{#if !loading && !error && table}
 		<!-- 표는 행만큼만 높다(DataTable 의 fit). 곡이 적은 이름의 패널이 빈 틀이 되지 않는다. -->
 		<DataTable {table} {title} {subtitle} {links} cellLinks={dateLinks} fit />
+		{#if note}
+			<p class="note">
+				{note}{#if noteLink}&nbsp;· <a href={noteLink.href}>{noteLink.text}</a>{/if}
+			</p>
+		{/if}
 		{#if previousError}
 			<p class="previous-error">
 				지난 학기({previousError}) 횟수를 불러오지 못했습니다.
@@ -223,6 +230,18 @@
 	.placeholder.error {
 		gap: 10px;
 		color: var(--secondary-secondary-800, #95560d);
+	}
+	/* ChartCard 의 .note 와 같은 글꼴·색 */
+	.note {
+		margin: 4px 0 0;
+		font-family: var(--small-medium-font-family, 'Noto Sans KR', sans-serif);
+		font-size: var(--small-medium-font-size, 13px);
+		color: var(--secondary-secondary-800, #95560d);
+		text-align: center;
+	}
+	.note a {
+		color: inherit;
+		text-underline-offset: 3px;
 	}
 	/* 통계 KPI 칸 아래의 알림(.kpi-error)과 같은 글꼴·색 */
 	.previous-error {
