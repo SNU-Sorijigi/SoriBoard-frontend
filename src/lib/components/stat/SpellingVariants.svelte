@@ -180,7 +180,7 @@
 					<tbody>
 						<tr class="group">
 							<th scope="rowgroup" colspan={columns}>
-								<span class="spelling"><MarkedText text={heading.title} q={term} /></span>
+								<span class="spelling"><MarkedText text={heading.title} q={term} loose /></span>
 								<span class="meta">{heading.meta}</span>
 							</th>
 						</tr>
@@ -189,10 +189,11 @@
 							<tr>
 								<th scope="row">
 									{#if links.name}
-										<a class="spelling" href={links.name}><MarkedText text={row.name} q={term} /></a
+										<a class="spelling" href={links.name}
+											><MarkedText text={row.name} q={term} loose /></a
 										>
 									{:else}
-										<span class="spelling"><MarkedText text={row.name} q={term} /></span>
+										<span class="spelling"><MarkedText text={row.name} q={term} loose /></span>
 									{/if}
 								</th>
 								{#if loadedKind === 'player'}
@@ -201,10 +202,12 @@
 									<td>
 										{#if links.composer}
 											<a class="spelling" href={links.composer}
-												><MarkedText text={row.composer_name} q={term} /></a
+												><MarkedText text={row.composer_name} q={term} loose /></a
 											>
 										{:else if row.composer_name}
-											<span class="spelling"><MarkedText text={row.composer_name} q={term} /></span>
+											<span class="spelling"
+												><MarkedText text={row.composer_name} q={term} loose /></span
+											>
 										{:else}
 											<span class="spelling">—</span>
 										{/if}
