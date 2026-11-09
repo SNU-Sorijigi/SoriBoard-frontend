@@ -112,6 +112,30 @@ export function withPreviousFailure(status, label) {
 	return `${status} 지난 학기(${label})와 견준 수치를 불러오지 못했습니다. 지난 학기 수치 다시 시도로 다시 부를 수 있습니다.`;
 }
 
+// 고른 기간에 선곡이 없을 때 통계가 카드 대신 보이는 말(작곡가 페이지·학기 결산과 같은 말투). 전체 기간이면 '아직'.
+// 개인에서는 그 지기의 선곡만 센 요약이므로 이 지기가 튼 곡이 없다고 한다. 견습 포함은 그 지기가 견습으로 든
+// 타임도 세므로 '지기·견습으로'라고 한다(학기 결산의 reportEmptyText 와 같은 말).
+/**
+ * @param {{ wholePeriod: boolean, individual: boolean, includeMentees?: boolean }} view
+ * @returns {string}
+ */
+export function emptyPeriodText({ wholePeriod, individual, includeMentees = false }) {
+	const when = wholePeriod ? '아직' : '이 기간에는';
+	if (!individual) return `${when} 선곡이 없습니다.`;
+	return `${when} 이 지기가 ${includeMentees ? '지기·견습으로 ' : ''}튼 곡이 없습니다.`;
+}
+
+// 선곡이 없는 기간이면 로드 상태 대신 카드 대신 보이는 말을 한다(카드는 보이지 않으므로 그 실패도 말하지 않는다).
+// 상태가 비었으면(불러오는 중) 그대로 둔다. 지난 학기의 말(withPreviousFailure)은 그 뒤에 붙인다.
+/**
+ * @param {string} status loadStatusText 의 로드 상태
+ * @param {string | false | null | undefined} emptyText 선곡이 없는 기간의 말, 선곡이 있으면 거짓 값
+ * @returns {string}
+ */
+export function withEmptyPeriod(status, emptyText) {
+	return status && emptyText ? emptyText : status;
+}
+
 // 로드 상태 앞(lead)·뒤(tail)에 화면에만 보이던 실패 줄을 그 줄과 단추의 말로 붙인다: 상태가 비었으면(불러오는 중) 그대로 둔다.
 /**
  * @param {string} status loadStatusText 등의 로드 상태

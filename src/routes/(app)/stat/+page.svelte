@@ -36,7 +36,9 @@
 		genreDistribution,
 		diversityTiles,
 		loadStatusText,
-		withPreviousFailure
+		withPreviousFailure,
+		emptyPeriodText,
+		withEmptyPeriod
 	} from '$lib/statCards.js';
 	import {
 		chooseTimelineBucket,
@@ -246,6 +248,14 @@
 	} = data);
 	// 선곡 다양성의 칸: 다양성 응답의 summary. 주별/월별만 바꾸면 다시 부르지 않고 그대로 둔다.
 	$: tiles = data.diversityTiles;
+	// 요약을 받았는데 선곡이 0이면 카드 대신 한 줄로 알린다(작곡가 페이지·학기 결산과 같다).
+	// 불러오는 중(null)·실패에는 카드 그대로다. 카드는 숨은 동안에도 지금처럼 부른다.
+	$: empty = summary?.total_plays === 0;
+	$: emptyText = emptyPeriodText({
+		wholePeriod: period === ALL,
+		individual: scope === 'individual',
+		includeMentees
+	});
 	// 칸의 고른정도: 잴 것이 없으면(불러오는 중·실패·센 선곡 없음) null 이고 칸은 '—'다.
 	$: eraEvenness = groupEvenness(tiles?.era);
 	$: genreEvenness = groupEvenness(tiles?.genre);
@@ -830,9 +840,12 @@
 		['firstWorks', '처음 튼 곡']
 	];
 	// 개인 범위인데 지기 미선택이면 카드를 부르지 않으므로(load) 알릴 것도 없다.
+	// 선곡이 없는 기간이면 다 불러온 뒤 카드 대신 보이는 말을 한다(학기 결산과 같다).
 	// 지난 학기 수치가 실패했다는 말은 KPI 칸 아래 줄과 같은 조건으로 붙인다.
 	$: loadStatus = withPreviousFailure(
-		scope === 'individual' && !userId ? '' : loadStatusText(loading, errors, cardNames),
+		scope === 'individual' && !userId
+			? ''
+			: withEmptyPeriod(loadStatusText(loading, errors, cardNames), empty && emptyText),
 		previousFailed.length && !errors.summary ? semesterLabel(previousTarget) : ''
 	);
 	$: timelineData = timeline && timelineView(timeline, endDate);
@@ -1318,419 +1331,439 @@
 			</p>
 		{/if}
 
-		<!-- 키보드·화면 낭독기로 모든 차트를 한 번에 표로 읽는다(카드마다 '표로 보기'를 누르지 않고) -->
-		<div class="view-row">
-			<button
-				class="tool-btn"
-				class:active={allTables}
-				aria-pressed={allTables}
-				on:click={() => {
-					allTables = !allTables;
-					syncUrl();
-				}}
-				title="모든 차트의 수치를 표로 보기"
-			>
-				모든 차트 표로 보기
-			</button>
-		</div>
-
-		<!-- 차트 그리드 -->
-		<div class="chart-grid">
-			<ChartCard
-				bind:this={cards.composers}
-				showTable={allTables}
-				title="많이 튼 작곡가"
-				note={withSplit(
-					rankCapNote(composers, WORKS_LIMIT, summary?.composers, ['작곡가', '명']),
-					composerSplit
-				)}
-				noteLink={splitLink(composerSplit, DEFAULT_KIND)}
-				chartNote={chartTieNote(composers, LIMITS.composers, WORKS_LIMIT, '작곡가가', '명')}
-				option={composerOpt}
-				data={composers}
-				loading={loading.composers}
-				error={errors.composers}
-				retry={() => retry('composers')}
-				{fileTag}
-				rowLabel="곡 보기"
-				markedBar={marks.composers.bar}
-				markedRow={marks.composers.row}
-				on:itemclick={(e) => openBar('composers', e)}
-				on:rowselect={(e) => openDrill('composers', e.detail)}
-				table={composerTable}
-				cellLinks={previousCellLinks(composerTable, 'composers', '많이 튼 작곡가', previousLink)}
-				csv={composerTable && tableCsv(composerTable)}
-				csvHeaders={['작곡가', '횟수']}
-			/>
-			<ChartCard
-				bind:this={cards.soloists}
-				showTable={allTables}
-				title="많이 튼 독주자"
-				emptyText={PERFORMER_EMPTY.soloists}
-				note={withSplit(rankCapNote(soloists, WORKS_LIMIT), soloistSplit)}
-				noteLink={splitLink(soloistSplit, 'player')}
-				chartNote={chartTieNote(soloists, LIMITS.soloists, WORKS_LIMIT, '독주자가', '명')}
-				option={soloistOpt}
-				data={soloists}
-				loading={loading.soloists}
-				error={errors.soloists}
-				retry={() => retry('soloists')}
-				{fileTag}
-				rowLabel="곡 보기"
-				markedBar={marks.soloists.bar}
-				markedRow={marks.soloists.row}
-				on:itemclick={(e) => openBar('soloists', e)}
-				on:rowselect={(e) => openDrill('soloists', e.detail)}
-				table={soloistTable}
-				cellLinks={previousCellLinks(soloistTable, 'soloists', '많이 튼 독주자', previousLink)}
-				csv={soloistTable && tableCsv(soloistTable)}
-				csvHeaders={['연주자', '횟수']}
-			/>
-			<ChartCard
-				bind:this={cards.conductors}
-				showTable={allTables}
-				title="많이 튼 지휘자"
-				emptyText={PERFORMER_EMPTY.conductors}
-				note={withSplit(
-					rankCapNote(conductors, WORKS_LIMIT, summary?.conductors, ['지휘자', '명']),
-					conductorSplit
-				)}
-				noteLink={splitLink(conductorSplit, 'conductor')}
-				chartNote={chartTieNote(conductors, LIMITS.conductors, WORKS_LIMIT, '지휘자가', '명')}
-				option={conductorOpt}
-				data={conductors}
-				loading={loading.conductors}
-				error={errors.conductors}
-				retry={() => retry('conductors')}
-				{fileTag}
-				rowLabel="곡 보기"
-				markedBar={marks.conductors.bar}
-				markedRow={marks.conductors.row}
-				on:itemclick={(e) => openBar('conductors', e)}
-				on:rowselect={(e) => openDrill('conductors', e.detail)}
-				table={conductorTable}
-				cellLinks={previousCellLinks(conductorTable, 'conductors', '많이 튼 지휘자', previousLink)}
-				csv={conductorTable && tableCsv(conductorTable)}
-				csvHeaders={['지휘자', '횟수']}
-			/>
-			<ChartCard
-				bind:this={cards.orchestras}
-				showTable={allTables}
-				title="많이 튼 오케스트라"
-				emptyText={PERFORMER_EMPTY.orchestras}
-				note={withSplit(
-					rankCapNote(orchestras, WORKS_LIMIT, summary?.orchestras, ['오케스트라', '곳']),
-					orchestraSplit
-				)}
-				noteLink={splitLink(orchestraSplit, 'orchestra')}
-				chartNote={chartTieNote(orchestras, LIMITS.orchestras, WORKS_LIMIT, '오케스트라가', '곳')}
-				option={orchestraOpt}
-				data={orchestras}
-				loading={loading.orchestras}
-				error={errors.orchestras}
-				retry={() => retry('orchestras')}
-				{fileTag}
-				rowLabel="곡 보기"
-				markedBar={marks.orchestras.bar}
-				markedRow={marks.orchestras.row}
-				on:itemclick={(e) => openBar('orchestras', e)}
-				on:rowselect={(e) => openDrill('orchestras', e.detail)}
-				table={orchestraTable}
-				cellLinks={previousCellLinks(
-					orchestraTable,
-					'orchestras',
-					'많이 튼 오케스트라',
-					previousLink
-				)}
-				csv={orchestraTable && tableCsv(orchestraTable)}
-				csvHeaders={['오케스트라', '횟수']}
-			/>
-			<ChartCard
-				bind:this={cards.eras}
-				showTable={allTables}
-				title="시대별 분포"
-				option={eraOpt}
-				data={eras}
-				loading={loading.eras}
-				error={errors.eras}
-				retry={() => retry('eras')}
-				{fileTag}
-				note={eraNote}
-				noteLink={{ href: unknownEraHref, text: '작곡가 정리' }}
-				table={eraTable}
-				links={eraLinks}
-				linkTitle="작곡가 정리에서 이 시대의 작곡가 보기 (모든 기간)"
-				csv={eraTable && tableCsv(eraTable)}
-				csvHeaders={['시대', '횟수']}
-			/>
-			<ChartCard
-				bind:this={cards.genres}
-				showTable={allTables}
-				title="장르별 분포"
-				option={genreOpt}
-				data={genres}
-				loading={loading.genres}
-				error={errors.genres}
-				retry={() => retry('genres')}
-				{fileTag}
-				table={genreTable}
-				csv={genreTable && tableCsv(genreTable)}
-				csvHeaders={['장르', '횟수']}
-			/>
-			<ChartCard
-				showTable={allTables}
-				title={timelineTitle}
-				note={timelineGapNote}
-				option={timelineOpt}
-				data={timelineData}
-				loading={loading.timeline}
-				error={errors.timeline}
-				retry={() => retry('timeline')}
-				{fileTag}
-				links={timelineLinks}
-				on:itemclick={(e) => openBucket(timelineLinks, e)}
-				csvHeaders={['기간', '횟수']}
-			/>
-			<ChartCard
-				bind:this={cards.works}
-				showTable={allTables}
-				title="많이 튼 곡"
-				note={withSplit(rankCapNote(works, WORKS_LIMIT, summary?.works, ['곡', '곡']), worksSplit)}
-				noteLink={splitLink(worksSplit, 'music')}
-				chartNote={chartTieNote(works, LIMITS.works, WORKS_LIMIT, '곡이', '곡')}
-				option={worksOpt}
-				data={works}
-				loading={loading.works}
-				error={errors.works}
-				retry={() => retry('works')}
-				{fileTag}
-				links={worksLinks}
-				on:itemclick={openWork}
-				table={worksTable}
-				cellLinks={previousCellLinks(worksTable, 'works', '많이 튼 곡', previousLink)}
-				csv={worksTable && tableCsv(worksTable)}
-				csvHeaders={['곡', '횟수']}
-			/>
-		</div>
-		{#if drill}
-			{#key drill}
-				<DrillPanel
-					target={drill}
-					works={drillWorks}
-					worksTotal={drillTotal}
-					previous={previousDrillWorks}
-					loading={drillLoading}
-					error={drillError}
-					retry={loadDrill}
-					previousError={previousDrillFailed ? semesterLabel(previousOf(period, semesters)) : ''}
-					retryPrevious={loadPreviousDrill}
-					scopeLabel={viewLabel}
-					{fileTag}
-					note={drillSplit}
-					noteLink={drillSplit
-						? {
-								href: catalogViewHref(drill.card === 'composers' ? drill.name : '', 'music'),
-								text: '표기 정리'
-							}
-						: null}
-					historyLink={drillHistoryLink}
-					workLink={drillWorkLink}
-					composerLink={drill.card === 'composers'
-						? firstsByCountHref(
-								tableViewHref(
-									composerHref(drill.id, {
-										period,
-										start: customStart,
-										end: customEnd,
-										userId: scope === 'individual' ? userId : null,
-										includeMentees
-									}),
-									allTables
-								),
-								firstsByCount
-							)
-						: ''}
-					on:close={closeDrill}
-				/>
-			{/key}
+		<!-- 고른 기간에 선곡이 없으면 빈 카드들 대신 한 줄(작곡가 페이지·학기 결산과 같다). 열린 패널과 카드의
+		     해시는 숨은 동안 열리지 않는다(패널은 URL에 남아 선곡이 있는 기간에 다시 열린다) -->
+		{#if empty}
+			<div class="empty-hint">{emptyText}</div>
 		{:else}
-			<p class="drill-hint">
-				작곡가·독주자·지휘자·오케스트라의 막대나 이름을 누르면 그 곡들을 봅니다. 곡의 막대나 이름,
-				추이 차트의 날짜를 누르면 그 선곡 기록을 엽니다.
-			</p>
-		{/if}
-
-		<!-- 다양성 섹션 -->
-		<div class="section-head">
-			<h2>선곡 다양성</h2>
-			<div class="bucket-toggle" role="group" aria-label="다양성 집계 단위">
-				<button
-					class:active={diversityBucket === 'week'}
-					aria-pressed={diversityBucket === 'week'}
-					on:click={() => setDiversityBucket('week')}
-				>
-					주별
-				</button>
-				<button
-					class:active={diversityBucket === 'month'}
-					aria-pressed={diversityBucket === 'month'}
-					on:click={() => setDiversityBucket('month')}
-				>
-					월별
-				</button>
-			</div>
-		</div>
-
-		<!-- 고유 곡 수는 위의 곡 칸과 같아(같은 선곡의 서로 다른 곡 수) 두지 않는다(학기 결산과 같다) -->
-		<div class="kpi-row diversity-kpi" bind:this={tilesRow} tabindex="-1">
-			<div class="kpi">
-				<div class="kpi-value">
-					{#if eraEvenness != null}
-						<button
-							type="button"
-							class="kpi-link kpi-open"
-							on:click={() => cards.eras?.openTable()}
-							title="시대별 분포 표로 보기"
-							aria-label="시대 다양성 {pct(eraEvenness)} — 시대별 분포 표로 보기"
-							>{pct(eraEvenness)}</button
-						>
-					{:else}
-						{pct(eraEvenness)}
-					{/if}
-				</div>
-				<div class="kpi-label">시대 다양성</div>
-				{#if tileChanges.era}
-					<div class="kpi-change">
-						<span>{tileChanges.era.diff} ·</span>
-						<span>{tileChanges.era.before}</span>
-					</div>
-				{/if}
-			</div>
-			<div class="kpi">
-				<div class="kpi-value">
-					{#if genreEvenness != null}
-						<button
-							type="button"
-							class="kpi-link kpi-open"
-							on:click={() => cards.genres?.openTable()}
-							title="장르별 분포 표로 보기"
-							aria-label="장르 다양성 {pct(genreEvenness)} — 장르별 분포 표로 보기"
-							>{pct(genreEvenness)}</button
-						>
-					{:else}
-						{pct(genreEvenness)}
-					{/if}
-				</div>
-				<div class="kpi-label">장르 다양성</div>
-				{#if tileChanges.genre}
-					<div class="kpi-change">
-						<span>{tileChanges.genre.diff} ·</span>
-						<span>{tileChanges.genre.before}</span>
-					</div>
-				{/if}
-			</div>
-		</div>
-		<!-- 칸의 '—'는 잴 것이 없을 때도 쓰므로, 불러오지 못했으면 따로 알린다 -->
-		{#if errors.diversityTiles}
-			<p class="kpi-error">
-				선곡 다양성을 불러오지 못했습니다.
+			<!-- 키보드·화면 낭독기로 모든 차트를 한 번에 표로 읽는다(카드마다 '표로 보기'를 누르지 않고) -->
+			<div class="view-row">
 				<button
 					class="tool-btn"
-					on:click={() => retryRow('diversityTiles', tilesRow)}
-					aria-label="선곡 다양성 다시 시도"
+					class:active={allTables}
+					aria-pressed={allTables}
+					on:click={() => {
+						allTables = !allTables;
+						syncUrl();
+					}}
+					title="모든 차트의 수치를 표로 보기"
 				>
-					다시 시도
+					모든 차트 표로 보기
 				</button>
-			</p>
+			</div>
+
+			<!-- 차트 그리드 -->
+			<div class="chart-grid">
+				<ChartCard
+					bind:this={cards.composers}
+					showTable={allTables}
+					title="많이 튼 작곡가"
+					note={withSplit(
+						rankCapNote(composers, WORKS_LIMIT, summary?.composers, ['작곡가', '명']),
+						composerSplit
+					)}
+					noteLink={splitLink(composerSplit, DEFAULT_KIND)}
+					chartNote={chartTieNote(composers, LIMITS.composers, WORKS_LIMIT, '작곡가가', '명')}
+					option={composerOpt}
+					data={composers}
+					loading={loading.composers}
+					error={errors.composers}
+					retry={() => retry('composers')}
+					{fileTag}
+					rowLabel="곡 보기"
+					markedBar={marks.composers.bar}
+					markedRow={marks.composers.row}
+					on:itemclick={(e) => openBar('composers', e)}
+					on:rowselect={(e) => openDrill('composers', e.detail)}
+					table={composerTable}
+					cellLinks={previousCellLinks(composerTable, 'composers', '많이 튼 작곡가', previousLink)}
+					csv={composerTable && tableCsv(composerTable)}
+					csvHeaders={['작곡가', '횟수']}
+				/>
+				<ChartCard
+					bind:this={cards.soloists}
+					showTable={allTables}
+					title="많이 튼 독주자"
+					emptyText={PERFORMER_EMPTY.soloists}
+					note={withSplit(rankCapNote(soloists, WORKS_LIMIT), soloistSplit)}
+					noteLink={splitLink(soloistSplit, 'player')}
+					chartNote={chartTieNote(soloists, LIMITS.soloists, WORKS_LIMIT, '독주자가', '명')}
+					option={soloistOpt}
+					data={soloists}
+					loading={loading.soloists}
+					error={errors.soloists}
+					retry={() => retry('soloists')}
+					{fileTag}
+					rowLabel="곡 보기"
+					markedBar={marks.soloists.bar}
+					markedRow={marks.soloists.row}
+					on:itemclick={(e) => openBar('soloists', e)}
+					on:rowselect={(e) => openDrill('soloists', e.detail)}
+					table={soloistTable}
+					cellLinks={previousCellLinks(soloistTable, 'soloists', '많이 튼 독주자', previousLink)}
+					csv={soloistTable && tableCsv(soloistTable)}
+					csvHeaders={['연주자', '횟수']}
+				/>
+				<ChartCard
+					bind:this={cards.conductors}
+					showTable={allTables}
+					title="많이 튼 지휘자"
+					emptyText={PERFORMER_EMPTY.conductors}
+					note={withSplit(
+						rankCapNote(conductors, WORKS_LIMIT, summary?.conductors, ['지휘자', '명']),
+						conductorSplit
+					)}
+					noteLink={splitLink(conductorSplit, 'conductor')}
+					chartNote={chartTieNote(conductors, LIMITS.conductors, WORKS_LIMIT, '지휘자가', '명')}
+					option={conductorOpt}
+					data={conductors}
+					loading={loading.conductors}
+					error={errors.conductors}
+					retry={() => retry('conductors')}
+					{fileTag}
+					rowLabel="곡 보기"
+					markedBar={marks.conductors.bar}
+					markedRow={marks.conductors.row}
+					on:itemclick={(e) => openBar('conductors', e)}
+					on:rowselect={(e) => openDrill('conductors', e.detail)}
+					table={conductorTable}
+					cellLinks={previousCellLinks(
+						conductorTable,
+						'conductors',
+						'많이 튼 지휘자',
+						previousLink
+					)}
+					csv={conductorTable && tableCsv(conductorTable)}
+					csvHeaders={['지휘자', '횟수']}
+				/>
+				<ChartCard
+					bind:this={cards.orchestras}
+					showTable={allTables}
+					title="많이 튼 오케스트라"
+					emptyText={PERFORMER_EMPTY.orchestras}
+					note={withSplit(
+						rankCapNote(orchestras, WORKS_LIMIT, summary?.orchestras, ['오케스트라', '곳']),
+						orchestraSplit
+					)}
+					noteLink={splitLink(orchestraSplit, 'orchestra')}
+					chartNote={chartTieNote(orchestras, LIMITS.orchestras, WORKS_LIMIT, '오케스트라가', '곳')}
+					option={orchestraOpt}
+					data={orchestras}
+					loading={loading.orchestras}
+					error={errors.orchestras}
+					retry={() => retry('orchestras')}
+					{fileTag}
+					rowLabel="곡 보기"
+					markedBar={marks.orchestras.bar}
+					markedRow={marks.orchestras.row}
+					on:itemclick={(e) => openBar('orchestras', e)}
+					on:rowselect={(e) => openDrill('orchestras', e.detail)}
+					table={orchestraTable}
+					cellLinks={previousCellLinks(
+						orchestraTable,
+						'orchestras',
+						'많이 튼 오케스트라',
+						previousLink
+					)}
+					csv={orchestraTable && tableCsv(orchestraTable)}
+					csvHeaders={['오케스트라', '횟수']}
+				/>
+				<ChartCard
+					bind:this={cards.eras}
+					showTable={allTables}
+					title="시대별 분포"
+					option={eraOpt}
+					data={eras}
+					loading={loading.eras}
+					error={errors.eras}
+					retry={() => retry('eras')}
+					{fileTag}
+					note={eraNote}
+					noteLink={{ href: unknownEraHref, text: '작곡가 정리' }}
+					table={eraTable}
+					links={eraLinks}
+					linkTitle="작곡가 정리에서 이 시대의 작곡가 보기 (모든 기간)"
+					csv={eraTable && tableCsv(eraTable)}
+					csvHeaders={['시대', '횟수']}
+				/>
+				<ChartCard
+					bind:this={cards.genres}
+					showTable={allTables}
+					title="장르별 분포"
+					option={genreOpt}
+					data={genres}
+					loading={loading.genres}
+					error={errors.genres}
+					retry={() => retry('genres')}
+					{fileTag}
+					table={genreTable}
+					csv={genreTable && tableCsv(genreTable)}
+					csvHeaders={['장르', '횟수']}
+				/>
+				<ChartCard
+					showTable={allTables}
+					title={timelineTitle}
+					note={timelineGapNote}
+					option={timelineOpt}
+					data={timelineData}
+					loading={loading.timeline}
+					error={errors.timeline}
+					retry={() => retry('timeline')}
+					{fileTag}
+					links={timelineLinks}
+					on:itemclick={(e) => openBucket(timelineLinks, e)}
+					csvHeaders={['기간', '횟수']}
+				/>
+				<ChartCard
+					bind:this={cards.works}
+					showTable={allTables}
+					title="많이 튼 곡"
+					note={withSplit(
+						rankCapNote(works, WORKS_LIMIT, summary?.works, ['곡', '곡']),
+						worksSplit
+					)}
+					noteLink={splitLink(worksSplit, 'music')}
+					chartNote={chartTieNote(works, LIMITS.works, WORKS_LIMIT, '곡이', '곡')}
+					option={worksOpt}
+					data={works}
+					loading={loading.works}
+					error={errors.works}
+					retry={() => retry('works')}
+					{fileTag}
+					links={worksLinks}
+					on:itemclick={openWork}
+					table={worksTable}
+					cellLinks={previousCellLinks(worksTable, 'works', '많이 튼 곡', previousLink)}
+					csv={worksTable && tableCsv(worksTable)}
+					csvHeaders={['곡', '횟수']}
+				/>
+			</div>
+			{#if drill}
+				{#key drill}
+					<DrillPanel
+						target={drill}
+						works={drillWorks}
+						worksTotal={drillTotal}
+						previous={previousDrillWorks}
+						loading={drillLoading}
+						error={drillError}
+						retry={loadDrill}
+						previousError={previousDrillFailed ? semesterLabel(previousOf(period, semesters)) : ''}
+						retryPrevious={loadPreviousDrill}
+						scopeLabel={viewLabel}
+						{fileTag}
+						note={drillSplit}
+						noteLink={drillSplit
+							? {
+									href: catalogViewHref(drill.card === 'composers' ? drill.name : '', 'music'),
+									text: '표기 정리'
+								}
+							: null}
+						historyLink={drillHistoryLink}
+						workLink={drillWorkLink}
+						composerLink={drill.card === 'composers'
+							? firstsByCountHref(
+									tableViewHref(
+										composerHref(drill.id, {
+											period,
+											start: customStart,
+											end: customEnd,
+											userId: scope === 'individual' ? userId : null,
+											includeMentees
+										}),
+										allTables
+									),
+									firstsByCount
+								)
+							: ''}
+						on:close={closeDrill}
+					/>
+				{/key}
+			{:else}
+				<p class="drill-hint">
+					작곡가·독주자·지휘자·오케스트라의 막대나 이름을 누르면 그 곡들을 봅니다. 곡의 막대나 이름,
+					추이 차트의 날짜를 누르면 그 선곡 기록을 엽니다.
+				</p>
+			{/if}
+
+			<!-- 다양성 섹션 -->
+			<div class="section-head">
+				<h2>선곡 다양성</h2>
+				<div class="bucket-toggle" role="group" aria-label="다양성 집계 단위">
+					<button
+						class:active={diversityBucket === 'week'}
+						aria-pressed={diversityBucket === 'week'}
+						on:click={() => setDiversityBucket('week')}
+					>
+						주별
+					</button>
+					<button
+						class:active={diversityBucket === 'month'}
+						aria-pressed={diversityBucket === 'month'}
+						on:click={() => setDiversityBucket('month')}
+					>
+						월별
+					</button>
+				</div>
+			</div>
+
+			<!-- 고유 곡 수는 위의 곡 칸과 같아(같은 선곡의 서로 다른 곡 수) 두지 않는다(학기 결산과 같다) -->
+			<div class="kpi-row diversity-kpi" bind:this={tilesRow} tabindex="-1">
+				<div class="kpi">
+					<div class="kpi-value">
+						{#if eraEvenness != null}
+							<button
+								type="button"
+								class="kpi-link kpi-open"
+								on:click={() => cards.eras?.openTable()}
+								title="시대별 분포 표로 보기"
+								aria-label="시대 다양성 {pct(eraEvenness)} — 시대별 분포 표로 보기"
+								>{pct(eraEvenness)}</button
+							>
+						{:else}
+							{pct(eraEvenness)}
+						{/if}
+					</div>
+					<div class="kpi-label">시대 다양성</div>
+					{#if tileChanges.era}
+						<div class="kpi-change">
+							<span>{tileChanges.era.diff} ·</span>
+							<span>{tileChanges.era.before}</span>
+						</div>
+					{/if}
+				</div>
+				<div class="kpi">
+					<div class="kpi-value">
+						{#if genreEvenness != null}
+							<button
+								type="button"
+								class="kpi-link kpi-open"
+								on:click={() => cards.genres?.openTable()}
+								title="장르별 분포 표로 보기"
+								aria-label="장르 다양성 {pct(genreEvenness)} — 장르별 분포 표로 보기"
+								>{pct(genreEvenness)}</button
+							>
+						{:else}
+							{pct(genreEvenness)}
+						{/if}
+					</div>
+					<div class="kpi-label">장르 다양성</div>
+					{#if tileChanges.genre}
+						<div class="kpi-change">
+							<span>{tileChanges.genre.diff} ·</span>
+							<span>{tileChanges.genre.before}</span>
+						</div>
+					{/if}
+				</div>
+			</div>
+			<!-- 칸의 '—'는 잴 것이 없을 때도 쓰므로, 불러오지 못했으면 따로 알린다 -->
+			{#if errors.diversityTiles}
+				<p class="kpi-error">
+					선곡 다양성을 불러오지 못했습니다.
+					<button
+						class="tool-btn"
+						on:click={() => retryRow('diversityTiles', tilesRow)}
+						aria-label="선곡 다양성 다시 시도"
+					>
+						다시 시도
+					</button>
+				</p>
+			{/if}
+			<!-- 칸의 %가 무엇인지(학기 결산의 선곡 다양성 카드와 같은 말) -->
+			<p class="kpi-note">0%=편중 · 100%=고름 (가능한 모든 시대·장르를 고르게 틀수록 100%)</p>
+
+			<div class="chart-grid">
+				<ChartCard
+					showTable={allTables}
+					title={`${bucketLabel} 선곡 수`}
+					headingLevel={3}
+					note={diversityGapNote}
+					option={countOpt}
+					data={countData}
+					loading={loading.diversity}
+					error={errors.diversity}
+					retry={() => retry('diversity')}
+					{fileTag}
+					links={diversityLinks}
+					on:itemclick={(e) => openBucket(diversityLinks, e)}
+					csvHeaders={['기간', '선곡수']}
+				/>
+				<ChartCard
+					showTable={allTables}
+					title={`${bucketLabel} 다양성 추이`}
+					headingLevel={3}
+					note={diversityGapNote}
+					option={diversityOpt}
+					data={diversityCsvData}
+					table={diversityTable}
+					loading={loading.diversity}
+					error={errors.diversity}
+					retry={() => retry('diversity')}
+					{fileTag}
+					links={diversityLinks}
+					on:itemclick={(e) => openBucket(diversityLinks, e)}
+					csv={diversityTable && tableCsv(diversityTable)}
+				/>
+			</div>
+
+			<!-- 처음 튼 작곡가·곡: 클럽 전체에서 처음 튼 날이 이 기간에 드는 것(stats/firsts) -->
+			<div class="section-head">
+				<h2>처음 튼 작곡가·곡</h2>
+			</div>
+			<div class="chart-grid">
+				<!-- 기간의 시작이 없으면(전체 기간, 시작을 비운 직접 지정) 모든 것이 '처음'이므로 묻지 않는다 -->
+				<TableCard
+					title="처음 튼 작곡가"
+					headingLevel={3}
+					subtitle={firstsSubtitle(
+						viewLabel,
+						firstComposers,
+						'작곡가',
+						'명',
+						previousFirstComposers
+					)}
+					table={shownFirstComposers?.items.length
+						? firstsTable(shownFirstComposers, '작곡가')
+						: null}
+					links={firstComposerLinks}
+					cellLinks={{ 1: { hrefs: firstComposerDayLinks, title: firstDayTitle } }}
+					sortLabel="많이 튼 순"
+					bind:sorted={firstsByCount.composers}
+					note={firstComposerSpelling}
+					noteLink={splitLink(firstComposerSpelling, DEFAULT_KIND)}
+					loading={loading.firstComposers}
+					error={errors.firstComposers}
+					retry={() => retry('firstComposers')}
+					{fileTag}
+					emptyText={!firstsAsked
+						? '기간의 시작을 정하면 그 뒤에 처음 튼 작곡가를 봅니다'
+						: firstComposers?.items.length === 0
+							? firstsEmptyText('처음 튼 작곡가', '명', previousFirstComposers)
+							: ''}
+				/>
+				<TableCard
+					title="처음 튼 곡"
+					headingLevel={3}
+					subtitle={firstsSubtitle(viewLabel, firstWorks, '곡', '곡', previousFirstWorks)}
+					table={shownFirstWorks?.items.length ? firstsTable(shownFirstWorks, '곡') : null}
+					links={firstWorkLinks}
+					cellLinks={{ 1: { hrefs: firstWorkDayLinks, title: firstDayTitle } }}
+					sortLabel="많이 튼 순"
+					bind:sorted={firstsByCount.works}
+					note={firstWorkSpelling}
+					noteLink={splitLink(firstWorkSpelling, 'music')}
+					loading={loading.firstWorks}
+					error={errors.firstWorks}
+					retry={() => retry('firstWorks')}
+					{fileTag}
+					emptyText={!firstsAsked
+						? '기간의 시작을 정하면 그 뒤에 처음 튼 곡을 봅니다'
+						: firstWorks?.items.length === 0
+							? firstsEmptyText('처음 튼 곡', '곡', previousFirstWorks)
+							: ''}
+				/>
+			</div>
 		{/if}
-		<!-- 칸의 %가 무엇인지(학기 결산의 선곡 다양성 카드와 같은 말) -->
-		<p class="kpi-note">0%=편중 · 100%=고름 (가능한 모든 시대·장르를 고르게 틀수록 100%)</p>
-
-		<div class="chart-grid">
-			<ChartCard
-				showTable={allTables}
-				title={`${bucketLabel} 선곡 수`}
-				headingLevel={3}
-				note={diversityGapNote}
-				option={countOpt}
-				data={countData}
-				loading={loading.diversity}
-				error={errors.diversity}
-				retry={() => retry('diversity')}
-				{fileTag}
-				links={diversityLinks}
-				on:itemclick={(e) => openBucket(diversityLinks, e)}
-				csvHeaders={['기간', '선곡수']}
-			/>
-			<ChartCard
-				showTable={allTables}
-				title={`${bucketLabel} 다양성 추이`}
-				headingLevel={3}
-				note={diversityGapNote}
-				option={diversityOpt}
-				data={diversityCsvData}
-				table={diversityTable}
-				loading={loading.diversity}
-				error={errors.diversity}
-				retry={() => retry('diversity')}
-				{fileTag}
-				links={diversityLinks}
-				on:itemclick={(e) => openBucket(diversityLinks, e)}
-				csv={diversityTable && tableCsv(diversityTable)}
-			/>
-		</div>
-
-		<!-- 처음 튼 작곡가·곡: 클럽 전체에서 처음 튼 날이 이 기간에 드는 것(stats/firsts) -->
-		<div class="section-head">
-			<h2>처음 튼 작곡가·곡</h2>
-		</div>
-		<div class="chart-grid">
-			<!-- 기간의 시작이 없으면(전체 기간, 시작을 비운 직접 지정) 모든 것이 '처음'이므로 묻지 않는다 -->
-			<TableCard
-				title="처음 튼 작곡가"
-				headingLevel={3}
-				subtitle={firstsSubtitle(viewLabel, firstComposers, '작곡가', '명', previousFirstComposers)}
-				table={shownFirstComposers?.items.length
-					? firstsTable(shownFirstComposers, '작곡가')
-					: null}
-				links={firstComposerLinks}
-				cellLinks={{ 1: { hrefs: firstComposerDayLinks, title: firstDayTitle } }}
-				sortLabel="많이 튼 순"
-				bind:sorted={firstsByCount.composers}
-				note={firstComposerSpelling}
-				noteLink={splitLink(firstComposerSpelling, DEFAULT_KIND)}
-				loading={loading.firstComposers}
-				error={errors.firstComposers}
-				retry={() => retry('firstComposers')}
-				{fileTag}
-				emptyText={!firstsAsked
-					? '기간의 시작을 정하면 그 뒤에 처음 튼 작곡가를 봅니다'
-					: firstComposers?.items.length === 0
-						? firstsEmptyText('처음 튼 작곡가', '명', previousFirstComposers)
-						: ''}
-			/>
-			<TableCard
-				title="처음 튼 곡"
-				headingLevel={3}
-				subtitle={firstsSubtitle(viewLabel, firstWorks, '곡', '곡', previousFirstWorks)}
-				table={shownFirstWorks?.items.length ? firstsTable(shownFirstWorks, '곡') : null}
-				links={firstWorkLinks}
-				cellLinks={{ 1: { hrefs: firstWorkDayLinks, title: firstDayTitle } }}
-				sortLabel="많이 튼 순"
-				bind:sorted={firstsByCount.works}
-				note={firstWorkSpelling}
-				noteLink={splitLink(firstWorkSpelling, 'music')}
-				loading={loading.firstWorks}
-				error={errors.firstWorks}
-				retry={() => retry('firstWorks')}
-				{fileTag}
-				emptyText={!firstsAsked
-					? '기간의 시작을 정하면 그 뒤에 처음 튼 곡을 봅니다'
-					: firstWorks?.items.length === 0
-						? firstsEmptyText('처음 튼 곡', '곡', previousFirstWorks)
-						: ''}
-			/>
-		</div>
 	{/if}
 </div>
 

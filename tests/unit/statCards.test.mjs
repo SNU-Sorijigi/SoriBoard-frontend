@@ -10,7 +10,9 @@ import {
 	previousRetryRequests,
 	loadStatusText,
 	withPreviousFailure,
-	withFailedLines
+	withFailedLines,
+	emptyPeriodText,
+	withEmptyPeriod
 } from '../../src/lib/statCards.js';
 import { unknownEraNote } from '../../src/lib/statTable.js';
 
@@ -433,5 +435,72 @@ test('withFailedLines: 작곡가 정보 and 전체 기록 both failed around loa
 		'작곡가 정보를 불러오지 못했습니다. 작곡가 정보 다시 시도로 다시 부를 수 있습니다. ' +
 			'모든 카드를 불러왔습니다. ' +
 			'전체 기록의 처음·마지막 날을 불러오지 못했습니다. 전체 기록 다시 시도로 다시 부를 수 있습니다.'
+	);
+});
+
+test('emptyPeriodText: 전체 view says the period has no plays', () => {
+	assert.equal(
+		emptyPeriodText({ wholePeriod: false, individual: false }),
+		'이 기간에는 선곡이 없습니다.'
+	);
+	assert.equal(emptyPeriodText({ wholePeriod: true, individual: false }), '아직 선곡이 없습니다.');
+});
+
+test('emptyPeriodText: 전체 view ignores 견습 포함', () => {
+	assert.equal(
+		emptyPeriodText({ wholePeriod: false, individual: false, includeMentees: true }),
+		'이 기간에는 선곡이 없습니다.'
+	);
+});
+
+test('emptyPeriodText: 개인 view says this 지기 played nothing', () => {
+	assert.equal(
+		emptyPeriodText({ wholePeriod: false, individual: true }),
+		'이 기간에는 이 지기가 튼 곡이 없습니다.'
+	);
+	assert.equal(
+		emptyPeriodText({ wholePeriod: true, individual: true }),
+		'아직 이 지기가 튼 곡이 없습니다.'
+	);
+});
+
+test('emptyPeriodText: 견습 포함 counts the 지기 as 지기 or 견습 (학기 결산 wording)', () => {
+	assert.equal(
+		emptyPeriodText({ wholePeriod: false, individual: true, includeMentees: true }),
+		'이 기간에는 이 지기가 지기·견습으로 튼 곡이 없습니다.'
+	);
+	assert.equal(
+		emptyPeriodText({ wholePeriod: true, individual: true, includeMentees: true }),
+		'아직 이 지기가 지기·견습으로 튼 곡이 없습니다.'
+	);
+});
+
+test('withEmptyPeriod: while cards load the status stays empty', () => {
+	assert.equal(withEmptyPeriod('', '이 기간에는 선곡이 없습니다.'), '');
+});
+
+test('withEmptyPeriod: an empty period reads the hint instead of the card status', () => {
+	assert.equal(
+		withEmptyPeriod(ALL_LOADED, '이 기간에는 선곡이 없습니다.'),
+		'이 기간에는 선곡이 없습니다.'
+	);
+	assert.equal(
+		withEmptyPeriod(
+			'카드 1개를 불러오지 못했습니다: 많이 튼 곡. 각 카드의 다시 시도로 다시 부를 수 있습니다.',
+			'아직 선곡이 없습니다.'
+		),
+		'아직 선곡이 없습니다.'
+	);
+});
+
+test('withEmptyPeriod: a period with plays keeps the card status', () => {
+	assert.equal(withEmptyPeriod(ALL_LOADED, ''), ALL_LOADED);
+	assert.equal(withEmptyPeriod(ALL_LOADED, false), ALL_LOADED);
+});
+
+test('withEmptyPeriod: the 지난 학기 sentence still follows the hint', () => {
+	assert.equal(
+		withPreviousFailure(withEmptyPeriod(ALL_LOADED, '이 기간에는 선곡이 없습니다.'), '2025-2학기'),
+		`이 기간에는 선곡이 없습니다. ${PREVIOUS}`
 	);
 });
