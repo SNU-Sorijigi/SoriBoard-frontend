@@ -471,6 +471,8 @@ export function drillSplitNote(duplicates, works, target) {
 // 통계의 처음 튼 작곡가·곡 줄의 머리. 곡은 작곡가와 작품 번호가 같은 곡이라 '표기만 다른'이라고 하지 않는다.
 export const FIRST_SPELLING_LEAD = '표기만 다른 이름이 있어 처음이 아닐 수 있습니다:';
 export const FIRST_MUSIC_LEAD = '작품 번호가 같은 곡이 있어 처음이 아닐 수 있습니다:';
+// 보이는 행마다 다른 항목의 이름이 똑같으면(같은 이름의 두 작곡가) '표기만 다른'이 아니다.
+export const FIRST_SAME_NAME_LEAD = '이름이 같은 항목이 있어 처음이 아닐 수 있습니다:';
 
 /**
  * @typedef {{ id: number | string, name: string, count?: number, first_played?: string }} FirstItem
@@ -526,6 +528,8 @@ export function firstSpellingSplits(duplicates, firsts) {
 
 // 그 행들을 카드의 한 줄로: '표기만 다른 이름이 있어 처음이 아닐 수 있습니다: ‘X’(‘Y’ 6회), ‘Z’(‘W’ 2회)'.
 // max 행까지 적고 나머지는 ' 외 N명'(unit, 곡은 '곡'). 없으면 ''.
+// 다른 항목의 이름이 행의 이름과 똑같으면(===) 이름을 다시 적지 않고 ‘X’(같은 이름 6회).
+// lead 가 FIRST_SPELLING_LEAD 이고 보이는 행이 모두 그렇다면 머리는 FIRST_SAME_NAME_LEAD(곡의 머리는 그대로).
 /**
  * @param {FirstSplit[]} rows
  * @param {number} [max]
@@ -534,10 +538,18 @@ export function firstSpellingSplits(duplicates, firsts) {
  */
 export function firstSpellingNote(rows, max = 3, lead = FIRST_SPELLING_LEAD, unit = '명') {
 	if (!rows?.length) return '';
-	const shown = rows
-		.slice(0, max)
-		.map(({ name, variant }) => `‘${name}’(‘${variant.name}’ ${variant.count.toLocaleString()}회)`)
+	const visible = rows.slice(0, max);
+	const same = ({ name, variant }) => variant.name === name;
+	const shown = visible
+		.map(
+			(row) =>
+				`‘${row.name}’(${same(row) ? '같은 이름' : `‘${row.variant.name}’`} ${row.variant.count.toLocaleString()}회)`
+		)
 		.join(', ');
+	const head =
+		lead === FIRST_SPELLING_LEAD && visible.length > 0 && visible.every(same)
+			? FIRST_SAME_NAME_LEAD
+			: lead;
 	const rest = rows.length - Math.min(rows.length, max);
-	return `${lead} ${shown}${rest > 0 ? ` 외 ${rest.toLocaleString()}${unit}` : ''}`;
+	return `${head} ${shown}${rest > 0 ? ` 외 ${rest.toLocaleString()}${unit}` : ''}`;
 }

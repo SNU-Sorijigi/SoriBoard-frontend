@@ -30,6 +30,7 @@ import {
 	firstSpellingNote,
 	FIRST_SPELLING_LEAD,
 	FIRST_MUSIC_LEAD,
+	FIRST_SAME_NAME_LEAD,
 	normalizeName,
 	searchVariants,
 	searchCatalogName
@@ -1307,6 +1308,80 @@ test('the line names rows in the list’s order up to the cap, then how many mor
 		'작품 번호가 같은 곡이 있어 처음이 아닐 수 있습니다: ‘A’(‘A′’ 1,000회), ‘B’(‘B′’ 1,001회) 외 1곡'
 	);
 	assert.equal(firstSpellingNote(rows.slice(0, 3)).endsWith('1,002회)'), true);
+});
+
+test('a first whose other entry has the same name reads 같은 이름, not the name twice', () => {
+	const duplicates = composerGroups([
+		[7, '가상 작곡가 동명', 9],
+		[8, '가상 작곡가 동명', 2]
+	]);
+	const firsts = firstsOf([8, '가상 작곡가 동명', 2, '2026-04-01']);
+	const rows = firstSpellingSplits(duplicates, firsts);
+	assert.deepEqual(rows, [
+		{ name: '가상 작곡가 동명', variant: { name: '가상 작곡가 동명', count: 9 }, more: 0 }
+	]);
+	assert.equal(FIRST_SAME_NAME_LEAD, '이름이 같은 항목이 있어 처음이 아닐 수 있습니다:');
+	assert.equal(
+		firstSpellingNote(rows),
+		'이름이 같은 항목이 있어 처음이 아닐 수 있습니다: ‘가상 작곡가 동명’(같은 이름 9회)'
+	);
+	assert.equal(
+		firstSpellingNote(rows, 3, FIRST_SPELLING_LEAD, '명'),
+		'이름이 같은 항목이 있어 처음이 아닐 수 있습니다: ‘가상 작곡가 동명’(같은 이름 9회)'
+	);
+});
+
+test('with one same-name row and one spelled differently, the lead stays 표기만 다른', () => {
+	const rows = [
+		{ name: '가상 작곡가 동명', variant: { name: '가상 작곡가 동명', count: 9 }, more: 0 },
+		{ name: 'X', variant: { name: 'Y', count: 6 }, more: 0 }
+	];
+	assert.equal(
+		firstSpellingNote(rows),
+		'표기만 다른 이름이 있어 처음이 아닐 수 있습니다: ‘가상 작곡가 동명’(같은 이름 9회), ‘X’(‘Y’ 6회)'
+	);
+	// 공백만 다른 이름은 다른 표기다.
+	assert.equal(
+		firstSpellingNote([{ name: 'A Kim', variant: { name: 'A  Kim', count: 1 }, more: 0 }]),
+		'표기만 다른 이름이 있어 처음이 아닐 수 있습니다: ‘A Kim’(‘A  Kim’ 1회)'
+	);
+});
+
+test('a same-title work keeps 작품 번호가 같은 곡 and reads 같은 이름', () => {
+	const music = {
+		kind: 'music',
+		groups: [
+			{
+				key: 'op67',
+				count: 7,
+				rows: [
+					musicRow(21, '교향곡 5번 Op. 67', 4, 503, '가상 작곡가 C'),
+					musicRow(22, '교향곡 5번 Op. 67', 3, 503, '가상 작곡가 C')
+				]
+			}
+		]
+	};
+	const firsts = firstsOf([22, '가상 작곡가 C - 교향곡 5번 Op. 67', 3, '2026-04-02']);
+	const rows = firstSpellingSplits(music, firsts);
+	assert.equal(
+		firstSpellingNote(rows, 2, FIRST_MUSIC_LEAD, '곡'),
+		'작품 번호가 같은 곡이 있어 처음이 아닐 수 있습니다: ‘가상 작곡가 C - 교향곡 5번 Op. 67’(같은 이름 4회)'
+	);
+});
+
+test('only the shown rows choose the lead', () => {
+	const sameName = (name, count) => ({ name, variant: { name, count }, more: 0 });
+	const spelled = { name: 'X', variant: { name: 'Y', count: 6 }, more: 0 };
+	// 같은 이름 행이 max 밖에 있으면 보이는 행의 머리는 그대로다.
+	assert.equal(
+		firstSpellingNote([spelled, sameName('Z', 2)], 1),
+		'표기만 다른 이름이 있어 처음이 아닐 수 있습니다: ‘X’(‘Y’ 6회) 외 1명'
+	);
+	// 보이는 행이 모두 같은 이름이면, 다르게 적힌 행이 max 밖에 있어도 머리가 바뀐다.
+	assert.equal(
+		firstSpellingNote([sameName('Z', 2), sameName('W', 1), spelled], 2),
+		'이름이 같은 항목이 있어 처음이 아닐 수 있습니다: ‘Z’(같은 이름 2회), ‘W’(같은 이름 1회) 외 1명'
+	);
 });
 
 test('string and number ids match between the list and the groups', () => {
