@@ -2,7 +2,7 @@
 // 보기와 종류는 URL에 둔다: ?view=spelling(&kind=player|conductor|orchestra|music).
 // 작곡가 목록(view 없음)과 종류 composer 는 기본값이라 URL에 남기지 않고, 틀린 값은 기본값으로 읽는다.
 // 읽기 전용이다: 합치지 않는다.
-import { catalogHref } from './composerCatalog.js';
+import { catalogEraHref, catalogHref, catalogSortHref } from './composerCatalog.js';
 import { composerHref } from './composerStats.js';
 import { historyHref, targetHistoryHref } from './playHistory.js';
 import { workLabel } from './statDrill.js';
@@ -78,6 +78,17 @@ export function catalogViewHref(q, kind) {
 	if (kind !== DEFAULT_KIND && kindSpec(kind)) params.set('kind', kind);
 	return `/stat/composers?${params}`;
 }
+
+// 거기에 작곡가 목록의 시대와 순서까지 담은 경로(catalogEraHref·catalogSortHref 가 틀린 값은 뺀다). 페이지를 새로
+// 불러도(새 탭, 검색 중의 클릭) 표기 정리에서 작곡가 목록으로 돌아오면 같은 시대와 순서다.
+/**
+ * @param {string} q
+ * @param {string | null} kind
+ * @param {string} era
+ * @param {string} sort
+ */
+export const catalogStateHref = (q, kind, era, sort) =>
+	catalogSortHref(catalogEraHref(catalogViewHref(q, kind), era), sort);
 
 // catalog/duplicates/ 의 쿼리스트링.
 /** @param {string} kind */

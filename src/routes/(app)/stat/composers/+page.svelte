@@ -9,9 +9,7 @@
 		UNKNOWN_ERA,
 		readCatalogQuery,
 		readCatalogEra,
-		catalogEraHref,
 		readCatalogSort,
-		catalogSortHref,
 		byBirthYear,
 		eraOptions,
 		filterEra,
@@ -37,6 +35,7 @@
 	import {
 		readSpellingKind,
 		catalogViewHref,
+		catalogStateHref,
 		catalogPageTitle,
 		duplicatesSearch,
 		searchVariants,
@@ -66,8 +65,7 @@
 	 * @param {string | null} kind
 	 * @param {string} [toEra]
 	 */
-	const viewHref = (kind, toEra = era) =>
-		catalogSortHref(catalogEraHref(catalogViewHref(q, kind), toEra), sort);
+	const viewHref = (kind, toEra = era) => catalogStateHref(q, kind, toEra, sort);
 
 	// 검색어는 두 보기가 함께 쓴다. 작곡가 목록으로 돌아올 때 목록이 다른 검색어의 답이면 다시 부른다.
 	/** @param {string | null} kind */
@@ -328,6 +326,8 @@
 	$: missed =
 		shownQ && loaded && !error ? searchVariants(spellingAnswers[DEFAULT_KIND], shownQ) : [];
 	// 다섯 개까지, 가장 많이 튼 것부터. 링크는 그 표기로 검색한 작곡가 목록(그 줄을 바로 고칠 수 있다).
+	// 시대와 순서는 담지 않는다: 다른 표기는 흔히 시대 미상인 따로 된 줄이라, 고른 시대로 열면 고칠 그 줄이
+	// 걸러져 '맞는 작곡가가 없습니다'가 된다.
 	$: missedRows = missed.slice(0, SEARCH_LINE_MAX).map((row) => ({
 		...row,
 		plays: (row.count ?? 0).toLocaleString(),
@@ -457,7 +457,7 @@
 					{missedMore.toLocaleString()}개{/if}
 				(전체 기간). 이 검색에는 들지 않습니다. ·
 				<a
-					href={catalogViewHref(shownQ, DEFAULT_KIND)}
+					href={catalogStateHref(shownQ, DEFAULT_KIND, era, sort)}
 					data-sveltekit-reload
 					on:click={openSpelling}>표기 정리</a
 				>

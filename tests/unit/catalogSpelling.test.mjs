@@ -5,6 +5,7 @@ import {
 	DEFAULT_KIND,
 	readSpellingKind,
 	catalogViewHref,
+	catalogStateHref,
 	catalogPageTitle,
 	duplicatesSearch,
 	rowLinks,
@@ -60,6 +61,38 @@ test('the view is written to the URL, defaults left out, the search term kept', 
 			assert.equal(readSpellingKind(url.searchParams), kind);
 			assert.equal(readCatalogQuery(url.searchParams), q.trim());
 			assert.equal(url.searchParams.has('kind'), kind !== DEFAULT_KIND);
+		}
+	}
+});
+
+test('the state link adds the list 시대 and 순서 to the view, dropping values it does not know', () => {
+	const paramsOf = (href) => Object.fromEntries(urlOf(href).searchParams);
+	assert.deepEqual(paramsOf(catalogStateHref('bach', 'composer', '바로크', 'birth')), {
+		q: 'bach',
+		view: 'spelling',
+		era: '바로크',
+		sort: 'birth'
+	});
+	assert.equal(
+		urlOf(catalogStateHref('bach', 'composer', '바로크', 'birth')).pathname,
+		'/stat/composers'
+	);
+	assert.deepEqual(paramsOf(catalogStateHref('bach', null, '바로크', '')), {
+		q: 'bach',
+		era: '바로크'
+	});
+	assert.equal(catalogStateHref('', null, '', ''), '/stat/composers');
+	assert.deepEqual(paramsOf(catalogStateHref('bach', null, '가상', 'name')), { q: 'bach' });
+	assert.deepEqual(paramsOf(catalogStateHref('bach', 'player', '고전', 'birth')), {
+		q: 'bach',
+		view: 'spelling',
+		kind: 'player',
+		era: '고전',
+		sort: 'birth'
+	});
+	for (const { kind } of [...SPELLING_KINDS, { kind: null }]) {
+		for (const q of ['', ' a&b ']) {
+			assert.equal(catalogStateHref(q, kind, '', ''), catalogViewHref(q, kind));
 		}
 	}
 });
