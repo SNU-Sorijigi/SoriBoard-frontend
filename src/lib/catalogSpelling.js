@@ -39,6 +39,8 @@ export const SPELLING_KINDS = [
 
 // 곡(kind=music)의 묶음은 작곡가와 작품 번호가 같은 곡이라, 제목이 표기만 다르다고는 할 수 없다.
 export const MUSIC_SPLIT_LEAD = '작품 번호가 같은 곡은';
+// 보이는 묶음마다 모든 행의 이름이 똑같으면(이름은 유일하지 않아 같은 이름의 행이 둘일 수 있다) 표기가 다른 것이 아니다.
+export const SAME_NAME_LEAD = '이름이 같은 항목은';
 
 /**
  * @typedef {{ id: number, name: string, count: number, instrument?: string,
@@ -424,21 +426,33 @@ export function splitSpellings(duplicates, envelope) {
 
 // 그 묶음들을 카드의 한 줄로: '표기만 다른 이름은 따로 셉니다: ‘A’ 40회 + ‘B’ 12회; ‘C’ 5회 + ‘D’ 2회'.
 // max 묶음까지 적고 나머지는 ' 외 N묶음'. 없으면 ''. lead 는 '따로 셉니다' 앞의 말(곡은 MUSIC_SPLIT_LEAD).
+// 바로 앞 행과 이름이 똑같은(===) 행은 이름을 다시 따옴표로 적지 않고 '같은 이름 N회'.
+// lead 를 주지 않았고 보이는 묶음마다 모든 행의 이름이 같으면 머리는 SAME_NAME_LEAD.
 /**
  * @param {SplitGroup[]} groups
  * @param {number} [max]
  * @param {string} [lead]
  */
-export function splitSpellingNote(groups, max = 3, lead = '표기만 다른 이름은') {
+export function splitSpellingNote(groups, max = 3, lead) {
 	if (!groups?.length) return '';
-	const shown = groups
-		.slice(0, max)
+	const visible = groups.slice(0, max);
+	const shown = visible
 		.map((group) =>
-			group.rows.map((row) => `‘${row.name}’ ${row.count.toLocaleString()}회`).join(' + ')
+			group.rows
+				.map((row, i) =>
+					i > 0 && row.name === group.rows[i - 1].name
+						? `같은 이름 ${row.count.toLocaleString()}회`
+						: `‘${row.name}’ ${row.count.toLocaleString()}회`
+				)
+				.join(' + ')
 		)
 		.join('; ');
+	const sameNames =
+		visible.length > 0 &&
+		visible.every((group) => group.rows.every((row) => row.name === group.rows[0].name));
+	const head = lead ?? (sameNames ? SAME_NAME_LEAD : '표기만 다른 이름은');
 	const rest = groups.length - Math.min(groups.length, max);
-	return `${lead} 따로 셉니다: ${shown}${rest > 0 ? ` 외 ${rest.toLocaleString()}묶음` : ''}`;
+	return `${head} 따로 셉니다: ${shown}${rest > 0 ? ` 외 ${rest.toLocaleString()}묶음` : ''}`;
 }
 
 // 통계의 drill-down 패널(그 대상의 stats/works): 많이 튼 곡 카드와 같은 줄을, 패널의 표가 보이는 곡 이름으로

@@ -24,6 +24,7 @@ import {
 	splitSpellings,
 	splitSpellingNote,
 	MUSIC_SPLIT_LEAD,
+	SAME_NAME_LEAD,
 	drillSplitNote,
 	firstSpellingSplits,
 	firstSpellingNote,
@@ -941,6 +942,62 @@ test('the note lists three groups, then how many more', () => {
 	);
 });
 
+test('two entries with one name read 이름이 같은 항목은 and 같은 이름, not the name twice', () => {
+	assert.equal(SAME_NAME_LEAD, '이름이 같은 항목은');
+	assert.equal(
+		splitSpellingNote([groupOf(['가상 지휘자 동명', 38], ['가상 지휘자 동명', 34])]),
+		'이름이 같은 항목은 따로 셉니다: ‘가상 지휘자 동명’ 38회 + 같은 이름 34회'
+	);
+	assert.equal(
+		splitSpellingNote([groupOf(['A', 5], ['A', 2], ['A', 1]), groupOf(['B', 4], ['B', 1])]),
+		'이름이 같은 항목은 따로 셉니다: ‘A’ 5회 + 같은 이름 2회 + 같은 이름 1회; ‘B’ 4회 + 같은 이름 1회'
+	);
+});
+
+test('a group that mixes one name and another spelling keeps 표기만 다른 이름은', () => {
+	assert.equal(
+		splitSpellingNote([groupOf(['A', 5], ['A', 2], ['A.', 1])]),
+		'표기만 다른 이름은 따로 셉니다: ‘A’ 5회 + 같은 이름 2회 + ‘A.’ 1회'
+	);
+	assert.equal(
+		splitSpellingNote([groupOf(['J. S. Bach', 40], ['J.S. Bach', 12], ['J.S. Bach', 3])]),
+		'표기만 다른 이름은 따로 셉니다: ‘J. S. Bach’ 40회 + ‘J.S. Bach’ 12회 + 같은 이름 3회'
+	);
+	assert.equal(
+		splitSpellingNote([groupOf(['A', 5], ['A', 2]), groupOf(['Beethoven', 40], ['베토벤', 12])]),
+		'표기만 다른 이름은 따로 셉니다: ‘A’ 5회 + 같은 이름 2회; ‘Beethoven’ 40회 + ‘베토벤’ 12회'
+	);
+});
+
+test('같은 이름 only follows the same name right before it', () => {
+	assert.equal(
+		splitSpellingNote([groupOf(['A', 5], ['A.', 3], ['A', 1])]),
+		'표기만 다른 이름은 따로 셉니다: ‘A’ 5회 + ‘A.’ 3회 + ‘A’ 1회'
+	);
+	// 대소문자나 공백만 달라도 표기가 다르다.
+	assert.equal(
+		splitSpellingNote([groupOf(['J.S. Bach', 2], ['J.S.  Bach', 1])]),
+		'표기만 다른 이름은 따로 셉니다: ‘J.S. Bach’ 2회 + ‘J.S.  Bach’ 1회'
+	);
+});
+
+test('only the groups shown decide the lead', () => {
+	const groups = [
+		groupOf(['A5', 5], ['B5', 1]),
+		groupOf(['A4', 4], ['B4', 1]),
+		groupOf(['A3', 3], ['B3', 1]),
+		groupOf(['같은', 2], ['같은', 1])
+	];
+	assert.equal(
+		splitSpellingNote(groups),
+		'표기만 다른 이름은 따로 셉니다: ‘A5’ 5회 + ‘B5’ 1회; ‘A4’ 4회 + ‘B4’ 1회; ‘A3’ 3회 + ‘B3’ 1회 외 1묶음'
+	);
+	assert.equal(
+		splitSpellingNote([groups[3], ...groups.slice(0, 3)], 1),
+		'이름이 같은 항목은 따로 셉니다: ‘같은’ 2회 + 같은 이름 1회 외 3묶음'
+	);
+});
+
 test('a player group splits 많이 튼 독주자 with its labels and counts, not the catalog names', () => {
 	const players = {
 		kind: 'player',
@@ -1086,6 +1143,17 @@ test('the 곡 note leads with 작품 번호가 같은 곡은, lists two groups, 
 		'작품 번호가 같은 곡은 따로 셉니다: ‘A5’ 5회 + ‘B5’ 1회; ‘A4’ 4회 + ‘B4’ 1회 외 2묶음'
 	);
 	assert.equal(splitSpellingNote([], 2, MUSIC_SPLIT_LEAD), '');
+});
+
+test('a caller’s lead stays when the labels are the same, and the rows still say 같은 이름', () => {
+	assert.equal(
+		splitSpellingNote(
+			[groupOf(['가상 작곡가 A - 교향곡 1번', 30], ['가상 작곡가 A - 교향곡 1번', 4])],
+			2,
+			MUSIC_SPLIT_LEAD
+		),
+		'작품 번호가 같은 곡은 따로 셉니다: ‘가상 작곡가 A - 교향곡 1번’ 30회 + 같은 이름 4회'
+	);
 });
 
 // 처음 튼 작곡가·곡(stats/firsts)의 표기 줄
@@ -1506,6 +1574,34 @@ test('the drill-down note names two split pieces, then counts the rest', () => {
 		drillSplitNote(drillMusic, works, composerDrill),
 		'작품 번호가 같은 곡은 따로 셉니다: ‘모음곡 1번 Op. 1’ 6회 + ‘Suite No. 1 Op. 1’ 3회; ' +
 			'‘소나타 Op. 2’ 2회 + ‘Sonata Op. 2’ 2회 외 1묶음'
+	);
+});
+
+test('the drill-down note says 같은 이름 for two works of one title under one composer', () => {
+	const sameTitle = {
+		kind: 'music',
+		groups: [
+			{
+				key: 'op5',
+				count: 7,
+				rows: [
+					{ id: 51, name: '소나타 Op. 5', count: 4, composer_id: 1, composer_name: '가나' },
+					{ id: 52, name: '소나타 Op. 5', count: 3, composer_id: 1, composer_name: '가나' }
+				]
+			}
+		]
+	};
+	const works = drillWorksOf([
+		[51, '가나 - 소나타 Op. 5', 4],
+		[52, '가나 - 소나타 Op. 5', 3]
+	]);
+	assert.equal(
+		drillSplitNote(sameTitle, works, composerDrill),
+		'작품 번호가 같은 곡은 따로 셉니다: ‘소나타 Op. 5’ 4회 + 같은 이름 3회'
+	);
+	assert.equal(
+		drillSplitNote(sameTitle, works, soloistDrill),
+		'작품 번호가 같은 곡은 따로 셉니다: ‘가나 - 소나타 Op. 5’ 4회 + 같은 이름 3회'
 	);
 });
 
