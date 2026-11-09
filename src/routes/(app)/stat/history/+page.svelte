@@ -376,6 +376,12 @@
 		includeMentees = false;
 		apply();
 	}
+	// 빈 목록에서 신청곡 필터만 푼다. 신청곡 select 로 신청곡 포함을 고른 것과 같다.
+	function widenRequested(e) {
+		if (document.activeElement === e.currentTarget) listCard?.focus();
+		requested = '';
+		apply();
+	}
 	function onMemberChange(e) {
 		userId = e.detail.userId;
 		includeMentees = e.detail.includeMentees;
@@ -492,8 +498,9 @@
 		});
 	$: hasMore = count !== null && offset < count;
 	$: shareText = clubShareText(count, clubCount, '곡');
-	// 빈 목록의 말과 '전체 지기에서 찾기'. clubCount 는 보이는 목록의 것이라 늦게 와도 그 목록과 맞는다.
-	$: emptyList = emptyListText({ period, userId, upcoming }, clubCount);
+	// 빈 목록의 말과 '전체 지기에서 찾기'·'신청곡 포함해 찾기'. clubCount 는 보이는 목록의 것이라 늦게
+	// 와도 그 목록과 맞는다.
+	$: emptyList = emptyListText({ period, userId, upcoming, requested }, clubCount);
 	// 인쇄본에만: 불러온 행만 실린다는 말('n / N'과 더 보기·모두 보기가 보일 때와 같은 조건).
 	$: printNote = hasMore ? partialPrintText(rows.length, count) : '';
 	// 탭 제목: id 필터(이름을 찾기 전에는 '작곡가 #12'), 지기, 기간(이번 학기는 빼고).
@@ -680,6 +687,11 @@
 				{#if emptyList.widenMember}
 					<button class="tool-btn" on:click={widenMember} title="지기만 전체 지기로 바꿔 다시 찾기"
 						>전체 지기에서 찾기</button
+					>
+				{/if}
+				{#if emptyList.widenRequested}
+					<button class="tool-btn" on:click={widenRequested} title="신청곡 필터만 풀어 다시 찾기"
+						>신청곡 포함해 찾기</button
 					>
 				{/if}
 			</div>

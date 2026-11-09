@@ -1073,26 +1073,30 @@ test('partialPrintText: 인쇄본에 불러온 행만 실릴 때의 말', () => 
 test('emptyListText: 지기를 고르지 않으면 오늘의 말이고 지기 버튼은 없다', () => {
 	assert.deepEqual(emptyListText({ period: '12', userId: null, upcoming: '' }, null), {
 		text: '이 기간에는 조건에 맞는 선곡이 없습니다',
-		widenMember: false
+		widenMember: false,
+		widenRequested: false
 	});
 	assert.deepEqual(emptyListText({ period: 'all', userId: null, upcoming: '' }, null), {
 		text: '조건에 맞는 선곡이 없습니다',
-		widenMember: false
+		widenMember: false,
+		widenRequested: false
 	});
 	assert.deepEqual(
 		emptyListText({ period: '13', userId: null, upcoming: '시작 전 · 2027-03-01부터' }, null),
-		{ text: '아직 시작하지 않은 학기입니다.', widenMember: false }
+		{ text: '아직 시작하지 않은 학기입니다.', widenMember: false, widenRequested: false }
 	);
 });
 
 test('emptyListText: 지기를 골랐고 클럽에 선곡이 있으면 그 수와 지기 버튼', () => {
 	assert.deepEqual(emptyListText({ period: '12', userId: 3, upcoming: '' }, 12), {
 		text: '이 기간에는 이 지기의 선곡이 없습니다 · 클럽 전체 12곡',
-		widenMember: true
+		widenMember: true,
+		widenRequested: false
 	});
 	assert.deepEqual(emptyListText({ period: 'all', userId: 3, upcoming: '' }, 12), {
 		text: '이 지기의 선곡이 없습니다 · 클럽 전체 12곡',
-		widenMember: true
+		widenMember: true,
+		widenRequested: false
 	});
 	// 이번 학기·직접 지정도 '이 기간에는'
 	assert.equal(
@@ -1108,20 +1112,24 @@ test('emptyListText: 지기를 골랐고 클럽에 선곡이 있으면 그 수�
 test('emptyListText: 클럽도 0이면 오늘의 말, 클럽 수를 모르면 수 없이 지기 버튼', () => {
 	assert.deepEqual(emptyListText({ period: '12', userId: 3, upcoming: '' }, 0), {
 		text: '이 기간에는 조건에 맞는 선곡이 없습니다',
-		widenMember: false
+		widenMember: false,
+		widenRequested: false
 	});
 	assert.deepEqual(emptyListText({ period: 'all', userId: 3, upcoming: '' }, 0), {
 		text: '조건에 맞는 선곡이 없습니다',
-		widenMember: false
+		widenMember: false,
+		widenRequested: false
 	});
 	for (const unknown of [null, undefined])
 		assert.deepEqual(emptyListText({ period: 'all', userId: 3, upcoming: '' }, unknown), {
 			text: '조건에 맞는 선곡이 없습니다',
-			widenMember: true
+			widenMember: true,
+			widenRequested: false
 		});
 	assert.deepEqual(emptyListText({ period: '12', userId: 3, upcoming: '' }, null), {
 		text: '이 기간에는 조건에 맞는 선곡이 없습니다',
-		widenMember: true
+		widenMember: true,
+		widenRequested: false
 	});
 });
 
@@ -1129,7 +1137,7 @@ test('emptyListText: 시작하지 않은 학기는 지기를 골라도 그 말�
 	for (const club of [null, 0])
 		assert.deepEqual(
 			emptyListText({ period: '13', userId: 3, upcoming: '시작 전 · 2027-03-01부터' }, club),
-			{ text: '아직 시작하지 않은 학기입니다.', widenMember: false }
+			{ text: '아직 시작하지 않은 학기입니다.', widenMember: false, widenRequested: false }
 		);
 });
 
@@ -1138,4 +1146,79 @@ test('emptyListText: 1,234곡처럼 천 단위를 끊어 쓴다', () => {
 		emptyListText({ period: '12', userId: 3 }, 1234).text,
 		'이 기간에는 이 지기의 선곡이 없습니다 · 클럽 전체 1,234곡'
 	);
+});
+
+test('emptyListText: 신청곡만이면 말이 신청곡을 말하고 신청곡 버튼', () => {
+	assert.deepEqual(emptyListText({ period: '12', userId: 3, upcoming: '', requested: 'true' }, 3), {
+		text: '이 기간에는 이 지기의 신청곡이 없습니다 · 클럽 전체 3곡',
+		widenMember: true,
+		widenRequested: true
+	});
+	assert.deepEqual(
+		emptyListText({ period: 'all', userId: 3, upcoming: '', requested: 'true' }, 3),
+		{
+			text: '이 지기의 신청곡이 없습니다 · 클럽 전체 3곡',
+			widenMember: true,
+			widenRequested: true
+		}
+	);
+	// 지기를 고르지 않았거나, 클럽도 0이거나, 클럽 수를 모르면 '조건에 맞는 신청곡'
+	assert.deepEqual(emptyListText({ period: '12', userId: null, requested: 'true' }, null), {
+		text: '이 기간에는 조건에 맞는 신청곡이 없습니다',
+		widenMember: false,
+		widenRequested: true
+	});
+	assert.deepEqual(emptyListText({ period: 'all', userId: null, requested: 'true' }, null), {
+		text: '조건에 맞는 신청곡이 없습니다',
+		widenMember: false,
+		widenRequested: true
+	});
+	assert.deepEqual(emptyListText({ period: '12', userId: 3, requested: 'true' }, 0), {
+		text: '이 기간에는 조건에 맞는 신청곡이 없습니다',
+		widenMember: false,
+		widenRequested: true
+	});
+	assert.deepEqual(emptyListText({ period: 'all', userId: 3, requested: 'true' }, null), {
+		text: '조건에 맞는 신청곡이 없습니다',
+		widenMember: true,
+		widenRequested: true
+	});
+});
+
+test('emptyListText: 신청곡 제외는 오늘의 말이고 신청곡 버튼', () => {
+	assert.deepEqual(emptyListText({ period: '12', userId: 3, requested: 'false' }, 3), {
+		text: '이 기간에는 이 지기의 선곡이 없습니다 · 클럽 전체 3곡',
+		widenMember: true,
+		widenRequested: true
+	});
+	assert.deepEqual(emptyListText({ period: 'all', userId: null, requested: 'false' }, null), {
+		text: '조건에 맞는 선곡이 없습니다',
+		widenMember: false,
+		widenRequested: true
+	});
+});
+
+test('emptyListText: 신청곡 포함(빈 값·없음)이면 오늘의 말이고 신청곡 버튼은 없다', () => {
+	for (const requested of ['', undefined])
+		assert.deepEqual(emptyListText({ period: '12', userId: 3, requested }, 3), {
+			text: '이 기간에는 이 지기의 선곡이 없습니다 · 클럽 전체 3곡',
+			widenMember: true,
+			widenRequested: false
+		});
+	assert.deepEqual(emptyListText({ period: 'all', userId: null, requested: '' }, null), {
+		text: '조건에 맞는 선곡이 없습니다',
+		widenMember: false,
+		widenRequested: false
+	});
+});
+
+test('emptyListText: 시작하지 않은 학기는 신청곡만이어도 그 말이고 버튼은 없다', () => {
+	for (const requested of ['true', 'false'])
+		assert.deepEqual(
+			emptyListText(
+				{ period: '13', userId: 3, upcoming: '시작 전 · 2027-03-01부터', requested },
+				3
+			),
+			{ text: '아직 시작하지 않은 학기입니다.', widenMember: false, widenRequested: false }
+		);
 });
