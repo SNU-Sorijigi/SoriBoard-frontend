@@ -48,7 +48,9 @@
 		writeDiversityBucket,
 		semesterRangeOf,
 		semesterOf,
-		semesterBefore
+		semesterBefore,
+		bucketRange,
+		sameSpanBefore
 	} from '$lib/statBucket.js';
 	import {
 		shareTable,
@@ -185,6 +187,8 @@
 	let appliedFilters = null;
 
 	// 현재 필터를 쿼리스트링으로. withMember 가 false 면 개인 범위여도 지기를 빼고 클럽 전체를 묻는다.
+	// extra 가 기간(start·end 또는 semester_id)을 주면 보기의 기간 대신 그것만 보낸다(앞 학기 요청).
+	const PERIOD_KEYS = ['start', 'end', 'semester_id'];
 	function buildQuery(extra = {}, withMember = true) {
 		const params = new URLSearchParams();
 		if (period === CURRENT) {
@@ -196,6 +200,7 @@
 		} else if (period !== ALL) {
 			params.set('semester_id', period);
 		}
+		if (PERIOD_KEYS.some((key) => key in extra)) PERIOD_KEYS.forEach((key) => params.delete(key));
 		if (withMember && scope === 'individual' && userId) {
 			params.set('user_id', userId);
 			if (includeMentees) params.set('include_mentees', 'true');
@@ -359,6 +364,8 @@
 	// 선곡 다양성의 칸도 앞 학기의 다양성 응답과 견준다(summary 는 버킷과 무관하므로 월별로 부른다).
 	// 많이 튼 표에는 앞 학기 상위 100(WORKS_LIMIT)에서의 순위를 붙인다(학기 결산의 rankChangeTable).
 	// 처음 튼 작곡가·곡의 부제에는 앞 학기에 처음 튼 수를 붙인다(같은 firsts 를 kind 별로 부른다).
+	// 진행 중인 학기면 앞 학기도 첫날부터 같은 날수만큼만 센다(previousSpan): 모든 앞 학기 요청과 drill-down,
+	// 지난 학기 칸의 링크가 같은 기간을 쓴다.
 	let previousSummary = null;
 	let previousEras = null;
 	let previousGenres = null;
@@ -370,6 +377,7 @@
 	let previousRanks = {};
 	let previousAsked = null; // 마지막으로 부른 앞 학기 id(없으면 null)
 	let previousTarget = null; // 마지막으로 부른 앞 학기
+	let previousSpan = null; // 마지막으로 부른 앞 학기의 같은 기간({ start, end }, 학기 전체면 null)
 	let previousToken = 0; // 이전 보기의 늦은 응답은 버린다.
 	/** @type {string[]} 실패한 앞 학기 요청(엔드포인트). KPI 칸 아래에 다시 시도와 함께 알린다. */
 	let previousFailed = [];
@@ -379,6 +387,19 @@
 		const chosen = list.find((s) => String(s.id) === p);
 		return chosen ? previousSemester(chosen, list) : null;
 	};
+	// 진행 중인 학기(이번 학기, 또는 오늘이 든 학기)와 견줄 앞 학기의 같은 기간(statBucket.js). 끝난 학기를
+	// 고르면 null 이고 앞 학기 전체와 견준다. endDate 는 처음 연 날이다(머리말의 '진행 중'과 같다).
+	const previousSpanOf = (p, list) => {
+		const previous = previousOf(p, list);
+		if (!previous) return null;
+		const range = bucketRange('semester', `${previous.year}-${previous.semester_num}`);
+		if (p === CURRENT) return sameSpanBefore(range, startDate, endDate);
+		const own = semesterRangeOf(p, list);
+		return ongoingText(own, endDate) ? sameSpanBefore(range, own.start, endDate) : null;
+	};
+	// 앞 학기 요청의 기간: 같은 기간이 있으면 그 날짜, 없으면 앞 학기 전체(buildQuery 는 보기의 기간을 뺀다).
+	const previousPeriod = (span, previous) =>
+		span ? { start: span.start, end: span.end } : { semester_id: String(previous.id) };
 	// 앞 학기의 시대·장르도 지금 학기의 카드처럼 다양성 응답에서 꺼낸다(요청 하나, stats/eras·genres 와 같은 수).
 	// 월별 버킷이면 쓰지 않는 timeline 이 작다.
 	const previousRequests = {
@@ -427,10 +448,10 @@
 			withMember = true
 		} = previousRequests[endpoint];
 		try {
-			// buildQuery 는 extra 를 마지막에 넣으므로 기간의 semester_id 만 바뀌고 지기는 그대로다.
+			// 보기의 기간 대신 앞 학기의 기간(같은 기간 또는 학기 전체)만 보내고, 지기는 그대로다.
 			const result = await getJson(
 				path,
-				{ ...extra, semester_id: String(previousTarget.id) },
+				{ ...extra, ...previousPeriod(previousSpan, previousTarget) },
 				withMember,
 				requests.signal(id, ['previousSummary'])
 			);
@@ -447,6 +468,7 @@
 		const previous = previousOf(period, semesters);
 		previousAsked = previous?.id ?? null;
 		previousTarget = previous;
+		previousSpan = previousSpanOf(period, semesters);
 		previousFailed = [];
 		previousSummary = null;
 		previousEras = null;
@@ -559,10 +581,10 @@
 		previousDrillFailed = false;
 		if (!drill || !previous || (scope === 'individual' && !userId)) return;
 		try {
-			// buildQuery 는 extra 를 마지막에 넣으므로 기간의 semester_id 만 바뀌고 지기는 그대로다.
+			// 요약과 같은 앞 학기의 기간(같은 기간 또는 학기 전체)만 보내고, 지기는 그대로다.
 			const result = await getJson(
 				'works',
-				{ ...drillParams(drill), semester_id: String(previous.id) },
+				{ ...drillParams(drill), ...previousPeriod(previousSpanOf(period, semesters), previous) },
 				true,
 				requests.signal(id, ['previousDrill'])
 			);
@@ -918,22 +940,29 @@
 	$: worksTable =
 		works && rankChangeTable(works, previousRanks.works, '곡', WORKS_LIMIT, firstIdSet(firstWorks));
 	// 많이 튼 표의 지난 학기 칸('23위')은 그 순위를 센 앞 학기(previousTarget)를 같은 보기(범위·지기·견습,
-	// 처음 튼 '많이 튼 순')와 모든 차트 표로 보기로 연다. previousTarget 은 $: 가 부르는 loadPreviousSummary 가
-	// 바꾸므로, 순위(previousRanks)가 올 때 다시 만든다.
+	// 처음 튼 '많이 튼 순')와 모든 차트 표로 보기로 연다. 같은 기간(previousSpan)으로 셌으면 그 날짜의 직접 지정으로
+	// 연다. previousTarget 은 $: 가 부르는 loadPreviousSummary 가 바꾸므로, 순위(previousRanks)가 올 때 다시 만든다.
 	$: previousLink =
 		previousRanks && previousTarget && !(scope === 'individual' && !userId)
 			? {
 					href: statQueryHref(
 						new URL(
 							firstsByCountHref(
-								tableViewHref(`/stat?semester_id=${previousTarget.id}`, true),
+								tableViewHref(
+									previousSpan
+										? `/stat?start=${previousSpan.start}&end=${previousSpan.end}`
+										: `/stat?semester_id=${previousTarget.id}`,
+									true
+								),
 								firstsByCount
 							),
 							'http://localhost'
 						),
 						{ scope, userId, includeMentees }
 					),
-					label: semesterLabel(previousTarget)
+					label: previousSpan
+						? `지난 학기 같은 기간(${periodRangeText(previousSpan)})`
+						: `지난 학기(${semesterLabel(previousTarget)})`
 				}
 			: null;
 	// 순위인 칸만 같은 카드의 표(#composers)로 가는 링크다(없음·100위 밖·첫 선곡은 글자). 같은 페이지라 새로 불러온다.
@@ -942,7 +971,7 @@
 			? {
 					[table.columns.length - 1]: {
 						hrefs: previousRankHrefs(table, cardHref(link.href, key)),
-						title: `지난 학기(${link.label})의 ${title} 표 보기`,
+						title: `${link.label}의 ${title} 표 보기`,
 						reload: true
 					}
 				}
@@ -1357,11 +1386,18 @@
 				</button>
 			</p>
 		{/if}
-		<!-- 진행 중인 학기를 학기 전체인 앞 학기와 견주면 모든 칸이 줄어 보이므로 그렇다고 적는다(학기 결산과 같은 말).
+		<!-- 진행 중인 학기는 앞 학기도 같은 시점까지만 세므로(previousSpan) 그 날짜를 적는다. 날짜를 셀 수 없으면
+		     앞 학기 전체와 견주므로 그렇다고 적는다(학기 결산과 같은 말).
 		     이번 학기는 늘 오늘까지라 진행 중이다(머리말의 '진행 중' 칸은 학기를 고를 때만 보인다). -->
 		{#if (ongoing || period === CURRENT) && previousTarget}
 			<p class="kpi-note">
-				진행 중인 학기입니다. 지난 학기({semesterLabel(previousTarget)}) 수치는 학기 전체입니다.
+				{#if previousSpan}
+					진행 중인 학기입니다. 지난 학기({semesterLabel(previousTarget)})는 같은 시점까지({periodRangeText(
+						previousSpan
+					)}) 셌습니다.
+				{:else}
+					진행 중인 학기입니다. 지난 학기({semesterLabel(previousTarget)}) 수치는 학기 전체입니다.
+				{/if}
 			</p>
 		{/if}
 
