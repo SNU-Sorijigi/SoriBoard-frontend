@@ -124,6 +124,16 @@
 		FIRST_MUSIC_LEAD
 	} from '$lib/catalogSpelling.js';
 	import { catalogEraHref, eraCatalogLinks, UNKNOWN_ERA } from '$lib/composerCatalog.js';
+	import {
+		tasteComposers,
+		tasteTable,
+		tasteCsv,
+		tasteNote,
+		tasteBarNotes,
+		TASTE_EMPTY,
+		TASTE_MIN_PLAYS,
+		TASTE_MIN_RATIO
+	} from '$lib/statTaste.js';
 
 	// 시대 미상 경고의 '작곡가 정리' 링크: 시대 미상 작곡가만 골라 연다(머리의 링크는 모든 시대).
 	const unknownEraHref = catalogEraHref('/stat/composers', UNKNOWN_ERA);
@@ -217,6 +227,9 @@
 		timeline: (signal) => getJson('timeline', { bucket: timelineBucket }, true, signal),
 		diversity: (signal) => getJson('diversity', { bucket: diversityBucket }, true, signal),
 		works: (signal) => getJson('works', { limit: WORKS_LIMIT }, true, signal),
+		// 개인 범위만: 지기를 뺀 같은 기간 클럽 전체의 작곡가. 취향 카드가 지기의 작곡가(위 composers)와 견준다.
+		clubComposers: (signal) =>
+			scope === 'individual' ? getJson('composers', { limit: WORKS_LIMIT }, false, signal) : null,
 		// 시작이 없는 기간이면 firsts 는 지금까지 튼 모든 것을 주므로 부르지 않는다(null, statFirsts.js).
 		firstComposers: (signal) =>
 			hasFirsts() ? getJson('firsts', { kind: 'composer' }, true, signal) : null,
@@ -305,6 +318,10 @@
 				}
 			})
 		);
+	}
+	// 취향 카드는 지기의 작곡가(많이 튼 작곡가와 같은 요청)와 클럽의 작곡가로 그린다: 실패한 쪽만 다시 부른다.
+	function retryTaste() {
+		for (const key of ['composers', 'clubComposers']) if (errors[key]) retry(key);
 	}
 	// '다시 시도': 그 카드의 요청이 그리는 카드 가운데 실패한 것만 한 번에 다시 부른다(statCards.js).
 	// loadAll 과 달리 drill-down 패널과 기간별 선곡 추이의 단위는 그대로 둔다.
@@ -822,6 +839,16 @@
 			rankNotes(worksTable)?.slice(0, LIMITS.works),
 			220
 		);
+	// 취향: 지기의 작곡가 가운데 같은 기간 클럽보다 비중이 큰 작곡가와 그 배율(statTaste.js, 개인 범위만).
+	$: taste = composers && data.clubComposers ? tasteComposers(composers, data.clubComposers) : null;
+	$: tasteOpt =
+		taste &&
+		horizontalBarOption(
+			taste,
+			'취향',
+			`${viewLabel} · 클럽보다 ${TASTE_MIN_RATIO}배 이상 자주 튼 작곡가(${TASTE_MIN_PLAYS}번 이상)`,
+			tasteBarNotes(taste)
+		);
 	$: timelineTitle = `${timelineBucketName(timelineBucket)} 선곡 추이`;
 	// 화면 낭독기에 알리는 로드 상태(statCards.js)가 읽는 카드 이름, 페이지 순서. 선곡 다양성은 그 절의 제목이다.
 	$: cardNames = [
@@ -834,6 +861,13 @@
 		['genres', '장르별 분포'],
 		['timeline', timelineTitle],
 		['works', '많이 튼 곡'],
+		// 취향은 개인 범위에만 있고, 지기의 작곡가(많이 튼 작곡가와 같은 요청)와 클럽의 작곡가로 그린다.
+		...(scope === 'individual'
+			? [
+					['clubComposers', '취향'],
+					['composers', '취향']
+				]
+			: []),
 		['diversityTiles', '선곡 다양성'],
 		['diversity', '선곡 다양성'],
 		['firstComposers', '처음 튼 작곡가'],
@@ -1537,6 +1571,22 @@
 					csv={worksTable && tableCsv(worksTable)}
 					csvHeaders={['곡', '횟수']}
 				/>
+				{#if scope === 'individual'}
+					<ChartCard
+						showTable={allTables}
+						title="취향"
+						emptyText={TASTE_EMPTY}
+						note={tasteNote(taste)}
+						option={tasteOpt}
+						data={taste}
+						loading={loading.composers || loading.clubComposers}
+						error={errors.composers || errors.clubComposers}
+						retry={retryTaste}
+						{fileTag}
+						table={taste && tasteTable(taste)}
+						csv={taste && tasteCsv(taste)}
+					/>
+				{/if}
 			</div>
 			{#if drill}
 				{#key drill}
