@@ -28,7 +28,8 @@
 		patchErrorText,
 		replaceComposer,
 		catalogCsv,
-		catalogFileParts
+		catalogFileParts,
+		catalogListTitle
 	} from '$lib/composerCatalog.js';
 	import { downloadCsvTable } from '$lib/csvTable.js';
 	import { downloadName } from '$lib/statFileName.js';
@@ -345,7 +346,7 @@
 </script>
 
 <svelte:head>
-	<title>{catalogPageTitle(spellingKind)}</title>
+	<title>{spellingKind ? catalogPageTitle(spellingKind) : catalogListTitle(era)}</title>
 </svelte:head>
 
 <div class="catalog-page">

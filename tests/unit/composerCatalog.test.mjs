@@ -28,7 +28,8 @@ import {
 	patchErrorText,
 	replaceComposer,
 	catalogCsv,
-	catalogFileParts
+	catalogFileParts,
+	catalogListTitle
 } from '../../src/lib/composerCatalog.js';
 
 const composer = (id, era, extra = {}) => ({
@@ -475,4 +476,16 @@ test('the CSV file name has the chosen 시대 and search word, if any', () => {
 	assert.deepEqual(catalogFileParts('바로크', 'bach'), ['바로크', 'bach']);
 	assert.deepEqual(catalogFileParts('', ' bach '), ['bach']);
 	assert.deepEqual(catalogFileParts('', ''), []);
+});
+
+test('the tab title names the chosen 시대 first, never the search word', () => {
+	assert.equal(catalogListTitle(''), '작곡가 정리');
+	assert.equal(catalogListTitle('미상'), '시대 미상 · 작곡가 정리');
+	for (const era of ERAS.filter((e) => e !== '미상')) {
+		assert.equal(catalogListTitle(era), `${era} · 작곡가 정리`);
+	}
+	const href = catalogEraHref(catalogHref('bach'), '바로크');
+	const params = new URL(href, 'http://x').searchParams;
+	assert.equal(catalogListTitle(readCatalogEra(params)), '바로크 · 작곡가 정리');
+	assert.equal(catalogListTitle(readCatalogEra(new URLSearchParams('era=가상'))), '작곡가 정리');
 });

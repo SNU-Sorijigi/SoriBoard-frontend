@@ -3,6 +3,7 @@
 // 시대는 백엔드가 era_override(아래 ERAS 중 하나일 때) 또는 출생 연도로 정한다(composers/ 의 era).
 
 import { formatShare } from './statTable.js';
+import { pageTitle } from './statTitle.js';
 
 // 백엔드 era_for 의 라벨 순서(stats.py ERA_ORDER). era_override 로 고를 수 있는 값이다.
 export const ERAS = ['중세', '바로크', '고전', '낭만', '근현대', '미상'];
@@ -226,6 +227,10 @@ export function catalogFileParts(era, q) {
 	const term = q.trim();
 	return term ? [...parts, term] : parts;
 }
+
+// 작곡가 목록의 탭 제목: 고른 시대를 앞에 둔다('바로크 · 작곡가 정리', '시대 미상 · 작곡가 정리'). 검색어는 넣지 않는다.
+/** @param {string} era */
+export const catalogListTitle = (era) => pageTitle(era ? eraLabel(era) : '', '작곡가 정리');
 
 // 수정 칸의 처음 값. 시대 '' = 출생 연도로 정함(보정 없음).
 /**
