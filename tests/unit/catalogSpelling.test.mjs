@@ -20,6 +20,11 @@ import {
 	spellingKindOf,
 	spellingVariants,
 	spellingNameOf,
+	sameName,
+	variantsLead,
+	VARIANTS_LEAD,
+	VARIANTS_MUSIC_LEAD,
+	VARIANTS_SAME_NAME_LEAD,
 	variantHistoryHref,
 	splitSpellings,
 	splitSpellingNote,
@@ -1694,4 +1699,75 @@ test('no split piece, no groups, no works or no panel gives no drill-down note',
 	assert.equal(drillSplitNote(drillMusic, null, composerDrill), '');
 	assert.equal(drillSplitNote(drillMusic, both, null), '');
 	assert.equal(drillSplitNote(drillMusic, drillWorksOf([]), composerDrill), '');
+});
+
+test('the variant line says 이름이 같은 항목 when every other row has exactly this name', () => {
+	const own = '가상 작곡가 동명';
+	assert.equal(VARIANTS_SAME_NAME_LEAD, '이름이 같은 항목');
+	assert.equal(
+		variantsLead([{ id: 8, name: own, count: 6 }], own, 'composer'),
+		VARIANTS_SAME_NAME_LEAD
+	);
+	assert.equal(
+		variantsLead(
+			[
+				{ id: 8, name: own, count: 6 },
+				{ id: 9, name: own, count: 1 }
+			],
+			own,
+			'conductor'
+		),
+		VARIANTS_SAME_NAME_LEAD
+	);
+});
+
+test('the variant line keeps 표기만 다른 이름 when some or all rows are spelled otherwise', () => {
+	const own = '가상 작곡가 동명';
+	assert.equal(VARIANTS_LEAD, '표기만 다른 이름');
+	// Mixed: one row of the same name, one spelled otherwise.
+	const mixed = [
+		{ id: 8, name: own, count: 6 },
+		{ id: 9, name: '가상작곡가동명', count: 3 }
+	];
+	assert.equal(variantsLead(mixed, own, 'composer'), VARIANTS_LEAD);
+	assert.deepEqual(
+		mixed.map((row) => sameName(row.name, own)),
+		[true, false]
+	);
+	// No row of the same name.
+	assert.equal(
+		variantsLead([{ id: 2, name: 'J.S. 가상', count: 7 }], 'J. S. 가상', 'composer'),
+		VARIANTS_LEAD
+	);
+	// A space more or less is a spelling, not the same name.
+	assert.equal(
+		variantsLead([{ id: 2, name: '가상 작곡가  동명', count: 1 }], own, 'player'),
+		VARIANTS_LEAD
+	);
+	assert.equal(sameName('가상작곡가 동명', own), false);
+});
+
+test('the variant line of a piece is always 작품 번호가 같은 곡', () => {
+	assert.equal(VARIANTS_MUSIC_LEAD, '작품 번호가 같은 곡');
+	const title = '교향곡 5번 Op. 67';
+	assert.equal(
+		variantsLead([{ id: 13, name: title, count: 3 }], title, 'music'),
+		VARIANTS_MUSIC_LEAD
+	);
+	assert.equal(
+		variantsLead([{ id: 14, name: '교향곡 5번 op.67', count: 2 }], title, 'music'),
+		VARIANTS_MUSIC_LEAD
+	);
+});
+
+test("without this row's own name or any rows, the variant line keeps 표기만 다른 이름", () => {
+	const rows = [{ id: 8, name: '', count: 6 }];
+	for (const own of ['', null, undefined]) {
+		assert.equal(variantsLead(rows, own, 'composer'), VARIANTS_LEAD);
+		assert.equal(sameName('', own), false);
+	}
+	for (const none of [[], null, undefined]) {
+		assert.equal(variantsLead(none, '가상 작곡가 동명', 'composer'), VARIANTS_LEAD);
+	}
+	assert.equal(variantsLead([null], '가상 작곡가 동명', 'composer'), VARIANTS_LEAD);
 });

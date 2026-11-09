@@ -43,6 +43,9 @@
 		spellingKindOf,
 		spellingVariants,
 		spellingNameOf,
+		sameName,
+		variantsLead,
+		VARIANTS_SAME_NAME_LEAD,
 		searchVariants,
 		searchCatalogName,
 		variantHistoryHref
@@ -291,16 +294,22 @@
 		.map((target) => {
 			const kind = spellingKindOf(target.param);
 			const rows = kind ? spellingVariants(duplicates[kind], target.id) : [];
+			const ownName = spellingNameOf(duplicates[kind], target.id);
+			// 다른 행이 이름까지 같을 수 있다(이름은 유일하지 않다): 모두 그러면 머리가 '이름이 같은 항목',
+			// 아니면 그 행에 '(같은 이름)'
+			const lead = variantsLead(rows, ownName, kind);
 			return {
 				target,
 				kind,
+				lead,
 				rows: rows.map((row) => ({
 					...row,
+					same: lead !== VARIANTS_SAME_NAME_LEAD && sameName(row.name, ownName),
 					plays: (row.count ?? 0).toLocaleString(),
 					href: variantHistoryHref(variantView, target, row.id)
 				})),
 				// 표기 정리를 그 이름(묶음에 적힌 그대로)으로 찾아 연다: 그 묶음이 맨 앞에, 이름에 표시가 된다
-				catalog: catalogViewHref(spellingNameOf(duplicates[kind], target.id), kind)
+				catalog: catalogViewHref(ownName, kind)
 			};
 		})
 		.filter((line) => line.rows.length);
@@ -588,9 +597,11 @@
 	     (data-sveltekit-reload). 이름은 띄어쓰기가 달라도 보이도록 그대로 둔다 -->
 	{#each variantLines as line (line.target.param)}
 		<p class="variants-note">
-			{line.kind === 'music' ? '작품 번호가 같은 곡' : '표기만 다른 이름'}: {#each line.rows as row, i (row.id)}{i
-					? ', '
-					: ''}‘<a class="variant" href={row.href} data-sveltekit-reload>{row.name}</a>’ 선곡 {row.plays}회{/each}
+			{line.lead}: {#each line.rows as row, i (row.id)}{i ? ', ' : ''}‘<a
+					class="variant"
+					href={row.href}
+					data-sveltekit-reload>{row.name}</a
+				>’{#if row.same}(같은 이름){/if} 선곡 {row.plays}회{/each}
 			(전체 기간). 이 목록에는 들지 않습니다. ·
 			<a href={line.catalog}>표기 정리</a>
 		</p>

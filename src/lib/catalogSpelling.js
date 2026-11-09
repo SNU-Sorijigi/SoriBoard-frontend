@@ -303,6 +303,34 @@ export function spellingNameOf(response, id) {
 	return '';
 }
 
+// 작곡가 페이지와 선곡 기록의 다른 표기 줄의 머리. 곡은 작품 번호로 묶으므로 늘 '작품 번호가 같은 곡'.
+// 이름은 유일하지 않아, 묶음의 다른 행이 이 항목의 이름(spellingNameOf)과 똑같을(===) 수 있다: 모두 그러면
+// '이름이 같은 항목', 아니면 '표기만 다른 이름'(그때 이름이 같은 행에는 페이지가 '(같은 이름)'을 붙인다).
+export const VARIANTS_LEAD = '표기만 다른 이름';
+export const VARIANTS_MUSIC_LEAD = '작품 번호가 같은 곡';
+export const VARIANTS_SAME_NAME_LEAD = '이름이 같은 항목';
+
+// 그 이름이 이 항목의 이름과 똑같은가. 이 항목의 이름을 모르면('') 아니다.
+/**
+ * @param {unknown} name
+ * @param {string | null | undefined} ownName
+ */
+export const sameName = (name, ownName) =>
+	typeof ownName === 'string' && ownName !== '' && name === ownName;
+
+/**
+ * @param {{ name?: unknown }[] | null | undefined} rows
+ * @param {string | null | undefined} ownName
+ * @param {string | null | undefined} kind
+ */
+export function variantsLead(rows, ownName, kind) {
+	if (kind === 'music') return VARIANTS_MUSIC_LEAD;
+	const list = Array.isArray(rows) ? rows : [];
+	return list.length > 0 && list.every((row) => sameName(row?.name, ownName))
+		? VARIANTS_SAME_NAME_LEAD
+		: VARIANTS_LEAD;
+}
+
 // 백엔드가 이름을 견주는 꼴(catalog.py 의 normalize_name): NFKC, 소문자, 공백·마침표·줄표(모든 Pd) 없이.
 // 파이썬의 casefold 와 달리 ß 같은 몇 글자는 그대로 남는다(그런 묶음은 찾지 못할 뿐, 잘못 찾지는 않는다).
 /** @param {string | null | undefined} text */

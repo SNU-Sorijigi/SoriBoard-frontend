@@ -58,7 +58,11 @@
 		MUSIC_SPLIT_LEAD,
 		firstSpellingSplits,
 		firstSpellingNote,
-		FIRST_MUSIC_LEAD
+		FIRST_MUSIC_LEAD,
+		spellingNameOf,
+		sameName,
+		variantsLead,
+		VARIANTS_SAME_NAME_LEAD
 	} from '$lib/catalogSpelling.js';
 	import {
 		hasPeriodStart,
@@ -365,6 +369,14 @@
 		['composer', 'player', 'conductor', 'orchestra', 'music'].forEach(loadDuplicates);
 	}
 	$: variants = composerVariants(duplicates.composer, composerId);
+	// 다른 행이 이 작곡가와 이름까지 같을 수 있다(이름은 유일하지 않다): 모두 그러면 머리가 '이름이 같은 항목',
+	// 섞였으면 그 행에 '(같은 이름)'.
+	$: variantsOwnName = spellingNameOf(duplicates.composer, composerId);
+	$: variantsHead = variantsLead(variants, variantsOwnName, DEFAULT_KIND);
+	$: variantRows = variants.map((row) => ({
+		...row,
+		same: variantsHead !== VARIANTS_SAME_NAME_LEAD && sameName(row.name, variantsOwnName)
+	}));
 	$: soloistSplit = splitSpellingNote(splitSpellings(duplicates.player, soloists));
 	$: conductorSplit = splitSpellingNote(splitSpellings(duplicates.conductor, conductors));
 	$: orchestraSplit = splitSpellingNote(splitSpellings(duplicates.orchestra, orchestras));
@@ -1159,13 +1171,14 @@
 		     표기 정리는 이 작곡가 이름으로 찾아 열어, 전체 목록 대신 이 작곡가의 묶음부터 보인다 -->
 		{#if variants.length}
 			<p class="kpi-note variants-note">
-				표기만 다른 이름: {#each variants as row, i (row.id)}{i ? ', ' : ''}‘<a
+				{variantsHead}: {#each variantRows as row, i (row.id)}{i ? ', ' : ''}‘<a
 						class="page-link variant"
 						href={firstsByCountHref(tableViewHref(composerHref(row.id, filter), allTables), {
 							composers: firstComposersByCount,
 							works: firstWorksByCount
 						})}>{row.name}</a
-					>’ 선곡 {count(row.count)}회{/each} (전체 기간). 이 페이지의 수치에는 들지 않습니다. ·
+					>’{#if row.same}(같은 이름){/if} 선곡 {count(row.count)}회{/each} (전체 기간). 이 페이지의
+				수치에는 들지 않습니다. ·
 				<a class="page-link" href={catalogViewHref(composer?.name ?? '', DEFAULT_KIND)}>표기 정리</a
 				>
 			</p>
