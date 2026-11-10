@@ -1,0 +1,971 @@
+<script>
+	import { onDestroy, onMount, tick } from 'svelte';
+	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
+	import PeriodSelect from '$lib/components/stat/PeriodSelect.svelte';
+	import MemberSelect from '$lib/components/stat/MemberSelect.svelte';
+	import PlayTable from '$lib/components/stat/PlayTable.svelte';
+	import { ALL, currentSemesterRange } from '$lib/statPeriod.js';
+	import { composerHref } from '$lib/composerStats.js';
+	import { downloadCsvTable } from '$lib/csvTable.js';
+	import { todayStamp } from '$lib/csv.js';
+	import { downloadName, memberFileText } from '$lib/statFileName.js';
+	import { pageTitle, periodTitle } from '$lib/statTitle.js';
+	import { semesterRangeOf } from '$lib/statBucket.js';
+	import { ongoingText, upcomingText, reportHref } from '$lib/semesterReport.js';
+	import { statQueryHref } from '$lib/statQuery.js';
+	import { clubShareText } from '$lib/statShare.js';
+	import {
+		PAGE_SIZE,
+		EXPORT_PAGE_SIZE,
+		SHOW_ALL_LIMIT,
+		PLAY_CSV_HEADERS,
+		readHistoryQuery,
+		historyHref,
+		statHref,
+		playsParams,
+		clubPlaysParams,
+		appendPage,
+		fetchAllPlays,
+		playCsvRow,
+		targetLookup,
+		targetName,
+		targetText,
+		historyFileTags,
+		historyPeriod,
+		partialPrintText,
+		emptyListText
+	} from '$lib/playHistory.js';
+	import {
+		SPELLING_KINDS,
+		catalogViewHref,
+		duplicatesSearch,
+		spellingKindOf,
+		spellingVariants,
+		spellingNameOf,
+		sameName,
+		variantsLead,
+		VARIANTS_SAME_NAME_LEAD,
+		searchVariants,
+		searchCatalogName,
+		variantHistoryHref
+	} from '$lib/catalogSpelling.js';
+
+	// 검색어·기간·지기·신청곡과 통계 drill-down 의 id 필터는 URL에 둔다(링크로 같은 목록을 연다).
+	// 페이지가 시작될 때 한 번만 읽는다.
+	const initial = readHistoryQuery($page.url.searchParams);
+	let period = initial.period; // 'current' | 'all' | 'custom' | 학기 id
+	let customStart = initial.start;
+	let customEnd = initial.end;
+	let q = initial.q; // 적용된 검색어
+	let query = q; // 검색란의 값. 검색을 누르면 q 로 옮긴다.
+	let userId = initial.userId;
+	let includeMentees = initial.includeMentees;
+	let requested = initial.requested; // '' | 'true' | 'false'
+	let targets = initial.targets; // 작곡가·연주자·지휘자·오케스트라·곡의 id 필터, 없으면 []
+	// 필터마다(param) 보일 문구. 이름을 찾으면 바꾼다.
+	let targetLabels = Object.fromEntries(targets.map((t) => [t.param, targetText(t, null)]));
+	/** @type {Record<string, string | null>} */
+	let targetNames = {}; // 필터마다 찾은 이름(CSV 파일 이름에 쓴다)
+	let searchInput;
+	const current = currentSemesterRange();
+
+	const filter = () => ({
+		period,
+		start: customStart,
+		end: customEnd,
+		q,
+		userId,
+		includeMentees,
+		requested,
+		targets
+	});
+
+	/** @type {import('$lib/playHistory.js').Play[]} */
+	let rows = [];
+	let count = null; // 조건에 맞는 선곡 수(plays/ 의 count)
+	// 지기를 골랐을 때 같은 조건에서 클럽 전체가 튼 선곡 수. 보이는 목록(shownList)의 것만 두어, 새 수가 옛 클럽
+	// 수와 짝지어지지 않는다. 없으면(전체 지기·불러오는 중·실패) null.
+	/** @type {number | null} */
+	let clubCount = null;
+	let shownList = 0; // 보이는 목록을 부른 load 의 requestId
+	let offset = 0; // 지금까지 받은 행 수(다음 쪽의 offset)
+	let loading = false;
+	// 새 목록(검색·필터 변경, '다시 시도')을 부르는 중. 보이던 행은 답이 올 때까지 흐리게 남긴다(작곡가 정리와 같다).
+	let replacing = false;
+	let shownQ = ''; // 보이는 목록이 답한 검색어(개수 줄은 새 목록이 올 때까지 이것으로 쓴다)
+	let error = '';
+	/** @type {HTMLElement | null} */
+	let listScroll = null;
+	// 가장 최근 요청의 응답만 반영한다. 필터를 바꾸면 진행 중인 '더 보기'의 응답도 버린다.
+	// 응답을 반영했으면(성공이든 실패든) true 를 돌려준다. limit 은 한 번에 받을 선곡 수.
+	let requestId = 0;
+	// 버리는 요청은 끊기도 한다(학기 결산과 같다): 새 load 는 이전 목록 요청을, 새 목록은 이전 클럽 수 요청도
+	// 끊는다. 끊기 전에 requestId 가 오르므로 끊긴 목록의 catch·finally 는 아무것도 하지 않는다.
+	let listAbort = new AbortController();
+	let clubAbort = new AbortController();
+
+	async function load(more = false, limit = PAGE_SIZE) {
+		const id = ++requestId;
+		listAbort.abort();
+		listAbort = new AbortController();
+		const { signal } = listAbort;
+		const wanted = filter();
+		loading = true;
+		replacing = !more;
+		// 새 목록은 진행 중인 '모두 보기'도 멈춘다(그 쪽 요청은 위에서 끊기고, 반복은 false 를 받고 끝난다).
+		if (!more) restLoading = false;
+		error = '';
+		// 지기를 골랐으면 같은 조건의 클럽 수도 함께 묻는다(새 목록만). 목록은 이 답을 기다리지 않고, 실패하면 몫을
+		// 쓰지 않는다. 목록보다 먼저 오면 목록과 함께, 늦게 오면 그 목록이 아직 보일 때만 쓴다.
+		// '더 보기'·'모두 보기'는 이 요청을 끊지 않는다(보이는 목록의 몫이다). 끊긴 요청은 아무것도 바꾸지
+		// 않는다: 흐리게 남은 옛 목록의 몫 줄을 지우지 않는다.
+		if (!more) {
+			clubAbort.abort();
+			clubAbort = new AbortController();
+		}
+		const clubSignal = clubAbort.signal;
+		const clubQuery = more ? null : clubPlaysParams(wanted, current);
+		/** @type {number | null | undefined} undefined: 아직 답이 없다 */
+		let club = clubQuery ? undefined : null;
+		if (clubQuery) {
+			fetch(`/api/plays?${clubQuery}`, { signal: clubSignal })
+				.then((res) => (res.ok ? res.json() : null))
+				.then((result) => (typeof result?.count === 'number' ? result.count : null))
+				.catch(() => null)
+				.then((answer) => {
+					if (clubSignal.aborted) return;
+					club = answer;
+					if (shownList === id) clubCount = answer;
+				});
+		}
+		try {
+			const res = await fetch(
+				`/api/plays?${playsParams(wanted, current, more ? offset : 0, limit)}`,
+				{ signal }
+			);
+			if (!res.ok) throw new Error(`plays ${res.status}`);
+			const result = await res.json();
+			if (id !== requestId) return false;
+			if (more) {
+				rows = appendPage(rows, result.results);
+				offset += result.results.length;
+			} else {
+				rows = result.results;
+				offset = result.results.length;
+				shownQ = wanted.q;
+				shownList = id;
+				clubCount = club ?? null;
+				// 새 목록은 맨 위부터 보인다(상자가 남아 있으면 스크롤을 되돌린다).
+				if (listScroll) listScroll.scrollTop = 0;
+			}
+			count = result.count;
+		} catch (e) {
+			if (id !== requestId) return false;
+			console.error('선곡 기록 로딩 실패', e);
+			error = '불러오지 못했습니다';
+			// 새 목록이 실패하면 남겨 둔 행을 비운다: 남기면 '더 보기'의 실패 줄과, 옛 offset 으로 부르는
+			// 그 '다시 시도'가 보인다.
+			if (!more) {
+				rows = [];
+				count = null;
+				offset = 0;
+				shownList = 0;
+				clubCount = null;
+			}
+		} finally {
+			if (id === requestId) {
+				loading = false;
+				replacing = false;
+			}
+		}
+		return true;
+	}
+
+	// '더 보기'는 불러오는 동안 비활성이 되고, 다 받으면 사라지거나 '다시 시도'로 바뀌어 포커스를 잃는다.
+	// 그래서 새로 온 첫 행의 타임 링크로(실패하면 '다시 시도'로) 포커스를 옮긴다. 그 사이 다른 곳을
+	// 골랐거나 필터를 바꿨으면 그대로 둔다.
+	let listCard;
+	let moreBar;
+	async function loadMore() {
+		const first = rows.length;
+		if (!(await load(true))) return;
+		await focusLoaded(first);
+	}
+	/** @param {number} first 새로 온 첫 행의 자리 */
+	async function focusLoaded(first) {
+		await tick();
+		const active = document.activeElement;
+		if (active && active !== document.body && !moreBar?.contains(active)) return;
+		const row = error ? null : listCard?.querySelectorAll('tbody tr')[first];
+		(row?.querySelector('a') ?? moreBar?.querySelector('button'))?.focus();
+	}
+
+	// '모두 보기': 남은 선곡을 CSV 저장과 같은 크기(EXPORT_PAGE_SIZE)의 쪽으로 끝까지 불러온다. 인쇄와
+	// 브라우저 찾기가 목록 전체를 보게 한다. 필터를 바꾸면(load 가 false) 멈추고, 한 쪽이 실패하면 받은
+	// 행을 남긴 채 '더 보기'의 '다시 시도'를 둔다. 도는 동안 단추는 둘 다 비활성(쪽 사이에 loading 이
+	// 잠깐 false 가 되어도 그렇다).
+	let restLoading = false;
+	let restRun = 0;
+	async function loadRest() {
+		const run = ++restRun;
+		const first = rows.length;
+		restLoading = true;
+		let done = false;
+		try {
+			while (count !== null && offset < count && !error) {
+				if (!(await load(true, EXPORT_PAGE_SIZE))) return;
+			}
+			done = true;
+		} finally {
+			if (run === restRun) restLoading = false;
+		}
+		if (done) await focusLoaded(first);
+	}
+
+	// 목록의 '다시 시도'도 누르면 '불러오는 중...'으로 바뀌어 사라지므로, 먼저 목록 카드로 포커스를 옮긴다.
+	// 또 실패했는데 포커스가 아직 카드에 있으면 새 '다시 시도'로 되돌린다.
+	async function retryList(e) {
+		const hadFocus = document.activeElement === e.currentTarget;
+		if (hadFocus) listCard?.focus();
+		if (!(await load())) return;
+		if (!hadFocus || !error) return;
+		await tick();
+		if (document.activeElement === listCard)
+			listCard.querySelector('.placeholder.error button')?.focus();
+	}
+
+	// 필터가 바뀌면 URL을 바꾸고(히스토리를 쌓지 않고, 포커스·스크롤도 그대로) 처음부터 다시 부른다.
+	function apply() {
+		goto(historyHref(filter()), { replaceState: true, keepFocus: true, noScroll: true });
+		exportError = '';
+		load();
+	}
+
+	// id 필터의 이름은 URL에 없으므로 그 대상의 순위에서 id 로 찾는다(실패하면 '작곡가 #id').
+	/** @param {import('$lib/playHistory.js').HistoryTarget} wanted */
+	async function loadTargetName(wanted) {
+		const lookup = targetLookup(wanted);
+		if (!lookup) return;
+		try {
+			const res = await fetch(`/api/stats/${lookup.endpoint}?${lookup.params}`);
+			if (!res.ok) throw new Error(`${lookup.endpoint} ${res.status}`);
+			const name = targetName(await res.json(), wanted);
+			if (targets.includes(wanted)) {
+				targetLabels = { ...targetLabels, [wanted.param]: targetText(wanted, name) };
+				targetNames = { ...targetNames, [wanted.param]: name };
+			}
+		} catch (e) {
+			console.error('선곡 기록 대상 이름 로딩 실패', e);
+		}
+	}
+
+	// 표기 정리의 묶음(catalog/duplicates/, 전체 기간·전체 지기): id 필터와 검색이 쓰는 종류마다 이 페이지에서
+	// 한 번만 부른다(부르는 중에도 다시 부르지 않는다). 못 받으면 그 종류의 줄을 두지 않는다.
+	/** @type {Record<string, any>} */
+	let duplicates = {};
+	const askedKinds = new Set();
+	/** @param {string} kind */
+	async function loadDuplicates(kind) {
+		if (askedKinds.has(kind)) return;
+		askedKinds.add(kind);
+		try {
+			const res = await fetch(`/api/catalog/duplicates${duplicatesSearch(kind)}`);
+			if (!res.ok) throw new Error(`catalog/duplicates ${res.status}`);
+			const result = await res.json();
+			duplicates = { ...duplicates, [kind]: result };
+		} catch (e) {
+			console.error('표기만 다른 이름 로딩 실패', e);
+		}
+	}
+	// id 필터마다 그 대상의 다른 표기와, 지금 조건에서 그 id 만 바꾼 링크(없으면 줄을 두지 않는다).
+	// 조건을 바꾸면 링크도 따라 바뀌도록 filter() 대신 값을 하나하나 적는다. 표(PlayTable)의 링크도 이것을 쓴다.
+	$: variantView = {
+		period,
+		start: customStart,
+		end: customEnd,
+		q,
+		userId,
+		includeMentees,
+		requested,
+		targets
+	};
+	$: variantLines = targets
+		.map((target) => {
+			const kind = spellingKindOf(target.param);
+			const rows = kind ? spellingVariants(duplicates[kind], target.id) : [];
+			const ownName = spellingNameOf(duplicates[kind], target.id);
+			// 다른 행이 이름까지 같을 수 있다(이름은 유일하지 않다): 모두 그러면 머리가 '이름이 같은 항목',
+			// 아니면 그 행에 '(같은 이름)'
+			const lead = variantsLead(rows, ownName, kind);
+			return {
+				target,
+				kind,
+				lead,
+				rows: rows.map((row) => ({
+					...row,
+					same: lead !== VARIANTS_SAME_NAME_LEAD && sameName(row.name, ownName),
+					plays: (row.count ?? 0).toLocaleString(),
+					href: variantHistoryHref(variantView, target, row.id)
+				})),
+				// 표기 정리를 그 이름(묶음에 적힌 그대로)으로 찾아 연다: 그 묶음이 맨 앞에, 이름에 표시가 된다
+				catalog: catalogViewHref(ownName, kind)
+			};
+		})
+		.filter((line) => line.rows.length);
+
+	// 검색어와 표기만 다른 이름: 보이는 목록이 답한 검색어(shownQ)가 글자 그대로 들지 않아 그 검색이 놓칠 수
+	// 있는 표기(searchVariants). 이름 종류(곡은 작품 번호로 묶으므로 뺀다)마다 한 줄, 다섯 개까지. 첫 검색에
+	// 네 종류를 부른다. 링크는 그 표기를 검색어로 한 같은 목록(기간·지기·신청곡·id 필터 그대로).
+	const SEARCH_KINDS = SPELLING_KINDS.filter((spec) => spec.kind !== 'music');
+	const SEARCH_LINE_MAX = 5;
+	$: if (shownQ) SEARCH_KINDS.forEach((spec) => loadDuplicates(spec.kind));
+	$: searchLines =
+		shownQ && count !== null
+			? SEARCH_KINDS.map((spec) => {
+					const rows = searchVariants(duplicates[spec.kind], shownQ);
+					return {
+						kind: spec.kind,
+						label: spec.label,
+						rows: rows.slice(0, SEARCH_LINE_MAX).map((row) => ({
+							...row,
+							plays: (row.count ?? 0).toLocaleString(),
+							href: historyHref({ ...variantView, q: row.name })
+						})),
+						more: Math.max(rows.length - SEARCH_LINE_MAX, 0),
+						catalog: catalogViewHref(searchCatalogName(duplicates[spec.kind], shownQ), spec.kind)
+					};
+				}).filter((line) => line.rows.length)
+			: [];
+
+	onMount(() => {
+		load();
+		targets.forEach(loadTargetName);
+		new Set(targets.map((t) => spellingKindOf(t.param)).filter(Boolean)).forEach(loadDuplicates);
+	});
+	// 선곡 기록을 떠나면(작곡가·통계·학기 결산 링크) 아직 기다리던 목록·클럽 수 요청을 끊어 다음 화면의 요청이
+	// 먼저 가게 한다. requestId 를 올려 두므로 끊긴 요청의 catch 는 아무것도 적지 않고, '모두 보기'도 멈춘다.
+	onDestroy(() => {
+		++requestId;
+		++restRun;
+		listAbort.abort();
+		clubAbort.abort();
+	});
+
+	function onSearch() {
+		q = query.trim();
+		query = q;
+		apply();
+	}
+	// 검색란을 ✕(또는 Escape)로 비우면 곧바로 전체를 보인다. Enter 도 search 이벤트를 보내지만
+	// (브라우저에 따라 submit 앞이나 뒤에) 그때는 submit 이 검색하므로 넘어간다.
+	let enterKey = false;
+	const onSearchKeydown = (e) => (enterKey = e.key === 'Enter' && !e.isComposing);
+	function onSearchEvent(e) {
+		const byEnter = enterKey;
+		enterKey = false;
+		if (byEnter || e.currentTarget.value !== '' || !q) return;
+		query = '';
+		onSearch();
+	}
+	const onPeriodChange = (e) => {
+		period = e.detail;
+		apply();
+	};
+	// 빈 목록에서 기간만 전체 기간으로 넓힌다. 기간 select 로 고른 것과 같다(버튼이 사라지므로 포커스는 목록 카드로).
+	function widenPeriod(e) {
+		if (document.activeElement === e.currentTarget) listCard?.focus();
+		period = ALL;
+		apply();
+	}
+	// 빈 목록에서 지기만 전체 지기로 넓힌다(견습 포함도 끈다). 지기 select 로 전체 지기를 고른 것과 같다.
+	function widenMember(e) {
+		if (document.activeElement === e.currentTarget) listCard?.focus();
+		userId = null;
+		includeMentees = false;
+		apply();
+	}
+	// 빈 목록에서 신청곡 필터만 푼다. 신청곡 select 로 신청곡 포함을 고른 것과 같다.
+	function widenRequested(e) {
+		if (document.activeElement === e.currentTarget) listCard?.focus();
+		requested = '';
+		apply();
+	}
+	function onMemberChange(e) {
+		userId = e.detail.userId;
+		includeMentees = e.detail.includeMentees;
+		apply();
+	}
+	function onRequestedChange(e) {
+		requested = e.target.value;
+		apply();
+	}
+	// CSV 저장: 누른 때의 조건에 맞는 선곡을 모두(불러온 행만이 아니라) 받아 한 파일로 내려받는다.
+	let exporting = false;
+	let exported = 0; // 받은 선곡 수
+	let exportTotal = 0;
+	let exportError = '';
+	let userName = ''; // 고른 지기의 이름(MemberSelect)
+	let users = []; // MemberSelect 가 받은 지기 목록(표의 지기 이름 링크가 이름을 id 로 잇는다)
+	let exportButton;
+
+	async function exportCsv() {
+		const wanted = filter();
+		// 저장하는 동안 단추가 비활성이 되어 포커스를 잃으므로, 단추에 있었으면 끝난 뒤 돌려준다.
+		const hadFocus = document.activeElement === exportButton;
+		// 파일 이름에 누른 때의 기간·지기와 그 밖의 조건(id 필터, 신청곡, 검색어)을 넣는다(statFileName.js).
+		const filename = downloadName(
+			[
+				'선곡기록',
+				periodText,
+				memberFileText({ userId, name: userName, includeMentees }),
+				historyFileTags(wanted, targetNames),
+				todayStamp()
+			],
+			'csv'
+		);
+		exporting = true;
+		exported = 0;
+		exportTotal = count ?? 0;
+		exportError = '';
+		try {
+			const plays = await fetchAllPlays(
+				async (from) => {
+					const res = await fetch(
+						`/api/plays?${playsParams(wanted, current, from, EXPORT_PAGE_SIZE)}`
+					);
+					if (!res.ok) throw new Error(`plays ${res.status}`);
+					return res.json();
+				},
+				(done, total) => {
+					exported = done;
+					exportTotal = total;
+				}
+			);
+			downloadCsvTable(filename, PLAY_CSV_HEADERS, plays.map(playCsvRow));
+		} catch (e) {
+			console.error('선곡 기록 CSV 저장 실패', e);
+			exportError = 'CSV를 만들지 못했습니다.';
+		} finally {
+			exporting = false;
+		}
+		// 그 사이 다른 곳을 골랐으면 그대로 둔다.
+		await tick();
+		const active = document.activeElement;
+		if (hadFocus && (!active || active === document.body)) exportButton?.focus();
+	}
+
+	// 해제하면 단추가 사라지므로 포커스를 검색란으로 옮긴다.
+	/** @param {import('$lib/playHistory.js').HistoryTarget} target */
+	async function clearTarget(target) {
+		targets = targets.filter((t) => t !== target);
+		apply();
+		await tick();
+		searchInput.focus();
+	}
+
+	// 머리말의 기간과, 직접 지정을 고르면 입력란에 채울 범위(지금 보이는 기간, 전체 기간이면 이번 학기).
+	// 학기의 날짜는 학기 목록(PeriodSelect)의 연도·학기로 정한다(백엔드의 semester_id 와 같은 규칙).
+	let semesters = [];
+	$: ({ text: periodText, shown: shownRange } = historyPeriod(
+		{ period, start: customStart, end: customEnd },
+		current,
+		semesters
+	));
+	// 고른 학기가 진행 중이면 '진행 중 · 2026-11-07까지', 시작 전이면 '시작 전 · 2027-03-01부터'
+	// (통계와 같다; current.end 는 페이지를 연 날). 이번 학기·전체 기간·직접 지정은 ''.
+	$: semesterRange = semesterRangeOf(period, semesters);
+	$: ongoing = ongoingText(semesterRange, current.end);
+	$: upcoming = upcomingText(semesterRange, current.end);
+	$: statLink = statHref({
+		period,
+		start: customStart,
+		end: customEnd,
+		q,
+		userId,
+		includeMentees,
+		requested
+	});
+	// '학기 결산' 링크(통계의 것과 같다): 기간이 학기면 그 학기의, 아니면 가장 최근의 시작한 학기의 결산.
+	// 지기를 골랐으면 그 지기(와 견습 포함)의 개인 결산. 검색어·id 필터·신청곡은 결산에 없으므로 잇지 않는다.
+	$: reportLink = statQueryHref(
+		new URL(reportHref(period), 'http://localhost'),
+		userId
+			? { scope: 'individual', userId, includeMentees }
+			: { scope: 'all', userId: null, includeMentees: false }
+	);
+	// 작곡가로 좁힌 목록은 그 작곡가 페이지를 링크한다(행의 작곡가 링크와 같은 기간·지기).
+	$: composerTarget = targets.find((t) => t.param === 'composer_id');
+	$: composerLink =
+		composerTarget &&
+		composerHref(composerTarget.id, {
+			period,
+			start: customStart,
+			end: customEnd,
+			userId,
+			includeMentees
+		});
+	$: hasMore = count !== null && offset < count;
+	$: shareText = clubShareText(count, clubCount, '곡');
+	// 빈 목록의 말과 '전체 지기에서 찾기'·'신청곡 포함해 찾기'. clubCount 는 보이는 목록의 것이라 늦게
+	// 와도 그 목록과 맞는다.
+	$: emptyList = emptyListText({ period, userId, upcoming, requested }, clubCount);
+	// 인쇄본에만: 불러온 행만 실린다는 말('n / N'과 더 보기·모두 보기가 보일 때와 같은 조건).
+	$: printNote = hasMore ? partialPrintText(rows.length, count) : '';
+	// 탭 제목: id 필터(이름을 찾기 전에는 '작곡가 #12'), 지기, 기간(이번 학기는 빼고).
+	// 검색어와 신청곡은 넣지 않는다: '가상 작곡가 D · 전체 기간 · 선곡 기록'.
+	$: tabTitle = pageTitle(
+		...targets.map((t) => targetNames[t.param] || targetText(t, null)),
+		memberFileText({ userId, name: userName, includeMentees }),
+		periodTitle({ period, start: customStart, end: customEnd }, semesters),
+		'선곡 기록'
+	);
+</script>
+
+<svelte:head>
+	<title>{tabTitle}</title>
+</svelte:head>
+
+<div class="history-page">
+	<header class="page-header">
+		<div class="title-group">
+			<h1>선곡 기록</h1>
+			<span class="period">{periodText}</span>
+			{#if ongoing}<span class="period">{ongoing}</span>{/if}
+			{#if upcoming}<span class="period">{upcoming}</span>{/if}
+			<a class="stat-link" href={statLink}>통계</a>
+			<a class="stat-link" href={reportLink}>학기 결산</a>
+			<!-- 작곡가 페이지의 '선곡 기록'이 이 목록을 연다(#38): 거꾸로 가는 링크 -->
+			{#if composerLink}
+				<a class="stat-link" href={composerLink} title="이 작곡가 페이지 열기">작곡가 페이지</a>
+			{/if}
+		</div>
+	</header>
+
+	<div class="toolbar">
+		<form class="search" role="search" on:submit|preventDefault={onSearch}>
+			<input
+				type="search"
+				bind:value={query}
+				bind:this={searchInput}
+				on:keydown={onSearchKeydown}
+				on:search={onSearchEvent}
+				placeholder="작곡가, 곡, 연주자, 지휘자, 오케스트라"
+				aria-label="선곡 검색"
+			/>
+			<button type="submit">검색</button>
+		</form>
+		<div class="filters">
+			{#each targets as target (target.param)}
+				<span class="target">
+					{targetLabels[target.param]}
+					<button
+						class="tool-btn"
+						on:click={() => clearTarget(target)}
+						aria-label={`${targetLabels[target.param]} 필터 해제`}
+					>
+						해제
+					</button>
+				</span>
+			{/each}
+			<PeriodSelect
+				bind:period
+				bind:start={customStart}
+				bind:end={customEnd}
+				bind:semesters
+				{shownRange}
+				on:change={onPeriodChange}
+			/>
+			<MemberSelect
+				bind:userId
+				bind:includeMentees
+				bind:userName
+				bind:loadedUsers={users}
+				emptyLabel="전체 지기"
+				on:change={onMemberChange}
+			/>
+			<select value={requested} on:change={onRequestedChange} aria-label="신청곡">
+				<option value="">신청곡 포함</option>
+				<option value="true">신청곡만</option>
+				<option value="false">신청곡 제외</option>
+			</select>
+		</div>
+	</div>
+
+	<!-- 표기만 다른 이름(표기 정리의 묶음): 그 선곡은 이 목록에 들지 않으므로 알리고, 이 목록에서 그 필터의
+	     id 만 바꿔 연다. 이 페이지는 URL을 처음 한 번만 읽으므로 링크는 페이지를 새로 불러온다
+	     (data-sveltekit-reload). 이름은 띄어쓰기가 달라도 보이도록 그대로 둔다 -->
+	{#each variantLines as line (line.target.param)}
+		<p class="variants-note">
+			{line.lead}: {#each line.rows as row, i (row.id)}{i ? ', ' : ''}‘<a
+					class="variant"
+					href={row.href}
+					data-sveltekit-reload>{row.name}</a
+				>’{#if row.same}(같은 이름){/if} 선곡 {row.plays}회{/each}
+			(전체 기간). 이 목록에는 들지 않습니다. ·
+			<a href={line.catalog}>표기 정리</a>
+		</p>
+	{/each}
+	<!-- 검색어와 표기만 다른 이름: 검색은 글자 그대로 찾으므로(icontains) 띄어쓰기·마침표·줄표만 다른 표기는
+	     놓칠 수 있다. 다른 칸(세부 제목 등)으로는 찾을 수 있어 '수 있습니다'라고만 하고, 링크는 그 표기로 검색한다 -->
+	{#each searchLines as line (line.kind)}
+		<p class="variants-note">
+			검색어와 표기만 다른 {line.label}: {#each line.rows as row, i (row.id)}{i ? ', ' : ''}‘<a
+					class="variant"
+					href={row.href}
+					data-sveltekit-reload>{row.name}</a
+				>’ 선곡 {row.plays}회{/each}{#if line.more}&nbsp;외
+				{line.more.toLocaleString()}개{/if}
+			(전체 기간). 이 검색에는 들지 않을 수 있습니다. ·
+			<a href={line.catalog}>표기 정리</a>
+		</p>
+	{/each}
+
+	<div class="result-bar">
+		<p class="result-count" aria-live="polite">
+			{#if count !== null}
+				총 {count.toLocaleString()}곡{#if shownQ}&nbsp;· '{shownQ}' 검색{/if}{#if shareText}&nbsp;·
+					<span title="같은 조건에서 클럽 전체가 튼 선곡 중 이 지기의 몫">{shareText}</span>{/if}
+			{/if}
+			<!-- 목록이 실패하면 화면 낭독기에만 알린다('더 보기'의 실패는 그 '다시 시도'가 말한다). -->
+			{#if error && rows.length === 0}<span class="sr-only"
+					>선곡 목록을 불러오지 못했습니다. 선곡 목록 다시 시도로 다시 부를 수 있습니다.</span
+				>{/if}
+		</p>
+		<div class="export">
+			<span class="more-error" aria-live="polite">{exportError}</span>
+			<button
+				class="tool-btn"
+				bind:this={exportButton}
+				on:click={exportCsv}
+				disabled={!count || exporting || replacing}
+				title="조건에 맞는 선곡을 모두 CSV로 저장"
+			>
+				{exporting
+					? `CSV 준비 중… ${exported.toLocaleString()} / ${exportTotal.toLocaleString()}`
+					: 'CSV 저장'}
+			</button>
+		</div>
+	</div>
+	<!-- 인쇄본에만 보인다: 개수 줄의 '총 N곡'을 종이에서 '이 인쇄본에 N곡'으로 읽지 않도록 -->
+	{#if printNote}<p class="print-note">{printNote}</p>{/if}
+
+	<section
+		class="card"
+		aria-label="선곡 목록"
+		aria-busy={replacing}
+		tabindex="-1"
+		bind:this={listCard}
+	>
+		{#if rows.length > 0}
+			<!-- 긴 목록은 이 상자 안에서 스크롤해 머리줄이 남는다. 키보드로도 스크롤하게 포커스를 준다(DataTable 과 같다). -->
+			<!-- svelte-ignore a11y-no-noninteractive-tabindex -->
+			<div
+				class="list-scroll"
+				class:stale={replacing}
+				role="region"
+				aria-label="선곡 목록 표"
+				tabindex="0"
+				bind:this={listScroll}
+			>
+				<PlayTable
+					{rows}
+					composerPeriod={{ period, start: customStart, end: customEnd, userId, includeMentees }}
+					listView={variantView}
+					{users}
+					q={shownQ}
+				/>
+			</div>
+		{:else if loading}
+			<div class="placeholder">불러오는 중...</div>
+		{:else if error}
+			<div class="placeholder error">
+				{error}
+				<button class="tool-btn" on:click={retryList} aria-label="선곡 목록 다시 시도"
+					>다시 시도</button
+				>
+			</div>
+		{:else if count === 0}
+			<div class="placeholder">
+				{emptyList.text}
+				{#if period !== ALL}
+					<button
+						class="tool-btn"
+						on:click={widenPeriod}
+						title="기간만 전체 기간으로 바꿔 다시 찾기">전체 기간에서 찾기</button
+					>
+				{/if}
+				{#if emptyList.widenMember}
+					<button class="tool-btn" on:click={widenMember} title="지기만 전체 지기로 바꿔 다시 찾기"
+						>전체 지기에서 찾기</button
+					>
+				{/if}
+				{#if emptyList.widenRequested}
+					<button class="tool-btn" on:click={widenRequested} title="신청곡 필터만 풀어 다시 찾기"
+						>신청곡 포함해 찾기</button
+					>
+				{/if}
+			</div>
+		{/if}
+	</section>
+
+	{#if rows.length > 0}
+		<div class="more" bind:this={moreBar}>
+			{#if error}
+				<span class="more-error" id="more-error">더 불러오지 못했습니다.</span>
+				<button
+					class="tool-btn"
+					on:click={loadMore}
+					aria-label="더 보기 다시 시도"
+					aria-describedby="more-error">다시 시도</button
+				>
+			{:else if hasMore}
+				<button class="tool-btn" on:click={loadMore} disabled={loading || restLoading}>
+					{loading && !restLoading ? '불러오는 중...' : '더 보기'}
+				</button>
+				<!-- 한 학기쯤(SHOW_ALL_LIMIT 곡 이하)의 목록만: 수천 곡을 한 페이지에 쌓지 않는다 -->
+				{#if count <= SHOW_ALL_LIMIT}
+					<button
+						class="tool-btn"
+						on:click={loadRest}
+						disabled={loading || restLoading}
+						title="남은 선곡을 모두 불러오기"
+					>
+						{restLoading
+							? `불러오는 중… ${rows.length.toLocaleString()} / ${count.toLocaleString()}`
+							: '모두 보기'}
+					</button>
+				{/if}
+				{#if !restLoading}
+					<span class="more-count">{rows.length.toLocaleString()} / {count.toLocaleString()}</span>
+				{/if}
+			{/if}
+		</div>
+	{/if}
+</div>
+
+<style>
+	/* 통계 페이지와 같은 여백·머리말·컨트롤 */
+	.history-page {
+		padding: 24px 32px;
+		width: 100%;
+		box-sizing: border-box;
+	}
+	.page-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: 16px;
+	}
+	.title-group {
+		display: flex;
+		align-items: baseline;
+		gap: 12px;
+	}
+	h1 {
+		font-family: var(--xlarge-font-family, 'Noto Sans KR', sans-serif);
+		font-size: var(--xlarge-font-size, 32px);
+		font-weight: var(--xlarge-font-weight, 500);
+		color: var(--gray-gray-950, #1a1a1a);
+		margin: 0;
+	}
+	.period,
+	.result-count,
+	.more-count,
+	.variants-note,
+	.print-note {
+		font-family: var(--small-medium-font-family, 'Noto Sans KR', sans-serif);
+		font-size: var(--small-medium-font-size, 13px);
+		color: var(--gray-gray-600, #7c7c7c);
+	}
+	.variants-note {
+		margin: 16px 0 -8px;
+	}
+	/* 화면에서는 '더 보기' 옆의 'n / N'이 말하므로 인쇄에만 보인다(@media print) */
+	.print-note {
+		display: none;
+		margin: -4px 0 8px;
+	}
+	.stat-link,
+	.variants-note a {
+		font-family: var(--small-medium-font-family, 'Noto Sans KR', sans-serif);
+		font-size: var(--small-medium-font-size, 13px);
+		color: var(--primary-primary-800, #6a5134);
+		text-underline-offset: 3px;
+	}
+	/* 띄어쓰기가 다른 표기도 그대로 보이도록(표기 정리, 작곡가 페이지와 같다) */
+	.variants-note .variant {
+		white-space: pre-wrap;
+	}
+	.toolbar {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px 16px;
+	}
+	.search,
+	.filters {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		margin: 0;
+	}
+	.filters {
+		flex-wrap: wrap;
+		gap: 10px 16px;
+	}
+	input,
+	select {
+		font-family: var(--medium-font-family, 'Noto Sans KR', sans-serif);
+		font-size: var(--medium-font-size, 16px);
+		padding: 6px 10px;
+		border: 1px solid var(--control-border);
+		border-radius: 6px;
+		background: var(--secondary-secondary-50, #fffdfc);
+		color: var(--gray-gray-950, #1a1a1a);
+	}
+	input[type='search'] {
+		width: 300px;
+	}
+	.search button,
+	.tool-btn {
+		font-family: var(--small-medium-font-family, 'Noto Sans KR', sans-serif);
+		font-size: var(--small-medium-font-size, 13px);
+		color: var(--primary-primary-800, #6a5134);
+		background: var(--secondary-secondary-100, #fef9f3);
+		border: 1px solid var(--primary-primary-600, #c8ad8f);
+		border-radius: 4px;
+		padding: 4px 12px;
+		cursor: pointer;
+	}
+	.search button:hover,
+	.tool-btn:hover {
+		background: var(--secondary-secondary-200, #fdf1e4);
+	}
+	/* 통계 drill-down 에서 온 id 필터: 입력란과 같은 테두리 */
+	.target {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		padding: 4px 6px 4px 10px;
+		border: 1px solid var(--control-border);
+		border-radius: 6px;
+		background: var(--secondary-secondary-50, #fffdfc);
+		font-family: var(--medium-font-family, 'Noto Sans KR', sans-serif);
+		font-size: var(--small-medium-font-size, 13px);
+		color: var(--gray-gray-950, #1a1a1a);
+	}
+	.tool-btn:disabled {
+		cursor: default;
+		opacity: 0.6;
+	}
+	.result-bar {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		margin: 20px 0 8px;
+	}
+	.result-count {
+		min-height: 1.5em;
+		margin: 0;
+	}
+	.export {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		font-family: var(--small-medium-font-family, 'Noto Sans KR', sans-serif);
+		font-size: var(--small-medium-font-size, 13px);
+		font-variant-numeric: tabular-nums;
+	}
+	/* ChartCard 와 같은 카드 */
+	.card {
+		background: var(--secondary-secondary-50, #fffdfc);
+		border: 1px solid var(--gray-gray-300, #d4d4d4);
+		border-radius: 8px;
+		box-shadow: 4px 4px 5px 0px rgba(0, 0, 0, 0.08);
+		padding: 12px;
+	}
+	/* 레이아웃의 main 은 스크롤하지 않는 스크롤 상자라 sticky 머리줄이 붙지 못하므로, 표에 제 스크롤 상자를 준다 */
+	.list-scroll {
+		max-height: calc(100vh - 200px);
+		overflow: auto;
+	}
+	/* 새 목록을 부르는 동안 남겨 둔 행(작곡가 정리의 table.stale 과 같다) */
+	.list-scroll.stale {
+		opacity: 0.6;
+	}
+	.placeholder {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 12px;
+		height: 160px;
+		color: var(--gray-gray-500, #9f9f9f);
+		font-family: var(--medium-font-family, 'Noto Sans KR', sans-serif);
+		font-size: var(--medium-font-size, 16px);
+	}
+	.placeholder.error,
+	.more-error {
+		color: var(--secondary-secondary-800, #95560d);
+	}
+	.more {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 12px;
+		margin-top: 16px;
+		font-family: var(--small-medium-font-family, 'Noto Sans KR', sans-serif);
+		font-size: var(--small-medium-font-size, 13px);
+	}
+	/* 인쇄에는 불러온 행을 모두 싣는다(한 화면만큼 자르지 않는다) */
+	@media print {
+		:global(.list-scroll) {
+			max-height: none !important;
+			overflow: visible !important;
+		}
+		/* 학기 결산과 같다: 사이드바·레이아웃의 규칙은 컴포넌트 범위라 !important 로 이겨 A4 폭에 제 크기로 싣는다 */
+		:global(.side-bar) {
+			display: none !important;
+		}
+		:global(html),
+		:global(body),
+		:global(.screen),
+		:global(.app) {
+			min-width: 0 !important;
+		}
+		.history-page {
+			padding: 0;
+		}
+		.card {
+			box-shadow: none;
+		}
+		.history-page :global(.print-note) {
+			display: block !important;
+		}
+		/* 검색어는 개수 줄에 남는다. 버튼은 모두 뺀다: .toolbar 의 것(해제, 기간·지기 고르기 안의 적용·다시 시도,
+		   나중에 툴바에 더할 버튼도)까지 */
+		.search,
+		.stat-link,
+		.export,
+		.more .tool-btn,
+		.placeholder .tool-btn,
+		.toolbar :global(button) {
+			display: none;
+		}
+		/* 곡 이름은 낱말 사이에서만 줄을 바꾼다(작곡가 페이지와 같다) */
+		.list-scroll :global(table) {
+			word-break: keep-all;
+		}
+	}
+	/* 통계 페이지의 .sr-only 와 같다: 보이지 않고 화면 낭독기만 읽는다. */
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
+	}
+</style>

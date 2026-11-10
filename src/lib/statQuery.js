@@ -1,0 +1,126 @@
+// 통계 페이지의 보기 상태(범위, 지기, 견습 포함)와 URL 쿼리스트링 사이의 변환.
+// `/stat?scope=individual&user_id=12` 처럼 링크로 같은 보기를 열 수 있게 한다.
+// 기본값(전체 범위)은 URL에 남기지 않고, 형식이 틀린 값은 기본값으로 읽는다.
+// user_id·include_mentees 는 개인 범위에서만 보기를 바꾸므로 그때만 읽고 쓴다.
+
+const KEYS = ['scope', 'user_id', 'include_mentees'];
+const ID = /^[1-9]\d*$/;
+
+/** @param {URLSearchParams} params */
+export function readStatQuery(params) {
+	if (params.get('scope') !== 'individual') {
+		return { scope: 'all', userId: null, includeMentees: false };
+	}
+	const raw = params.get('user_id');
+	const userId = raw && ID.test(raw) && Number.isSafeInteger(Number(raw)) ? raw : null;
+	return { scope: 'individual', userId, includeMentees: params.get('include_mentees') === 'true' };
+}
+
+// url 의 다른 파라미터와 해시는 그대로 두고 세 키만 state 에 맞춘 경로(pathname?search#hash).
+/**
+ * @param {URL} url
+ * @param {{ scope: string, userId: string | number | null, includeMentees: boolean }} state
+ */
+export function statQueryHref(url, { scope, userId, includeMentees }) {
+	const params = new URLSearchParams(url.search);
+	for (const key of KEYS) params.delete(key);
+	if (scope === 'individual') {
+		params.set('scope', 'individual');
+		if (userId) params.set('user_id', String(userId));
+		if (includeMentees) params.set('include_mentees', 'true');
+	}
+	const search = params.toString();
+	return `${url.pathname}${search ? `?${search}` : ''}${url.hash}`;
+}
+
+// 지기 목록에 없는 지기 id 는 지기 없음(null)으로 읽는다(백엔드는 모르는 지기를 0곡으로 센다).
+// 학기의 knownPeriod(statPeriod.js)와 같다. 목록을 받지 못했으면(배열이 아니면) 그대로 둔다.
+/**
+ * @param {string | number | null} userId
+ * @param {{ id: number }[] | null | undefined} users
+ */
+export function knownUser(userId, users) {
+	if (userId == null || !Array.isArray(users)) return userId;
+	return users.some((u) => String(u.id) === String(userId)) ? userId : null;
+}
+
+// 통계의 '모든 차트 표로 보기'는 URL의 view=table 에 둔다(링크로 표만 보는 통계를 연다).
+// 기본값(차트)은 URL에 남기지 않고, table 이 아닌 값은 차트로 읽는다.
+/** @param {URLSearchParams} params */
+export function readTableView(params) {
+	return params.get('view') === 'table';
+}
+
+/**
+ * @param {URLSearchParams} params
+ * @param {boolean} on
+ */
+export function writeTableView(params, on) {
+	if (on) params.set('view', 'table');
+	else params.delete('view');
+}
+
+// 통계의 처음 튼 작곡가·곡 '많이 튼 순'은 URL의 by_count 에 둔다(by_count=works, by_count=composers,works).
+// 둘 다 꺼진 기본값은 URL에 남기지 않는다. 모르는 이름은 버리고, 겹친 이름은 한 번으로 읽는다.
+const FIRSTS = ['composers', 'works'];
+
+/** @param {URLSearchParams} params */
+export function readFirstsByCount(params) {
+	const names = (params.get('by_count') ?? '').split(',');
+	return { composers: names.includes('composers'), works: names.includes('works') };
+}
+
+/**
+ * @param {URLSearchParams} params
+ * @param {{ composers: boolean, works: boolean }} flags
+ */
+export function writeFirstsByCount(params, flags) {
+	const names = FIRSTS.filter((name) => flags[name]);
+	if (names.length) params.set('by_count', names.join(','));
+	else params.delete('by_count');
+}
+
+// 모든 차트 표로 보기를 켠 페이지의 통계·작곡가 링크는 view=table 을 이어 간다.
+/**
+ * @param {string} href 경로와 쿼리(예: /stat/composer/5?semester_id=3)
+ * @param {boolean} on
+ */
+export function tableViewHref(href, on) {
+	if (!on) return href;
+	const url = new URL(href, 'http://localhost');
+	writeTableView(url.searchParams, true);
+	return url.pathname + url.search + url.hash;
+}
+
+// 처음 튼 '많이 튼 순'을 켠 페이지의 통계·학기 결산·작곡가 링크는 by_count 를 이어 간다.
+/**
+ * @param {string} href 경로와 쿼리(예: /stat/report?semester_id=3)
+ * @param {{ composers: boolean, works: boolean }} flags
+ */
+export function firstsByCountHref(href, flags) {
+	if (!flags.composers && !flags.works) return href;
+	const url = new URL(href, 'http://localhost');
+	writeFirstsByCount(url.searchParams, flags);
+	return url.pathname + url.search + url.hash;
+}
+
+// 학기 결산의 '통계에서 모두 보기'는 통계를 그 카드에서 연다: /stat?semester_id=3&view=table#works.
+// 통계는 처음 불러온 뒤 한 번 그 카드로 스크롤해 표에 포커스를 둔다(ChartCard 의 openTable).
+const LINKED_CARDS = ['composers', 'soloists', 'conductors', 'orchestras', 'works'];
+
+// 해시(#works)를 카드 이름으로 읽는다. 없거나 모르는 해시는 null 이다.
+/** @param {string | null | undefined} hash */
+export function readLinkedCard(hash) {
+	const key = typeof hash === 'string' && hash.startsWith('#') ? hash.slice(1) : '';
+	return LINKED_CARDS.includes(key) ? key : null;
+}
+
+/**
+ * @param {string} href 경로와 쿼리(예: /stat?semester_id=3&view=table)
+ * @param {string} key 카드 이름(예: works)
+ */
+export function cardHref(href, key) {
+	const url = new URL(href, 'http://localhost');
+	url.hash = key;
+	return url.pathname + url.search + url.hash;
+}

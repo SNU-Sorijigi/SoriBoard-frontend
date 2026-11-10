@@ -1,0 +1,929 @@
+<script>
+	import { onMount, tick } from 'svelte';
+	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
+	import { composerHref } from '$lib/composerStats.js';
+	import { targetHistoryHref } from '$lib/playHistory.js';
+	import {
+		ERAS,
+		UNKNOWN_ERA,
+		readCatalogQuery,
+		readCatalogEra,
+		readCatalogSort,
+		byBirthYear,
+		eraOptions,
+		filterEra,
+		eraLabel,
+		eraSummary,
+		catalogEmptyText,
+		composersSearch,
+		unknownFirst,
+		unknownSummaryParts,
+		eraCell,
+		draftOf,
+		birthYearError,
+		composerPatch,
+		patchErrorText,
+		replaceComposer,
+		catalogCsv,
+		catalogFileParts,
+		catalogListTitle
+	} from '$lib/composerCatalog.js';
+	import { downloadCsvTable } from '$lib/csvTable.js';
+	import { downloadName } from '$lib/statFileName.js';
+	import { todayStamp } from '$lib/csv.js';
+	import {
+		readSpellingKind,
+		catalogViewHref,
+		catalogStateHref,
+		catalogPageTitle,
+		duplicatesSearch,
+		searchVariants,
+		DEFAULT_KIND
+	} from '$lib/catalogSpelling.js';
+	import SpellingVariants from '$lib/components/stat/SpellingVariants.svelte';
+	import MarkedText from '$lib/components/stat/MarkedText.svelte';
+
+	// 작곡가 정리: 모든 작곡가의 시대·출생 연도·선곡 수. 시대 미상을 앞에 두고, 한 줄씩 고친다.
+	// 검색어는 URL에 두고, 페이지가 시작될 때 한 번만 읽는다.
+	let q = readCatalogQuery($page.url.searchParams); // 적용된 검색어
+	let query = q; // 검색란의 값
+	const thisYear = new Date().getFullYear();
+
+	// 보기: null = 작곡가 목록, 아니면 표기 정리와 그 종류. 검색어처럼 URL에 둔다.
+	let spellingKind = readSpellingKind($page.url.searchParams);
+	// 작곡가 목록의 시대('' = 모든 시대). 받은 목록을 거를 뿐 다시 부르지 않는다. 검색어처럼 URL에 두고,
+	// 표기 정리로 가도 남긴다.
+	let era = readCatalogEra($page.url.searchParams);
+	// 시대를 고른 채 저장해 다른 시대가 된 줄: 시대·검색·목록이 바뀔 때까지 그 자리에 둔다(바꿔 넣어야 다시 거른다).
+	/** @type {Set<number>} */
+	let keepIds = new Set();
+	// 순서('birth' = 출생 연도 순, '' = 받은 순서). 시대처럼 URL에 두고, 표기 정리로 가도 남긴다.
+	let sort = readCatalogSort($page.url.searchParams);
+	// toEra: 담을 시대(기본은 지금의 시대). 개수 줄의 '시대 미상 N명' 링크는 미상을 담는다.
+	/**
+	 * @param {string | null} kind
+	 * @param {string} [toEra]
+	 */
+	const viewHref = (kind, toEra = era) => catalogStateHref(q, kind, toEra, sort);
+
+	// 검색어는 두 보기가 함께 쓴다. 작곡가 목록으로 돌아올 때 목록이 다른 검색어의 답이면 다시 부른다.
+	/** @param {string | null} kind */
+	function showView(kind) {
+		spellingKind = kind;
+		goto(viewHref(kind), { replaceState: true, keepFocus: true, noScroll: true });
+		if (!kind && (!loaded || shownQ !== q)) load();
+	}
+
+	// received: 받은 순서(시대 미상 먼저, 많이 튼 순). composers: 보이는 순서. 정렬은 불러올 때와 단추를 누를 때만
+	// 한다($: 가 아니다): 저장한 줄은 출생 연도가 바뀌어도 그 자리에 남는다.
+	/** @type {import('$lib/composerCatalog.js').CatalogComposer[]} */
+	let received = [];
+	/** @type {import('$lib/composerCatalog.js').CatalogComposer[]} */
+	let composers = [];
+	let loaded = false;
+	let shownQ = ''; // 보이는 목록이 답한 검색어(결과 줄은 검색 중에도, 실패해도 이것으로 쓴다)
+	let loading = false;
+	let error = '';
+	// 가장 최근 검색의 응답만 반영한다.
+	let requestId = 0;
+
+	async function load() {
+		const id = ++requestId;
+		loading = true;
+		error = '';
+		editingId = null;
+		// 물은 검색어를 기다리기 전에 잡아 둔다: 답을 기다리는 동안 표기 정리에서 q 가 바뀌어도 shownQ 는 답한 검색어다.
+		const asked = q;
+		try {
+			const res = await fetch(`/api/composers${composersSearch(asked)}`);
+			if (!res.ok) throw new Error(`composers ${res.status}`);
+			const result = await res.json();
+			if (id !== requestId) return;
+			received = unknownFirst(result);
+			composers = sort ? byBirthYear(received) : received;
+			keepIds = new Set();
+			loaded = true;
+			shownQ = asked;
+		} catch (e) {
+			if (id !== requestId) return;
+			console.error('작곡가 목록 로딩 실패', e);
+			error = '불러오지 못했습니다';
+		} finally {
+			if (id === requestId) loading = false;
+		}
+	}
+	onMount(load);
+
+	// '다시 시도'는 누르면 '불러오는 중...'이나 이전 표로 바뀌어 사라지므로, 먼저 목록 카드로 포커스를
+	// 옮긴다. 또 실패했는데 포커스가 아직 카드에 있으면 새 '다시 시도'로 되돌린다.
+	/** @type {HTMLElement} */
+	let listCard;
+	async function retryList(e) {
+		const hadFocus = document.activeElement === e.currentTarget;
+		if (hadFocus) listCard?.focus();
+		await load();
+		if (!hadFocus || !error) return;
+		await tick();
+		if (document.activeElement === listCard)
+			listCard.querySelector('.placeholder.error button')?.focus();
+	}
+
+	// 표기 정리는 받은 묶음을 제가 거르므로 목록만 다시 부른다(돌아오면 showView 가 부른다).
+	function onSearch() {
+		q = query.trim();
+		query = q;
+		goto(viewHref(spellingKind), { replaceState: true, keepFocus: true, noScroll: true });
+		if (!spellingKind) load();
+	}
+
+	// 시대를 바꾸면 받은 목록을 다시 거른다(새 검색처럼 수정 칸을 닫는다).
+	/** @param {string} value */
+	function setEra(value) {
+		era = value;
+		keepIds = new Set();
+		editingId = null;
+		goto(viewHref(spellingKind), { replaceState: true, keepFocus: true, noScroll: true });
+	}
+	/** @param {Event & { currentTarget: HTMLSelectElement }} e */
+	const onEraChange = (e) => setEra(e.currentTarget.value);
+	// 개수 줄의 '시대 미상 N명': 시대 고르기에서 시대 미상을 고른 것과 같다. 새 탭으로 열기는 브라우저에 맡긴다.
+	// 링크는 시대 줄로 바뀌며 사라지므로, 포커스가 링크에 있었으면 시대 고르기로 옮긴다.
+	/** @type {HTMLSelectElement} */
+	let eraSelect;
+	/** @param {MouseEvent & { currentTarget: HTMLAnchorElement }} e */
+	async function openUnknown(e) {
+		if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+		e.preventDefault();
+		const hadFocus = document.activeElement === e.currentTarget;
+		setEra(UNKNOWN_ERA);
+		if (!hadFocus) return;
+		await tick();
+		eraSelect?.focus();
+	}
+	// 빈 목록의 '모든 시대에서 보기': 시대만 푼다(검색어·순서는 그대로, 새 요청 없이). 버튼이 사라지므로 포커스를
+	// 먼저 시대 고르기로 옮긴다.
+	function widenEra() {
+		eraSelect?.focus();
+		setEra('');
+	}
+	// 출생 연도 순을 켜고 끈다. 끄면 각 줄을 받은 순서의 자리로 돌린다(저장한 값은 composers 의 것을 둔다).
+	function onSortToggle() {
+		sort = sort ? '' : 'birth';
+		editingId = null;
+		if (sort) composers = byBirthYear(composers);
+		else {
+			const order = new Map(received.map((c, i) => [c.id, i]));
+			composers = [...composers].sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+		}
+		goto(viewHref(spellingKind), { replaceState: true, keepFocus: true, noScroll: true });
+	}
+	// 검색란을 ✕(또는 Escape)로 비우면 곧바로 전체를 보인다. Enter 도 search 이벤트를 보내지만
+	// (브라우저에 따라 submit 앞이나 뒤에) 그때는 submit 이 검색하므로 넘어간다.
+	let enterKey = false;
+	const onSearchKeydown = (e) => (enterKey = e.key === 'Enter' && !e.isComposing);
+	function onSearchEvent(e) {
+		const byEnter = enterKey;
+		enterKey = false;
+		if (byEnter || e.currentTarget.value !== '' || !q) return;
+		query = '';
+		onSearch();
+	}
+
+	// 한 번에 한 줄만 고친다. 저장하면 백엔드의 답(다시 정한 시대)으로 그 줄을 바꾸고, 자리는 그대로 둔다.
+	/** @type {number | null} */
+	let editingId = null;
+	let draft = { birthYear: '', era: '' };
+	let saving = false;
+	let saveError = '';
+	let status = ''; // 저장 결과(화면 낭독기에 알린다)
+	/** @type {Record<number, HTMLButtonElement>} */
+	const editButtons = {};
+	/** @type {HTMLInputElement} */
+	let yearInput;
+	/** @type {HTMLButtonElement} */
+	let saveButton;
+
+	async function startEdit(composer) {
+		editingId = composer.id;
+		draft = draftOf(composer);
+		saveError = '';
+		status = '';
+		await tick();
+		yearInput?.focus();
+	}
+
+	// 수정 칸이 사라지므로 포커스를 그 줄의 '수정' 단추로 돌린다.
+	async function stopEdit() {
+		const id = editingId;
+		editingId = null;
+		saveError = '';
+		await tick();
+		if (id !== null) editButtons[id]?.focus();
+	}
+
+	$: yearError = editingId === null ? '' : birthYearError(draft.birthYear, thisYear);
+	// 목록 상자의 아래 끝에서 고치면 칸 밑에 새로 생긴 오류 줄이 상자 밖에 가리므로, 보이는 곳으로 스크롤한다.
+	/** @param {HTMLElement} node */
+	const reveal = (node) => node.scrollIntoView({ block: 'nearest' });
+
+	// 저장하는 동안에는 다른 줄을 열 수 없고(수정 단추가 꺼진다) Escape 도 듣지 않는다.
+	// 그래서 답은 늘 저장한 그 줄에 닿는다. 검색으로 그 줄이 닫혔다면 결과를 상태 줄에 알린다.
+	async function save(composer) {
+		if (yearError || saving) return;
+		const body = composerPatch(composer, draft);
+		if (!body) return stopEdit();
+		saving = true;
+		saveError = '';
+		let result = null;
+		let failure = '';
+		try {
+			const res = await fetch(`/api/composers/${composer.id}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(body)
+			});
+			result = await res.json().catch(() => null);
+			if (!res.ok) failure = res.status === 400 ? patchErrorText(result) : '저장하지 못했습니다.';
+			else if (!result) failure = '저장하지 못했습니다.';
+		} catch (e) {
+			console.error('작곡가 저장 실패', e);
+			failure = '저장하지 못했습니다.';
+		} finally {
+			saving = false;
+		}
+		const open = editingId === composer.id;
+		if (!failure) {
+			composers = replaceComposer(composers, result);
+			if (era && result.era !== era) keepIds = new Set([...keepIds, result.id]);
+			status = `‘${result.name}’ 저장됨 · 시대 ${result.era}`;
+			if (open) await stopEdit();
+		} else if (!open) {
+			status = `‘${composer.name}’ 저장하지 못했습니다.`;
+		} else {
+			saveError = failure;
+			// 누른 저장 단추가 잠시 꺼지며 포커스를 잃었다면 그 단추로 되돌린다.
+			await tick();
+			if (!document.activeElement || document.activeElement === document.body) saveButton?.focus();
+		}
+	}
+
+	function onEditKeydown(e, composer) {
+		if (e.key === 'Enter') {
+			e.preventDefault();
+			save(composer);
+		} else if (e.key === 'Escape') {
+			e.preventDefault();
+			if (!saving) stopEdit();
+		}
+	}
+
+	$: unknownParts = unknownSummaryParts(composers, Boolean(shownQ));
+	$: shown = filterEra(composers, era, keepIds);
+	$: eraChoices = eraOptions(composers);
+	$: eraText = era ? eraSummary(composers, era, Boolean(shownQ)) : '';
+	// 빈 목록: ‘'bach'에 맞는 바로크 작곡가가 없습니다’(검색어·시대가 없으면 그 말을 뺀다). 시대를 골랐고 다른 시대에
+	// 맞는 작곡가가 있으면 ' · 모든 시대 2명'을 붙이고 '모든 시대에서 보기'를 둔다(검색은 모든 시대에서 했다).
+	$: emptyState = catalogEmptyText({ q: shownQ, era }, composers.length);
+
+	// CSV 저장: 표가 보이는 줄을 그 순서로, 저장된 값으로(열린 수정 칸의 값은 넣지 않는다). 파일 이름의 검색어는 보이는
+	// 목록이 답한 검색어(shownQ)다: 새 검색을 부르는 동안에도 이전 목록이 보인다.
+	$: canExport = loaded && !error && shown.length > 0;
+	function exportCsv() {
+		if (!canExport) return;
+		const csv = catalogCsv(shown);
+		const name = downloadName(['작곡가 정리', catalogFileParts(era, shownQ), todayStamp()], 'csv');
+		downloadCsvTable(name, csv.headers, csv.rows);
+	}
+
+	// 검색어와 표기만 다른 작곡가: 목록의 검색(composers/ 의 q, icontains)은 이름만 글자 그대로 찾으므로,
+	// 띄어쓰기·마침표·줄표만 다른 표기는 그 검색에 들지 않는다(searchVariants, 선곡 기록과 같다). 묶음
+	// (catalog/duplicates/, 전체 기간)은 첫 검색이 답한 뒤 이 페이지에서 한 번만 부르고, 못 받으면 줄을 두지 않는다.
+	// 줄은 개수 줄처럼 보이는 목록이 답한 검색어(shownQ)를 따른다.
+	// 받은 묶음은 표기 정리와 나눠 쓴다(spellingAnswers: 종류 → 답, 받은 것만). 표기 정리가 먼저 받았으면
+	// 묻지 않고, 표기 정리를 보는 동안에는 그쪽이 묻게 둔다(줄은 작곡가 목록에만 있다).
+	/** @type {Record<string, any>} */
+	let spellingAnswers = {};
+	/**
+	 * @param {string} kind
+	 * @param {any} result
+	 */
+	const keepSpelling = (kind, result) => (spellingAnswers = { ...spellingAnswers, [kind]: result });
+	let duplicatesAsked = false;
+	async function loadDuplicates() {
+		if (duplicatesAsked || spellingAnswers[DEFAULT_KIND]) return;
+		duplicatesAsked = true;
+		try {
+			const res = await fetch(`/api/catalog/duplicates${duplicatesSearch(DEFAULT_KIND)}`);
+			if (!res.ok) throw new Error(`catalog/duplicates ${res.status}`);
+			keepSpelling(DEFAULT_KIND, await res.json());
+		} catch (e) {
+			console.error('표기만 다른 이름 로딩 실패', e);
+		}
+	}
+	$: if (shownQ && loaded && !spellingKind) loadDuplicates();
+	const SEARCH_LINE_MAX = 5;
+	$: missed =
+		shownQ && loaded && !error ? searchVariants(spellingAnswers[DEFAULT_KIND], shownQ) : [];
+	// 다섯 개까지, 가장 많이 튼 것부터. 링크는 그 표기로 검색한 작곡가 목록(그 줄을 바로 고칠 수 있다).
+	// 시대와 순서는 담지 않는다: 다른 표기는 흔히 시대 미상인 따로 된 줄이라, 고른 시대로 열면 고칠 그 줄이
+	// 걸러져 '맞는 작곡가가 없습니다'가 된다.
+	$: missedRows = missed.slice(0, SEARCH_LINE_MAX).map((row) => ({
+		...row,
+		plays: (row.count ?? 0).toLocaleString(),
+		href: catalogViewHref(row.name, null)
+	}));
+	$: missedMore = Math.max(missed.length - SEARCH_LINE_MAX, 0);
+
+	// '표기 정리'는 같은 검색어로 이 페이지의 표기 정리 보기를 연다. 새 검색을 부르는 중이면(q 가 이미
+	// 다르면) 링크대로 페이지를 새로 불러 줄이 말한 검색어로 연다. 새 탭으로 열기는 브라우저에 맡긴다.
+	/** @param {MouseEvent} e */
+	function openSpelling(e) {
+		if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || q !== shownQ) return;
+		e.preventDefault();
+		showView(DEFAULT_KIND);
+	}
+</script>
+
+<svelte:head>
+	<title>{spellingKind ? catalogPageTitle(spellingKind) : catalogListTitle(era)}</title>
+</svelte:head>
+
+<div class="catalog-page">
+	<header class="page-header">
+		<div class="title-group">
+			<h1>작곡가 정리</h1>
+			<a class="page-link" href="/stat">통계</a>
+		</div>
+		<div class="view-toggle" role="group" aria-label="보기">
+			<button
+				class:active={!spellingKind}
+				aria-pressed={!spellingKind}
+				on:click={() => spellingKind && showView(null)}>작곡가 목록</button
+			>
+			<button
+				class:active={Boolean(spellingKind)}
+				aria-pressed={Boolean(spellingKind)}
+				on:click={() => spellingKind || showView(DEFAULT_KIND)}>표기 정리</button
+			>
+		</div>
+	</header>
+	{#if spellingKind}
+		<SpellingVariants
+			kind={spellingKind}
+			{q}
+			answers={spellingAnswers}
+			on:loaded={(e) => keepSpelling(e.detail.kind, e.detail.result)}
+			on:change={(e) => showView(e.detail)}
+			on:search={(e) => {
+				query = e.detail;
+				onSearch();
+			}}
+		/>
+	{:else}
+		<p class="hint">
+			시대는 출생 연도로 정해집니다. 시대를 고르면 출생 연도보다 앞섭니다(‘출생 연도로’는 보정
+			없음).
+		</p>
+
+		<div class="toolbar">
+			<div class="filters">
+				<form class="search" role="search" on:submit|preventDefault={onSearch}>
+					<input
+						type="search"
+						bind:value={query}
+						on:keydown={onSearchKeydown}
+						on:search={onSearchEvent}
+						placeholder="작곡가 이름"
+						aria-label="작곡가 검색"
+					/>
+					<button type="submit">검색</button>
+				</form>
+				<!-- 개수는 받은 목록(지금의 검색)에서 센다 -->
+				<select
+					class="era-filter"
+					aria-label="시대"
+					value={era}
+					bind:this={eraSelect}
+					on:change={onEraChange}
+				>
+					<option value="">모든 시대</option>
+					{#each eraChoices as choice (choice.era)}
+						<option value={choice.era}
+							>{eraLabel(choice.era)}{loaded ? ` (${choice.count.toLocaleString()}명)` : ''}</option
+						>
+					{/each}
+				</select>
+				<button
+					class="tool-btn sort-toggle"
+					class:active={Boolean(sort)}
+					aria-pressed={Boolean(sort)}
+					title="출생 연도 순으로 보기"
+					on:click={onSortToggle}>출생 연도 순</button
+				>
+				<button
+					class="tool-btn csv-save"
+					on:click={exportCsv}
+					disabled={!canExport}
+					title="보이는 작곡가 목록을 CSV로 저장">CSV 저장</button
+				>
+			</div>
+			<p class="result-count" aria-live="polite">
+				{#if loaded && !error && era}
+					{eraText}{#if shownQ}&nbsp;· '{shownQ}' 검색{/if}{#if sort}&nbsp;· 출생 연도 순{/if}
+				{:else if loaded && !error}
+					작곡가 {composers.length.toLocaleString()}명 · {#if unknownParts.count}<a
+							href={viewHref(null, UNKNOWN_ERA)}
+							title="시대 미상 작곡가만 보기"
+							on:click={openUnknown}>{unknownParts.head}</a
+						>{:else}{unknownParts.head}{/if}{unknownParts.rest}{#if shownQ}&nbsp;· '{shownQ}' 검색{/if}{#if sort}&nbsp;·
+						출생 연도 순{/if}
+				{:else if error}
+					<span class="sr-only"
+						>작곡가 목록을 불러오지 못했습니다. 작곡가 목록 다시 시도로 다시 부를 수 있습니다.</span
+					>
+				{/if}
+			</p>
+		</div>
+		<!-- 이 페이지는 URL을 처음 한 번만 읽으므로 이름 링크는 페이지를 새로 불러온다(data-sveltekit-reload).
+		     이름은 띄어쓰기가 달라도 보이도록 그대로 둔다 -->
+		{#if missedRows.length}
+			<p class="variants-note">
+				검색어와 표기만 다른 작곡가: {#each missedRows as row, i (row.id)}{i ? ', ' : ''}‘<a
+						class="variant"
+						href={row.href}
+						data-sveltekit-reload>{row.name}</a
+					>’ 선곡 {row.plays}회{/each}{#if missedMore}&nbsp;외
+					{missedMore.toLocaleString()}개{/if}
+				(전체 기간). 이 검색에는 들지 않습니다. ·
+				<a
+					href={catalogStateHref(shownQ, DEFAULT_KIND, era, sort)}
+					data-sveltekit-reload
+					on:click={openSpelling}>표기 정리</a
+				>
+			</p>
+		{/if}
+		<p class="status" aria-live="polite">{status}</p>
+
+		<section class="card" aria-label="작곡가 목록" tabindex="-1" bind:this={listCard}>
+			{#if loading && !loaded}
+				<div class="placeholder">불러오는 중...</div>
+			{:else if error}
+				<div class="placeholder error">
+					{error}
+					<button class="tool-btn" on:click={retryList} aria-label="작곡가 목록 다시 시도"
+						>다시 시도</button
+					>
+				</div>
+			{:else if loaded && shown.length === 0}
+				<div class="placeholder" class:stale={loading}>
+					{emptyState.text}
+					{#if emptyState.widenEra}
+						<button class="tool-btn" on:click={widenEra} title="시대만 모든 시대로 바꿔 다시 보기"
+							>모든 시대에서 보기</button
+						>
+					{/if}
+				</div>
+			{:else if loaded}
+				<!-- 긴 목록은 이 상자 안에서 스크롤해 머리줄이 남는다. 키보드로도 스크롤하게 포커스를 준다(DataTable 과 같다). -->
+				<!-- svelte-ignore a11y-no-noninteractive-tabindex -->
+				<div class="list-scroll" role="region" aria-label="작곡가 목록 표" tabindex="0">
+					<table aria-label="작곡가 목록" class:stale={loading}>
+						<thead>
+							<tr>
+								<th scope="col">작곡가</th>
+								<th scope="col" class="era">시대</th>
+								<th scope="col" class="year">출생 연도</th>
+								<th scope="col" class="num">선곡 수</th>
+								<th scope="col" class="actions"><span class="sr-only">수정</span></th>
+							</tr>
+						</thead>
+						<tbody>
+							{#each shown as composer (composer.id)}
+								{@const cell = eraCell(composer)}
+								<tr class:editing={editingId === composer.id}>
+									<th scope="row">
+										<a href={composerHref(composer.id)} title="이 작곡가 페이지 열기"
+											><MarkedText text={composer.name} q={shownQ} /></a
+										>
+									</th>
+									{#if editingId === composer.id}
+										<td>
+											<select
+												bind:value={draft.era}
+												aria-label={`${composer.name} 시대`}
+												on:keydown={(e) => onEditKeydown(e, composer)}
+											>
+												<option value="">출생 연도로</option>
+												{#each ERAS as era}
+													<option value={era}>{era}</option>
+												{/each}
+											</select>
+										</td>
+										<td>
+											<input
+												bind:this={yearInput}
+												bind:value={draft.birthYear}
+												inputmode="numeric"
+												maxlength="4"
+												placeholder="없음"
+												aria-label={`${composer.name} 출생 연도`}
+												aria-invalid={Boolean(yearError)}
+												aria-describedby={yearError ? 'year-error' : undefined}
+												on:keydown={(e) => onEditKeydown(e, composer)}
+											/>
+											{#if yearError}
+												<div id="year-error" class="field-error" use:reveal>{yearError}</div>
+											{/if}
+										</td>
+										<td class="num">
+											{#if composer.num_time_music > 0}
+												<a
+													class="count"
+													href={targetHistoryHref('composer_id', composer.id)}
+													title="선곡 기록에서 보기"
+													aria-label={`${composer.name} 선곡 ${composer.num_time_music.toLocaleString()} 곡 선곡 기록에서 보기`}
+													>{composer.num_time_music.toLocaleString()}</a
+												>
+											{:else}
+												{composer.num_time_music.toLocaleString()}
+											{/if}
+										</td>
+										<td class="actions">
+											<div class="buttons">
+												<button
+													class="tool-btn"
+													bind:this={saveButton}
+													on:click={() => save(composer)}
+													disabled={saving || Boolean(yearError)}
+												>
+													{saving ? '저장 중…' : '저장'}
+												</button>
+												<button class="tool-btn" on:click={stopEdit} disabled={saving}>취소</button>
+											</div>
+											{#if saveError}
+												<div class="field-error" role="alert" use:reveal>{saveError}</div>
+											{/if}
+										</td>
+									{:else}
+										<td class:unknown={cell.era === UNKNOWN_ERA}>
+											{cell.era}
+											{#if cell.note}<span class="era-note">{cell.note}</span>{/if}
+										</td>
+										<td class:unknown={composer.birth_year == null}>{composer.birth_year ?? '—'}</td
+										>
+										<td class="num">
+											{#if composer.num_time_music > 0}
+												<a
+													class="count"
+													href={targetHistoryHref('composer_id', composer.id)}
+													title="선곡 기록에서 보기"
+													aria-label={`${composer.name} 선곡 ${composer.num_time_music.toLocaleString()} 곡 선곡 기록에서 보기`}
+													>{composer.num_time_music.toLocaleString()}</a
+												>
+											{:else}
+												{composer.num_time_music.toLocaleString()}
+											{/if}
+										</td>
+										<td class="actions">
+											<button
+												class="tool-btn"
+												bind:this={editButtons[composer.id]}
+												on:click={() => startEdit(composer)}
+												disabled={saving}
+												aria-label={`${composer.name} 수정`}
+											>
+												수정
+											</button>
+										</td>
+									{/if}
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				</div>
+			{/if}
+		</section>
+	{/if}
+</div>
+
+<style>
+	/* 통계·선곡 기록과 같은 여백·머리말·컨트롤·카드 */
+	.catalog-page {
+		padding: 24px 32px;
+		width: 100%;
+		box-sizing: border-box;
+	}
+	.page-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: 8px;
+	}
+	.title-group {
+		display: flex;
+		align-items: baseline;
+		gap: 12px;
+	}
+	h1 {
+		font-family: var(--xlarge-font-family, 'Noto Sans KR', sans-serif);
+		font-size: var(--xlarge-font-size, 32px);
+		font-weight: var(--xlarge-font-weight, 500);
+		color: var(--gray-gray-950, #1a1a1a);
+		margin: 0;
+	}
+	.page-link {
+		font-family: var(--small-medium-font-family, 'Noto Sans KR', sans-serif);
+		font-size: var(--small-medium-font-size, 13px);
+		color: var(--primary-primary-800, #6a5134);
+		text-underline-offset: 3px;
+	}
+	/* 통계의 전체/개인(ScopeToggle)과 같은 모양 */
+	.view-toggle {
+		display: inline-flex;
+		border: 1px solid var(--primary-primary-600, #c8ad8f);
+		border-radius: 6px;
+		overflow: hidden;
+	}
+	.view-toggle button {
+		font-family: var(--medium-font-family, 'Noto Sans KR', sans-serif);
+		font-size: var(--medium-font-size, 16px);
+		padding: 6px 18px;
+		border: none;
+		background: var(--secondary-secondary-50, #fffdfc);
+		color: var(--primary-primary-800, #6a5134);
+		cursor: pointer;
+	}
+	.view-toggle button.active {
+		background: var(--action-bg);
+		color: var(--action-fg);
+	}
+	.hint,
+	.result-count,
+	.variants-note,
+	.status {
+		font-family: var(--small-medium-font-family, 'Noto Sans KR', sans-serif);
+		font-size: var(--small-medium-font-size, 13px);
+		color: var(--gray-gray-600, #7c7c7c);
+	}
+	.hint {
+		margin: 0 0 16px;
+	}
+	.toolbar {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px 16px;
+	}
+	.filters,
+	.search {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		margin: 0;
+	}
+	.result-count {
+		min-height: 1.5em;
+		margin: 0;
+	}
+	.result-count a {
+		color: var(--primary-primary-800, #6a5134);
+		text-underline-offset: 3px;
+	}
+	/* 선곡 기록의 '검색어와 표기만 다른' 줄과 같은 모양 */
+	.variants-note {
+		margin: 8px 0 0;
+	}
+	.variants-note a {
+		color: var(--primary-primary-800, #6a5134);
+		text-underline-offset: 3px;
+	}
+	/* 띄어쓰기가 다른 표기도 그대로 보이도록(표기 정리, 선곡 기록과 같다) */
+	.variants-note .variant {
+		white-space: pre-wrap;
+	}
+	.status {
+		min-height: 1.5em;
+		margin: 8px 0;
+		color: var(--primary-primary-800, #6a5134);
+	}
+	input,
+	select {
+		font-family: var(--medium-font-family, 'Noto Sans KR', sans-serif);
+		font-size: var(--medium-font-size, 16px);
+		padding: 6px 10px;
+		border: 1px solid var(--control-border);
+		border-radius: 6px;
+		background: var(--secondary-secondary-50, #fffdfc);
+		color: var(--gray-gray-950, #1a1a1a);
+	}
+	input[type='search'] {
+		width: 300px;
+	}
+	tbody input,
+	tbody select {
+		font-size: var(--small-medium-font-size, 13px);
+		padding: 3px 6px;
+	}
+	tbody input {
+		width: 6em;
+	}
+	input[aria-invalid='true'] {
+		border-color: var(--secondary-secondary-800, #95560d);
+	}
+	.search button,
+	.tool-btn {
+		font-family: var(--small-medium-font-family, 'Noto Sans KR', sans-serif);
+		font-size: var(--small-medium-font-size, 13px);
+		color: var(--primary-primary-800, #6a5134);
+		background: var(--secondary-secondary-100, #fef9f3);
+		border: 1px solid var(--primary-primary-600, #c8ad8f);
+		border-radius: 4px;
+		padding: 4px 12px;
+		cursor: pointer;
+	}
+	.search button:hover,
+	.tool-btn:hover {
+		background: var(--secondary-secondary-200, #fdf1e4);
+	}
+	/* 처음 튼 카드의 '많이 튼 순'(TableCard)과 같다: 눌린 상태는 포인터가 올라가 있어도 유지한다 */
+	.sort-toggle.active,
+	.sort-toggle.active:hover {
+		background: var(--action-bg);
+		color: var(--action-fg);
+	}
+	.tool-btn:disabled {
+		cursor: default;
+		opacity: 0.6;
+	}
+	.card {
+		background: var(--secondary-secondary-50, #fffdfc);
+		border: 1px solid var(--gray-gray-300, #d4d4d4);
+		border-radius: 8px;
+		box-shadow: 4px 4px 5px 0px rgba(0, 0, 0, 0.08);
+		padding: 12px;
+	}
+	/* 레이아웃의 main 은 스크롤하지 않는 스크롤 상자라 sticky 머리줄이 붙지 못하므로, 표에 제 스크롤 상자를 준다 */
+	.list-scroll {
+		max-height: calc(100vh - 200px);
+		overflow: auto;
+	}
+	.placeholder {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 12px;
+		height: 160px;
+		color: var(--gray-gray-500, #9f9f9f);
+		font-family: var(--medium-font-family, 'Noto Sans KR', sans-serif);
+		font-size: var(--medium-font-size, 16px);
+	}
+	.placeholder.error,
+	.field-error {
+		color: var(--secondary-secondary-800, #95560d);
+	}
+	/* 선곡 기록 표(PlayTable)와 같은 글꼴·선·머리줄 */
+	/* 수정 칸이 열려도 열 너비가 그대로이도록 고정 */
+	table {
+		width: 100%;
+		table-layout: fixed;
+		border-collapse: collapse;
+		font-family: var(--small-medium-font-family, 'Noto Sans KR', sans-serif);
+		font-size: var(--small-medium-font-size, 13px);
+		color: var(--gray-gray-950, #1a1a1a);
+	}
+	table.stale,
+	.placeholder.stale {
+		opacity: 0.6;
+	}
+	th,
+	td {
+		padding: 6px 10px;
+		text-align: left;
+		vertical-align: middle;
+		border-bottom: 1px solid var(--gray-gray-300, #d4d4d4);
+	}
+	tbody th {
+		font-weight: 400;
+	}
+	thead th {
+		position: sticky;
+		top: 0;
+		background: var(--secondary-secondary-100, #fef9f3);
+		color: var(--gray-gray-600, #7c7c7c);
+		font-weight: 500;
+	}
+	tbody tr:last-child > * {
+		border-bottom: none;
+	}
+	tr.editing > * {
+		background: var(--secondary-secondary-100, #fef9f3);
+	}
+	tbody th a {
+		color: inherit;
+		text-decoration-color: var(--gray-gray-500, #656667);
+		text-underline-offset: 3px;
+	}
+	tbody th a:hover {
+		text-decoration-thickness: 2px;
+	}
+	.num {
+		text-align: right;
+		font-variant-numeric: tabular-nums;
+	}
+	/* 통계의 숫자 링크처럼 밑줄은 가리키거나 키보드로 고를 때만 */
+	.count {
+		color: inherit;
+		text-decoration: none;
+		text-underline-offset: 3px;
+	}
+	.count:hover,
+	.count:focus-visible {
+		text-decoration: underline;
+	}
+	td.unknown {
+		color: var(--gray-gray-500, #9f9f9f);
+	}
+	.era-note {
+		margin-left: 6px;
+		font-size: 12px;
+		color: var(--gray-gray-600, #7c7c7c);
+	}
+	th.era {
+		width: 22%;
+	}
+	th.year {
+		width: 28%;
+	}
+	th.num {
+		width: 10%;
+	}
+	th.actions {
+		width: 130px;
+	}
+	.actions {
+		text-align: right;
+		white-space: nowrap;
+	}
+	.buttons {
+		display: flex;
+		justify-content: flex-end;
+		gap: 6px;
+	}
+	.field-error {
+		margin-top: 4px;
+		font-size: 12px;
+	}
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
+	}
+	/* 인쇄에는 모든 작곡가를 싣는다(한 화면만큼 자르지 않는다) */
+	@media print {
+		:global(.list-scroll) {
+			max-height: none !important;
+			overflow: visible !important;
+		}
+		/* 선곡 기록·학기 결산과 같다: 사이드바·레이아웃의 규칙은 컴포넌트 범위라 !important 로 이겨 A4 폭에 제 크기로 싣는다 */
+		:global(.side-bar) {
+			display: none !important;
+		}
+		:global(html),
+		:global(body),
+		:global(.screen),
+		:global(.app) {
+			min-width: 0 !important;
+		}
+		.catalog-page {
+			padding: 0;
+		}
+		.card {
+			box-shadow: none;
+		}
+		/* 검색어는 개수 줄에 남는다. 수정 열은 머리 칸과 수정·저장·취소 칸을 모두 빼 빈 열이 남지 않게 한다 */
+		.page-link,
+		.view-toggle,
+		.search,
+		.era-filter,
+		.sort-toggle,
+		.csv-save,
+		.actions,
+		.placeholder .tool-btn {
+			display: none;
+		}
+		/* 개수 줄의 '시대 미상 N명' 링크는 글자로 싣는다 */
+		.result-count a {
+			color: inherit;
+			text-decoration: none;
+		}
+		/* 이름은 낱말 사이에서만 줄을 바꾼다(선곡 기록과 같다) */
+		table {
+			word-break: keep-all;
+		}
+	}
+</style>

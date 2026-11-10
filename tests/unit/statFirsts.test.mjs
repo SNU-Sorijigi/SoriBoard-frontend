@@ -1,0 +1,218 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import {
+	hasPeriodStart,
+	firstsSubtitle,
+	firstsEmptyText,
+	byCount,
+	firstDayHref,
+	workDateLinks
+} from '../../src/lib/statFirsts.js';
+import { readHistoryQuery } from '../../src/lib/playHistory.js';
+
+test('a view has a period start for a 학기, and for 이번 학기 or 직접 지정 with a start', () => {
+	assert.equal(hasPeriodStart({ period: 'current', start: '2026-09-01' }), true);
+	assert.equal(hasPeriodStart({ period: 'current', start: '' }), false);
+	assert.equal(hasPeriodStart({ period: '7' }), true);
+	assert.equal(hasPeriodStart({ period: '7', start: '' }), true);
+	assert.equal(hasPeriodStart({ period: 'custom', start: '2026-10-01' }), true);
+	assert.equal(hasPeriodStart({ period: 'custom', start: '' }), false);
+	assert.equal(hasPeriodStart({ period: 'custom' }), false);
+	assert.equal(hasPeriodStart({ period: 'all' }), false);
+	assert.equal(hasPeriodStart({ period: 'all', start: '2026-09-01' }), false);
+});
+
+test('the subtitle names the view and how many were played for the first time', () => {
+	const items = (n) => ({ items: Array.from({ length: n }, (_, i) => ({ id: i })) });
+	assert.equal(
+		firstsSubtitle('2025-2학기 · 전체', items(18), '곡', '곡'),
+		'2025-2학기 · 전체 · 클럽에서 처음 튼 곡 18곡'
+	);
+	assert.equal(
+		firstsSubtitle('2025-2학기 · 가상이', items(3), '곡', '곡'),
+		'2025-2학기 · 가상이 · 클럽에서 처음 튼 곡 3곡'
+	);
+	assert.equal(
+		firstsSubtitle('이번 학기 · 전체', items(0), '작곡가', '명'),
+		'이번 학기 · 전체 · 클럽에서 처음 튼 작곡가 0명'
+	);
+	assert.equal(
+		firstsSubtitle('이번 학기 · 전체', items(1), '작곡가', '명'),
+		'이번 학기 · 전체 · 클럽에서 처음 튼 작곡가 1명'
+	);
+	assert.equal(
+		firstsSubtitle('전체', items(1234), '곡', '곡'),
+		'전체 · 클럽에서 처음 튼 곡 1,234곡'
+	);
+});
+
+test('while loading the subtitle has no count and no stray separator', () => {
+	assert.equal(
+		firstsSubtitle('이번 학기 · 전체', null, '곡', '곡'),
+		'이번 학기 · 전체 · 클럽에서 처음 튼 곡'
+	);
+	assert.equal(firstsSubtitle('', undefined, '작곡가', '명'), '클럽에서 처음 튼 작곡가');
+});
+
+test('with a 학기 chosen the subtitle ends with the previous 학기 count', () => {
+	const items = (n) => ({ items: Array.from({ length: n }, (_, i) => ({ id: i })) });
+	assert.equal(
+		firstsSubtitle('2025-2학기 · 전체', items(18), '곡', '곡', items(12)),
+		'2025-2학기 · 전체 · 클럽에서 처음 튼 곡 18곡 · 지난 학기 12곡'
+	);
+	assert.equal(
+		firstsSubtitle('2025-2학기 · 가상이', items(3), '작곡가', '명', items(0)),
+		'2025-2학기 · 가상이 · 클럽에서 처음 튼 작곡가 3명 · 지난 학기 0명'
+	);
+	assert.equal(
+		firstsSubtitle('2025-2학기 · 전체', items(5), '곡', '곡', items(1234)),
+		'2025-2학기 · 전체 · 클럽에서 처음 튼 곡 5곡 · 지난 학기 1,234곡'
+	);
+	assert.equal(
+		firstsSubtitle('', items(2), '작곡가', '명', items(4)),
+		'클럽에서 처음 튼 작곡가 2명 · 지난 학기 4명'
+	);
+});
+
+test('the previous count waits for this 학기 count and is left out when missing', () => {
+	const items = (n) => ({ items: Array.from({ length: n }, (_, i) => ({ id: i })) });
+	assert.equal(
+		firstsSubtitle('2025-2학기 · 전체', null, '곡', '곡', items(12)),
+		'2025-2학기 · 전체 · 클럽에서 처음 튼 곡'
+	);
+	assert.equal(
+		firstsSubtitle('2025-2학기 · 전체', items(18), '곡', '곡', null),
+		'2025-2학기 · 전체 · 클럽에서 처음 튼 곡 18곡'
+	);
+	assert.equal(
+		firstsSubtitle('2025-2학기 · 전체', items(18), '곡', '곡', undefined),
+		'2025-2학기 · 전체 · 클럽에서 처음 튼 곡 18곡'
+	);
+});
+
+test('an empty list says there is none in this period, with the previous 학기 count when given', () => {
+	const items = (n) => ({ items: Array.from({ length: n }, (_, i) => ({ id: i })) });
+	assert.equal(firstsEmptyText('처음 튼 곡', '곡'), '처음 튼 곡 — 이 기간에는 없습니다');
+	assert.equal(firstsEmptyText('처음 튼 곡', '곡', null), '처음 튼 곡 — 이 기간에는 없습니다');
+	assert.equal(
+		firstsEmptyText('처음 튼 작곡가', '명', undefined),
+		'처음 튼 작곡가 — 이 기간에는 없습니다'
+	);
+	assert.equal(
+		firstsEmptyText('처음 튼 곡', '곡', items(12)),
+		'처음 튼 곡 — 이 기간에는 없습니다 · 지난 학기 12곡'
+	);
+	assert.equal(
+		firstsEmptyText('처음 튼 곡', '곡', items(0)),
+		'처음 튼 곡 — 이 기간에는 없습니다 · 지난 학기 0곡'
+	);
+	assert.equal(
+		firstsEmptyText('처음 튼 작곡가', '명', items(1234)),
+		'처음 튼 작곡가 — 이 기간에는 없습니다 · 지난 학기 1,234명'
+	);
+});
+
+test('많이 튼 순 puts the most-played first and keeps the received order for equal counts', () => {
+	const firsts = {
+		items: [
+			{ id: 1, name: '가', first_played: '2026-09-01', count: 1 },
+			{ id: 2, name: '나', first_played: '2026-09-02', count: 5 },
+			{ id: 3, name: '다', first_played: '2026-09-03', count: 5 }
+		]
+	};
+	assert.deepEqual(
+		byCount(firsts).items.map((item) => item.first_played),
+		['2026-09-02', '2026-09-03', '2026-09-01']
+	);
+	// 받은 목록은 그대로다.
+	assert.deepEqual(
+		firsts.items.map((item) => item.id),
+		[1, 2, 3]
+	);
+});
+
+test('많이 튼 순 has nothing to sort before the list is there, and an empty list stays empty', () => {
+	assert.equal(byCount(null), null);
+	assert.equal(byCount(undefined), null);
+	assert.deepEqual(byCount({ items: [] }), { items: [] });
+});
+
+test('a 처음 튼 날 opens that one day of the composer or piece in 선곡 기록, with every 지기', () => {
+	const work = firstDayHref('work', 20, '2026-03-12');
+	const url = new URL(work, 'http://x');
+	assert.equal(url.pathname, '/stat/history');
+	assert.deepEqual(Object.fromEntries(url.searchParams), {
+		start: '2026-03-12',
+		end: '2026-03-12',
+		music_id: '20'
+	});
+	const read = readHistoryQuery(url.searchParams);
+	assert.equal(read.period, 'custom');
+	assert.equal(read.start, '2026-03-12');
+	assert.equal(read.end, '2026-03-12');
+	assert.equal(read.userId, null);
+	assert.deepEqual(read.targets, [{ param: 'music_id', id: '20' }]);
+
+	const composer = new URL(firstDayHref('composer', 7, '2025-09-01'), 'http://x').searchParams;
+	assert.equal(composer.get('composer_id'), '7');
+	assert.equal(composer.has('music_id'), false);
+	assert.equal(composer.get('start'), '2025-09-01');
+	assert.equal(composer.get('end'), '2025-09-01');
+
+	for (const params of [url.searchParams, composer]) {
+		for (const key of ['user_id', 'include_mentees', 'q', 'requested', 'semester_id', 'period']) {
+			assert.equal(params.has(key), false, key);
+		}
+	}
+});
+
+test('a 처음 튼 날 without a known kind, a positive id or a YYYY-MM-DD date stays text', () => {
+	assert.equal(firstDayHref('player', 20, '2026-03-12'), null);
+	for (const id of [0, -1, 1.5, '20', null, undefined, NaN, Number.MAX_SAFE_INTEGER + 1]) {
+		assert.equal(firstDayHref('work', id, '2026-03-12'), null, String(id));
+	}
+	for (const date of ['', '2026-3-12', 'None', undefined, null, '2026-02-30', 20260312]) {
+		assert.equal(firstDayHref('composer', 7, date), null, String(date));
+	}
+});
+
+test('a piece table links each 처음 and 마지막 date to that day of the piece, with every 지기', () => {
+	const items = [
+		{ id: 20, first_played: '2025-09-01', last_played: '2026-03-10' },
+		{ id: 21, first_played: '2026-03-20', last_played: '2026-04-22' }
+	];
+	const links = workDateLinks(items);
+	assert.deepEqual(Object.keys(links), ['3', '4']);
+	assert.deepEqual(links[3].hrefs, [
+		firstDayHref('work', 20, '2025-09-01'),
+		firstDayHref('work', 21, '2026-03-20')
+	]);
+	assert.deepEqual(links[4].hrefs, [
+		firstDayHref('work', 20, '2026-03-10'),
+		firstDayHref('work', 21, '2026-04-22')
+	]);
+	assert.equal(links[3].title, '이 날 처음 튼 선곡 보기');
+	assert.equal(links[4].title, '이 날 마지막으로 튼 선곡 보기');
+
+	const last = new URL(links[4].hrefs[1], 'http://x');
+	assert.equal(last.pathname, '/stat/history');
+	assert.deepEqual(Object.fromEntries(last.searchParams), {
+		start: '2026-04-22',
+		end: '2026-04-22',
+		music_id: '21'
+	});
+	assert.equal(last.searchParams.has('user_id'), false);
+
+	const plain = workDateLinks([
+		{ id: 20, first_played: null, last_played: undefined },
+		{ id: 20, first_played: '—', last_played: '2026-02-30' },
+		{ id: 0, first_played: '2026-03-20', last_played: '2026-04-22' },
+		{ id: '20', first_played: '2026-03-20', last_played: '2026-04-22' }
+	]);
+	assert.deepEqual(plain[3].hrefs, [null, null, null, null]);
+	assert.deepEqual(plain[4].hrefs, [null, null, null, null]);
+
+	const none = workDateLinks([]);
+	assert.deepEqual(none[3].hrefs, []);
+	assert.deepEqual(none[4].hrefs, []);
+});

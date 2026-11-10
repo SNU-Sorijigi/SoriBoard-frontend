@@ -1,0 +1,185 @@
+<script>
+	import {
+		sessionText,
+		workText,
+		workParts,
+		performersText,
+		recordingParts,
+		jigiEntries,
+		jigiHistoryHref,
+		playWorkHref
+	} from '$lib/playHistory.js';
+	import { composerHref } from '$lib/composerStats.js';
+	import MarkedText from './MarkedText.svelte';
+
+	// 선곡 기록의 결과 표. 음반 칸은 음반 번호 아래에 음원 종류를 작게 둔다. 날짜·타임은 그 타임 화면으로, 작곡가는 그 작곡가 페이지로,
+	// 곡 제목은 그 곡의 선곡 기록으로, 지기 이름은 그 지기만 고른 선곡 기록으로 가는 링크다.
+	/** @type {import('$lib/playHistory.js').Play[]} */
+	export let rows = [];
+	export let label = '선곡 기록';
+	// 작곡가 링크가 열 기간과 지기({ period, start, end, userId, includeMentees }, composerHref 와 같다).
+	// 없으면 전체 기간·전체 지기.
+	/** @type {import('$lib/composerStats.js').ComposerPeriod | undefined} */
+	export let composerPeriod = undefined;
+	// 목록의 조건(기간·검색어·지기·신청곡·id 필터), 곡 제목과 지기 이름 링크에 쓴다. 곡 제목 링크는 검색어와
+	// 신청곡을 뺀다. 없으면 전체 기간·전체 지기, 필터 없음.
+	/** @type {import('$lib/playHistory.js').HistoryFilter} */
+	export let listView = {
+		period: 'all',
+		start: '',
+		end: '',
+		q: '',
+		userId: null,
+		includeMentees: false,
+		requested: '',
+		targets: []
+	};
+	// 지기 목록(MemberSelect 가 받은 /api/user/). 이름을 그 지기의 id 로 잇는다. 비었으면 이름은 글자로만 둔다.
+	/** @type {{ id: number | string, name: string }[]} */
+	export let users = [];
+	// 보이는 행이 답한 검색어. 있으면 백엔드가 찾는 칸(작곡가·곡 제목·세부 제목·연주)에서 그 말을 표시한다.
+	export let q = '';
+</script>
+
+<table aria-label={label}>
+	<thead>
+		<tr>
+			<th scope="col">날짜·타임</th>
+			<th scope="col">곡</th>
+			<th scope="col">연주</th>
+			<th scope="col" class="narrow">음반</th>
+			<th scope="col">지기</th>
+			<th scope="col" class="narrow">신청곡</th>
+		</tr>
+	</thead>
+	<tbody>
+		{#each rows as play (play.id)}
+			{@const work = workParts(play)}
+			{@const recording = recordingParts(play)}
+			{@const workLink = playWorkHref(play, listView)}
+			<tr>
+				<th scope="row" class="session">
+					<a href={`/time_manage/${play.time_id}`} title="이 타임 열기">{sessionText(play)}</a>
+				</th>
+				<td>
+					{#if work.composer || work.title}
+						<!-- 곡 제목 링크는 선곡 기록 자신으로 간다. 그 페이지는 URL을 처음 한 번만 읽으므로 새로 불러온다 -->
+						<div>
+							{#if work.composerId}<a
+									class="composer"
+									href={composerHref(work.composerId, composerPeriod)}
+									title="이 작곡가 페이지 열기"><MarkedText text={work.composer} {q} /></a
+								>{:else}<MarkedText
+									text={work.composer}
+									{q}
+								/>{/if}{#if work.composer && work.title}{' - '}{/if}{#if workLink}<a
+									class="work"
+									href={workLink}
+									data-sveltekit-reload
+									title="이 곡의 선곡 기록 보기"><MarkedText text={work.title} {q} /></a
+								>{:else}<MarkedText text={work.title} {q} />{/if}
+						</div>
+					{:else}
+						<div class="missing">{workText(play)}</div>
+					{/if}
+					{#if play.music_semi_title}
+						<div class="semi"><MarkedText text={play.music_semi_title} {q} /></div>
+					{/if}
+				</td>
+				<td><MarkedText text={performersText(play)} {q} /></td>
+				<td>
+					{#if recording.number}<div class="recording">{recording.number}</div>{/if}
+					{#if recording.source}<div class="semi recording">{recording.source}</div>{/if}
+				</td>
+				<td>
+					<!-- 지기 이름 링크도 선곡 기록 자신으로 가므로 새로 불러온다 -->
+					{#each jigiEntries(play) as jigi, i}{@const jigiLink = jigiHistoryHref(
+							jigi.name,
+							jigi.mentee,
+							users,
+							listView
+						)}{#if i}{', '}{/if}{#if jigiLink}<a
+								class="jigi"
+								href={jigiLink}
+								data-sveltekit-reload
+								title={jigi.mentee ? '이 지기의 선곡만 보기 (견습 포함)' : '이 지기의 선곡만 보기'}
+								>{jigi.text}</a
+							>{:else}<span class="jigi">{jigi.text}</span>{/if}{/each}
+				</td>
+				<td class="narrow">{play.is_requested ? '신청곡' : ''}</td>
+			</tr>
+		{/each}
+	</tbody>
+</table>
+
+<style>
+	/* DataTable(표로 보기)과 같은 글꼴·선·머리줄 */
+	table {
+		width: 100%;
+		border-collapse: collapse;
+		font-family: var(--small-medium-font-family, 'Noto Sans KR', sans-serif);
+		font-size: var(--small-medium-font-size, 13px);
+		color: var(--gray-gray-950, #1a1a1a);
+	}
+	th,
+	td {
+		padding: 6px 10px;
+		text-align: left;
+		vertical-align: top;
+		border-bottom: 1px solid var(--gray-gray-300, #d4d4d4);
+	}
+	tbody th {
+		font-weight: 400;
+	}
+	thead th {
+		position: sticky;
+		top: 0;
+		background: var(--secondary-secondary-100, #fef9f3);
+		color: var(--gray-gray-600, #7c7c7c);
+		font-weight: 500;
+	}
+	tbody tr:last-child > * {
+		border-bottom: none;
+	}
+	.session {
+		white-space: nowrap;
+		font-variant-numeric: tabular-nums;
+	}
+	.session a,
+	.composer,
+	.work,
+	a.jigi {
+		color: inherit;
+		text-decoration-color: var(--gray-gray-500, #656667);
+		text-underline-offset: 3px;
+	}
+	.session a:hover,
+	.composer:hover,
+	.work:hover,
+	a.jigi:hover {
+		text-decoration-thickness: 2px;
+	}
+	.semi {
+		margin-top: 2px;
+		font-size: 12px;
+		color: var(--gray-gray-600, #7c7c7c);
+	}
+	.missing {
+		color: var(--gray-gray-500, #9f9f9f);
+	}
+	/* 음반 번호·음원 종류(각 20자 이내)는 한 줄로 */
+	.recording {
+		white-space: nowrap;
+	}
+	/* 이름은 글자 사이에서 끊지 않고, 여러 지기면 이름 사이에서만 줄을 바꾼다 */
+	.jigi {
+		white-space: nowrap;
+	}
+	.narrow {
+		width: 1%;
+		white-space: nowrap;
+	}
+	td.narrow {
+		color: var(--primary-primary-800, #6a5134);
+	}
+</style>

@@ -6,6 +6,8 @@
 // 모든 색은 Pantone 2026 공식 스와치 값 그대로다(혼합·투명도·파생 색 없음).
 // ECharts 가 기본값으로 칠하는 색(축, 격자, 툴팁, 호버 강조)도 모두 스와치로 지정한다.
 
+import { SHARE_PRECISION, formatEvenness, formatShare } from './statTable.js';
+
 const ACCENT = '#DBD2DB'; // Orchid Tint 13-3802 TCX (= --action-bg / --primary-primary-600)
 const TEXT = '#2B2C30'; // Stretch Limo 19-4005 TCX (= --gray-gray-950)
 const SUBTEXT = '#656667'; // Micron 20-0007 TPM (= --gray-gray-600)
@@ -13,6 +15,12 @@ const GRID = '#D5D5D8'; // Nimbus Cloud 13-4108 TCX (= --gray-gray-300)
 const PANEL = '#F0EEE9'; // Cloud Dancer 11-4201 TCX (= --secondary-secondary-100)
 const OUTLINE = TEXT; // 옅은 파스텔 막대·조각이 흰 배경에서 보이도록 1px 윤곽선
 const FONT = "'Noto Sans KR', sans-serif";
+// 이름이 적은 카드도 가로 막대가 카드 높이만큼 두꺼워지지 않게, 이름 7개 카드의 굵기로 묶는다
+// (윤곽선까지 25px, 안쪽 색 22px).
+const BAR_MAX = 25;
+// 칸이 적은 세로 선곡 수 막대가 카드만큼 넓어지지 않게 묶는다. 1280px 에서 한 학기(6개월) 월별 막대는 윤곽선까지
+// 56~57px(안쪽 색 54px)이라, 조금 넉넉한 58px 이면 그 차트는 그대로다.
+const COLUMN_MAX = 58;
 
 // 시대/다계열 차트용 카테고리 팔레트: Powdered Pastels 8색.
 // 서로 가장 잘 구분되는 5색을 앞에 둔다(5계열 이하 도넛에서 비슷한 색이 이웃하지 않도록).
@@ -64,16 +72,65 @@ function titleBlock(title, subtitle) {
 
 const BASE_TEXT_STYLE = { fontFamily: FONT, color: TEXT };
 
+// 라인 차트(boundaryGap: false)의 첫·마지막 x 이름표는 양 끝 점 가운데에 놓여 절반이 캔버스 밖으로
+// 잘린다('2026-2학기', '2026-10-19'). 끝 이름표만 안쪽으로 붙여 정렬한다.
+const EDGE_LABELS_INSIDE = { alignMinLabel: 'left', alignMaxLabel: 'right' };
+
+// 시간 축은 마지막(가장 최근) 버킷 이름을 늘 그린다. ECharts 는 첫 이름부터 n 개마다 그려서 간격이 맞을
+// 때만 마지막 이름이 보이고, 진행 중인 버킷의 '(진행 중)' 이 숨는다. 겹치면 그 앞 이름이 빠진다.
+const LAST_NAME_SHOWN = { showMaxLabel: true };
+
+// 라인 차트는 첫(가장 이른) 버킷 이름도 늘 그린다. 선이 시작하는 날짜와 기간이 자른 첫 주의 '(3/3부터)' 가
+// 숨지 않도록. ECharts 는 첫 이름을 가운데 정렬로 어림해 다음 이름과 겹친다며 빼는데, 이제는 겹치는 이웃 이름이 빠진다.
+const FIRST_NAME_SHOWN = { showMinLabel: true, hideOverlap: true };
+
+// 시간 축 x 이름표 끝의 표시('2026-10-26 (진행 중)', '2026-08-31 (8/31까지)', statBucket.js 의 timelineView)는
+// 날짜 밑 둘째 줄에 둔다. 한 줄로 길어지면 ECharts 가 축 이름을 솎아 내 표시하려던 바로 그 이름이 숨는다.
+// 그리는 이름만 바뀌고 카테고리 값(툴팁, 표로 보기, CSV)은 그대로다. 시간 축에만 쓴다(순위 막대의
+// '(피아노)' 같은 이름에는 쓰지 않는다).
+/** @param {string | number} value */
+const twoLineName = (value) => String(value).replace(/ (\([^()]*\))$/, '\n$1');
+
+// 툴팁은 HTML 로 그려지므로 이름을 이스케이프한다(ECharts 의 문자열 템플릿이 하던 일).
+/** @param {string} s */
+const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+
+// 막대 툴팁: ECharts 기본 축 툴팁(이름, 표식과 굵은 값)과 같은 모양에, 그 막대의 note 가 있으면
+// 한 줄 더(Micron). notes 는 막대 순서(뒤집힌 순서)이고, 축 툴팁은 params 를 배열로 준다.
+function barTooltip(notes) {
+	const row = (html) =>
+		`<div style="margin:10px 0 0;line-height:1">${html}<div style="clear:both"></div></div>`;
+	return (params) => {
+		const p = Array.isArray(params) ? params[0] : params;
+		const note = notes[p.dataIndex];
+		const value = escapeHtml(Number(p.value).toLocaleString('en-US'));
+		return (
+			`<div style="line-height:1">${escapeHtml(p.name)}</div>` +
+			row(`${p.marker}<span style="float:right;margin-left:10px;font-weight:900">${value}</span>`) +
+			(note ? row(`<span style="font-size:12px;color:${SUBTEXT}">${escapeHtml(note)}</span>`) : '')
+		);
+	};
+}
+
 // 가로 막대 (top-N): composers / works / conductors / orchestras 공용.
-export function horizontalBarOption({ labels, values }, title, subtitle) {
+// notes(1위부터, 막대마다 한 줄 또는 '')를 주면 툴팁에 덧붙인다(지난 학기 순위). 없으면 기본 툴팁.
+// 이름은 nameWidth px(기본 160)에서 잘린다. 곡 이름(`작곡가 - 곡`)은 더 넓어야 한다.
+export function horizontalBarOption(
+	{ labels, values },
+	title,
+	subtitle,
+	notes = null,
+	nameWidth = 160
+) {
 	// ECharts category 축은 아래에서 위로 그려지므로 역순으로 넣어 1위가 맨 위로.
 	const cats = [...labels].reverse();
 	const vals = [...values].reverse();
+	const formatter = notes ? { formatter: barTooltip([...notes].reverse()) } : {};
 	return {
 		title: titleBlock(title, subtitle),
 		textStyle: BASE_TEXT_STYLE,
 		grid: { left: 8, right: 48, top: subtitle ? 70 : 56, bottom: 16, containLabel: true },
-		tooltip: { trigger: 'axis', axisPointer: BAND_POINTER, ...TOOLTIP_BOX },
+		tooltip: { trigger: 'axis', axisPointer: BAND_POINTER, ...TOOLTIP_BOX, ...formatter },
 		xAxis: {
 			type: 'value',
 			axisLabel: { fontFamily: FONT, color: SUBTEXT },
@@ -82,13 +139,21 @@ export function horizontalBarOption({ labels, values }, title, subtitle) {
 		yAxis: {
 			type: 'category',
 			data: cats,
+			triggerEvent: true, // 이름을 눌러도 그 막대를 누른 것으로(drill-down)
 			axisLine: AXIS_LINE,
-			axisLabel: { fontFamily: FONT, color: TEXT, fontSize: 12, width: 160, overflow: 'truncate' }
+			axisLabel: {
+				fontFamily: FONT,
+				color: TEXT,
+				fontSize: 12,
+				width: nameWidth,
+				overflow: 'truncate'
+			}
 		},
 		series: [
 			{
 				type: 'bar',
 				data: vals,
+				barMaxWidth: BAR_MAX,
 				itemStyle: {
 					color: ACCENT,
 					borderColor: OUTLINE,
@@ -102,6 +167,17 @@ export function horizontalBarOption({ labels, values }, title, subtitle) {
 	};
 }
 
+// 막대 하나(dataIndex)를 Micron 으로 칠한 사본: 통계에서 drill-down 패널이 보이는 대상의 막대. 범위 밖이면 그대로.
+// 항목의 itemStyle 은 계열의 것에 덧씌워지므로 윤곽선·모서리·값 표시는 다른 막대와 같다.
+export function markBar(option, dataIndex) {
+	const series = option?.series?.[0];
+	if (!Array.isArray(series?.data) || !Number.isInteger(dataIndex)) return option;
+	if (dataIndex < 0 || dataIndex >= series.data.length) return option;
+	const data = [...series.data];
+	data[dataIndex] = { value: data[dataIndex], itemStyle: { color: SUBTEXT } };
+	return { ...option, series: [{ ...series, data }, ...option.series.slice(1)] };
+}
+
 // 추이 라인 (timeline)
 export function timelineOption({ labels, values }, title, subtitle) {
 	return {
@@ -113,8 +189,16 @@ export function timelineOption({ labels, values }, title, subtitle) {
 			type: 'category',
 			data: labels,
 			boundaryGap: false,
+			triggerEvent: true, // 날짜를 눌러도 그 점·막대를 누른 것으로(그 기간의 선곡 기록)
 			axisLine: AXIS_LINE,
-			axisLabel: { fontFamily: FONT, color: TEXT }
+			axisLabel: {
+				fontFamily: FONT,
+				color: TEXT,
+				...EDGE_LABELS_INSIDE,
+				...LAST_NAME_SHOWN,
+				...FIRST_NAME_SHOWN,
+				formatter: twoLineName
+			}
 		},
 		yAxis: {
 			type: 'value',
@@ -143,13 +227,30 @@ export function countBarOption({ labels, values }, title, subtitle) {
 	return {
 		title: titleBlock(title, subtitle),
 		textStyle: BASE_TEXT_STYLE,
-		grid: { left: 8, right: 16, top: subtitle ? 70 : 56, bottom: 24, containLabel: true },
+		// 축 이름은 막대 밑 가운데에 놓인다. containLabel 은 견본 이름으로 크기를 어림해, 막대가 가는 긴 주별
+		// 차트에서 첫 이름('2024-03-04')과 늘 그리는 마지막 이름이 캔버스 밖으로 잘렸다. outerBounds 는 그려진
+		// 이름을 모두 재서 그만큼만 그리드를 줄인다.
+		grid: {
+			left: 8,
+			right: 16,
+			top: subtitle ? 70 : 56,
+			bottom: 24,
+			outerBoundsMode: 'same',
+			outerBoundsContain: 'axisLabel'
+		},
 		tooltip: { trigger: 'axis', axisPointer: BAND_POINTER, ...TOOLTIP_BOX },
 		xAxis: {
 			type: 'category',
 			data: labels,
+			triggerEvent: true, // 날짜를 눌러도 그 점·막대를 누른 것으로(그 기간의 선곡 기록)
 			axisLine: AXIS_LINE,
-			axisLabel: { fontFamily: FONT, color: TEXT, hideOverlap: true }
+			axisLabel: {
+				fontFamily: FONT,
+				color: TEXT,
+				hideOverlap: true,
+				...LAST_NAME_SHOWN,
+				formatter: twoLineName
+			}
 		},
 		yAxis: {
 			type: 'value',
@@ -161,6 +262,7 @@ export function countBarOption({ labels, values }, title, subtitle) {
 			{
 				type: 'bar',
 				data: values,
+				barMaxWidth: COLUMN_MAX,
 				itemStyle: {
 					color: ACCENT,
 					borderColor: OUTLINE,
@@ -173,16 +275,22 @@ export function countBarOption({ labels, values }, title, subtitle) {
 	};
 }
 
-// 다양성 추이 라인 (0~1 고른정도 여러 계열)
+// 다양성 추이 라인 (0~1 고른정도 여러 계열, 축과 툴팁은 칸처럼 % 로)
 export function diversityLineOption(labels, series, title, subtitle) {
 	return {
 		title: titleBlock(title, subtitle),
 		textStyle: BASE_TEXT_STYLE,
 		color: CATEGORICAL,
-		grid: { left: 8, right: 16, top: subtitle ? 86 : 72, bottom: 24, containLabel: true },
-		tooltip: { trigger: 'axis', axisPointer: LINE_POINTER, ...TOOLTIP_BOX },
+		// 범례는 부제(위에서 약 45~62px) 밑에 둔다. 48 이면 부제 위에 겹친다.
+		grid: { left: 8, right: 16, top: subtitle ? 104 : 72, bottom: 24, containLabel: true },
+		tooltip: {
+			trigger: 'axis',
+			axisPointer: LINE_POINTER,
+			...TOOLTIP_BOX,
+			valueFormatter: (v) => formatEvenness(Number.isFinite(v) ? v : null)
+		},
 		legend: {
-			top: subtitle ? 48 : 34,
+			top: subtitle ? 66 : 34,
 			inactiveColor: GRID,
 			inactiveBorderColor: GRID,
 			itemStyle: { borderColor: OUTLINE, borderWidth: 1 },
@@ -192,14 +300,23 @@ export function diversityLineOption(labels, series, title, subtitle) {
 			type: 'category',
 			data: labels,
 			boundaryGap: false,
+			triggerEvent: true, // 날짜를 눌러도 그 점·막대를 누른 것으로(그 기간의 선곡 기록)
 			axisLine: AXIS_LINE,
-			axisLabel: { fontFamily: FONT, color: TEXT, hideOverlap: true }
+			axisLabel: {
+				fontFamily: FONT,
+				color: TEXT,
+				hideOverlap: true,
+				...EDGE_LABELS_INSIDE,
+				...LAST_NAME_SHOWN,
+				...FIRST_NAME_SHOWN,
+				formatter: twoLineName
+			}
 		},
 		yAxis: {
 			type: 'value',
 			min: 0,
 			max: 1,
-			axisLabel: { fontFamily: FONT, color: SUBTEXT, formatter: (v) => v.toFixed(1) },
+			axisLabel: { fontFamily: FONT, color: SUBTEXT, formatter: formatEvenness },
 			splitLine: SPLIT_LINE
 		},
 		// 파스텔 선은 흰 배경에서 1.3~1.5:1 로 보이지 않으므로, 선은 진한 스와치(실선·점선)로 긋고
@@ -230,7 +347,11 @@ export function eraPieOption({ labels, values }, title, subtitle) {
 		title: titleBlock(title, subtitle),
 		textStyle: BASE_TEXT_STYLE,
 		color: CATEGORICAL,
-		tooltip: { trigger: 'item', formatter: '{b}: {c}곡 ({d}%)', ...TOOLTIP_BOX },
+		tooltip: {
+			trigger: 'item',
+			formatter: (p) => `${escapeHtml(p.name)}: ${p.value}곡 (${formatShare(p.percent)})`,
+			...TOOLTIP_BOX
+		},
 		legend: {
 			bottom: 0,
 			inactiveColor: GRID,
@@ -241,12 +362,24 @@ export function eraPieOption({ labels, values }, title, subtitle) {
 		series: [
 			{
 				type: 'pie',
-				radius: ['42%', '68%'],
-				center: ['50%', '54%'],
+				// 340px 카드에서 부제(~60px)와 범례(~320px) 사이에 조각 이름표(인출선 15px + 두 줄
+				// 글자)까지 들어가는 크기. 68% 일 때 아래쪽 조각의 이름표가 범례에 겹쳤다.
+				radius: ['36%', '58%'],
+				center: ['50%', '56%'],
 				avoidLabelOverlap: true,
+				// 비율은 '표로 보기'·학기 결산과 같이 소수 한 자리(statTable.js).
+				percentPrecision: SHARE_PRECISION,
 				itemStyle: { borderColor: OUTLINE, borderWidth: 1 },
 				emphasis: NO_EMPHASIS,
-				label: { fontFamily: FONT, color: TEXT, formatter: '{b}\n{d}%' },
+				// 조각을 눌러도 열리는 것이 없어 손가락 커서를 쓰지 않는다(조각·이름표).
+				// 조각이 무언가를 열게 되면(예: 백엔드 ?era=) 그 차트에서는 둘 다 뺀다.
+				cursor: 'default',
+				label: {
+					silent: true,
+					fontFamily: FONT,
+					color: TEXT,
+					formatter: (p) => `${p.name}\n${formatShare(p.percent)}`
+				},
 				labelLine: { lineStyle: { color: SUBTEXT } },
 				data
 			}

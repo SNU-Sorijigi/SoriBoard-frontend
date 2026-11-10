@@ -2,6 +2,7 @@
 	import { createEventDispatcher } from 'svelte';
 
 	export let scope = 'all'; // 'all' | 'individual'
+	export let label = '통계 범위'; // 묶음 이름(화면 낭독기). 학기 결산은 '학기 결산 범위'
 
 	const dispatch = createEventDispatcher();
 
@@ -13,7 +14,7 @@
 	}
 </script>
 
-<div class="toggle" role="group" aria-label="통계 범위">
+<div class="toggle" role="group" aria-label={label}>
 	<button
 		class:active={scope === 'all'}
 		aria-pressed={scope === 'all'}

@@ -1,0 +1,223 @@
+// 통계 카드의 '표로 보기'용 표. 차트(캔버스)는 키보드·화면 낭독기로 읽을 수 없으므로
+// 같은 수치를 표로도 보여 준다. 표 = { columns: [{ name, numeric }], rowHeader, rows: [[셀…]] }.
+// rowHeader 는 행의 이름 칸(<th scope="row">)의 위치, 셀은 화면에 그대로 쓰는 문자열이다.
+
+/** @typedef {{ name: string, numeric?: boolean }} Column */
+/** @typedef {{ columns: Column[], rowHeader: number, rows: string[][] }} Table */
+
+const DASH = '—';
+
+/** @param {number | null | undefined} v */
+export const formatCount = (v) => (v == null ? DASH : v.toLocaleString('ko-KR'));
+
+// 다양성(고른정도) 0~1 은 % 로, 정수로 반올림한다(0.4096 → 41%). 선곡 다양성 칸과 학기 결산,
+// 다양성 추이 차트의 축·툴팁과 같은 척도다.
+/** @param {number | null | undefined} v */
+export const formatEvenness = (v) => (v == null ? DASH : `${Math.round(v * 100)}%`);
+
+// 비율(시대·장르 도넛과 그 표, 학기 결산)은 소수 한 자리로, 0 도 붙여 쓴다(16.0%).
+export const SHARE_PRECISION = 1;
+/** @param {number} v */
+export const formatShare = (v) => `${v.toFixed(SHARE_PRECISION)}%`;
+
+// 다양성 응답의 summary.era·summary.genre → 그 고른정도. 센 선곡이 없으면(선곡이 없거나 모두
+// 시대 미상) 백엔드는 0(= 편중)을 돌려주지만, 잴 것이 없으므로 null(화면에서 '—')로 바꾼다.
+/** @param {{ values: number[], evenness: number } | null | undefined} group */
+export const groupEvenness = (group) =>
+	group && group.values.some((v) => v > 0) ? group.evenness : null;
+
+// 같은 횟수는 같은 순위, 다음 순위는 그만큼 건너뛴다(1, 2, 2, 4). values 는 많은 순이다.
+/** @param {number[]} values */
+export function competitionRanks(values) {
+	/** @type {number[]} */
+	const ranks = [];
+	values.forEach((v, i) => ranks.push(i > 0 && v === values[i - 1] ? ranks[i - 1] : i + 1));
+	return ranks;
+}
+
+// 도넛이 그리는 비율(%)과 같게: ECharts 의 최대 잔여 방식(소수 precision 자리, 합계 100).
+/**
+ * @param {number[]} values
+ * @param {number} [precision]
+ */
+export function sharePercents(values, precision = 2) {
+	const sum = values.reduce((acc, v) => acc + (v || 0), 0);
+	if (sum === 0) return values.map(() => 0);
+	const digits = 10 ** precision;
+	const quotas = values.map((v) => ((v || 0) / sum) * digits * 100);
+	const seats = quotas.map(Math.floor);
+	const remainders = quotas.map((q, i) => q - seats[i]);
+	let total = seats.reduce((acc, s) => acc + s, 0);
+	while (total < digits * 100) {
+		let best = 0;
+		for (let i = 1; i < remainders.length; i++) if (remainders[i] > remainders[best]) best = i;
+		seats[best]++;
+		remainders[best] = 0;
+		total++;
+	}
+	return seats.map((s) => s / digits);
+}
+
+// 순위 막대(작곡가·독주자·지휘자·오케스트라): 순위, 이름, 횟수.
+/**
+ * @param {{ labels: string[], values: number[] }} data
+ * @param {string} nameHeader
+ * @returns {Table}
+ */
+export function rankTable({ labels, values }, nameHeader) {
+	const ranks = competitionRanks(values);
+	return {
+		columns: [
+			{ name: '순위', numeric: true },
+			{ name: nameHeader },
+			{ name: '횟수', numeric: true }
+		],
+		rowHeader: 1,
+		rows: labels.map((label, i) => [String(ranks[i]), label, formatCount(values[i])])
+	};
+}
+
+// 순위 응답(labels·values·items)의 앞 n개: 차트는 상위 n개만, 표로 보기·CSV는 응답 전체를 싣는다.
+/**
+ * @template {{ labels: string[], values: number[], items: unknown[] }} T
+ * @param {T | null | undefined} envelope
+ * @param {number} n
+ * @returns {T | null | undefined}
+ */
+export function topOf(envelope, n) {
+	if (!envelope) return envelope;
+	const { labels, values, items } = envelope;
+	return {
+		...envelope,
+		labels: labels.slice(0, n),
+		values: values.slice(0, n),
+		items: items.slice(0, n)
+	};
+}
+
+// 순위 표가 백엔드의 상한(cap)까지 찼으면 잘렸을 수 있다. total 은 같은 기간·필터의 요약(stats/summary)이
+// 세는 전체 수(KPI 칸의 숫자)다. 그것이 표의 줄 수보다 많지 않으면 표에 모두 있으므로 잘린 것이 아니다.
+// total 을 모르면(요약을 불러오는 중, 실패, 그 칸이 없는 응답) 잘렸다고 본다.
+const isCount = (v) => typeof v === 'number' && Number.isFinite(v);
+/**
+ * @param {{ items: unknown[] } | null | undefined} envelope
+ * @param {number} cap
+ * @param {number | null | undefined} [total]
+ */
+const rankIsCut = (envelope, cap, total) =>
+	!!envelope && envelope.items.length >= cap && !(isCount(total) && total <= envelope.items.length);
+
+// 잘린 순위 표는 카드 아래에 어디까지 실었는지, total 을 알면 몇 중인지도 적는다:
+// '표로 보기·CSV는 상위 100위까지 (작곡가 312명 중)'. label 은 [이름, 단위] (예: ['작곡가', '명']).
+/**
+ * @param {{ items: unknown[] } | null | undefined} envelope
+ * @param {number} cap
+ * @param {number | null | undefined} [total]
+ * @param {[string, string]} [label]
+ */
+export function rankCapNote(envelope, cap, total, label) {
+	if (!rankIsCut(envelope, cap, total)) return '';
+	const note = `표로 보기·CSV는 상위 ${cap}위까지`;
+	return isCount(total) && label
+		? `${note} (${label[0]} ${formatCount(total)}${label[1]} 중)`
+		: note;
+}
+
+// 같은 판단을 부제목 꼬리로: ' · 상위 100곡 (212곡 중)', total 을 모르면 ' · 상위 100곡', 잘리지 않았으면 ''.
+/**
+ * @param {{ items: unknown[] } | null | undefined} envelope
+ * @param {number} cap
+ * @param {number | null | undefined} total
+ * @param {string} unit
+ */
+export function rankCapSubtitle(envelope, cap, total, unit) {
+	if (!rankIsCut(envelope, cap, total)) return '';
+	return ` · 상위 ${cap}${unit}` + (isCount(total) ? ` (${formatCount(total)}${unit} 중)` : '');
+}
+
+// 도넛(시대·장르): 이름, 횟수, 비율.
+/**
+ * @param {{ labels: string[], values: number[] }} data
+ * @param {string} nameHeader
+ * @returns {Table}
+ */
+export function shareTable({ labels, values }, nameHeader) {
+	const shares = sharePercents(values, SHARE_PRECISION);
+	return {
+		columns: [
+			{ name: nameHeader },
+			{ name: '횟수', numeric: true },
+			{ name: '비율', numeric: true }
+		],
+		rowHeader: 0,
+		rows: labels.map((label, i) => [label, formatCount(values[i]), formatShare(shares[i])])
+	};
+}
+
+// 시대별 분포 카드의 경고: 시대 미상이 20%를 넘으면 그 비율을 알린다. 비율은 같은 카드의 표
+// (shareTable)의 '미상' 칸과 같은 수(최대 잔여 방식, 소수 한 자리)로 쓴다. '미상'이 라벨에 없으면
+// 백엔드의 unknown_share 를 그대로 쓴다.
+/** @param {{ labels: string[], values: number[], unknown_share: number } | null | undefined} eras */
+export function unknownEraNote(eras) {
+	if (!eras || !(eras.unknown_share > 0.2)) return '';
+	const i = eras.labels.indexOf('미상');
+	const share = i >= 0 ? sharePercents(eras.values, SHARE_PRECISION)[i] : eras.unknown_share * 100;
+	return `시대 미상 비율 ${formatShare(share)} — 일부 작곡가 데이터 미반영`;
+}
+
+// 시계열(선곡 추이·선곡 수·다양성 추이): 기간과 계열마다 한 칸.
+/**
+ * @param {string[]} labels
+ * @param {string} labelHeader
+ * @param {{ name: string, values: (number | null)[], format?: (v: any) => string }[]} series
+ * @returns {Table}
+ */
+export function seriesTable(labels, labelHeader, series) {
+	return {
+		columns: [{ name: labelHeader }, ...series.map((s) => ({ name: s.name, numeric: true }))],
+		rowHeader: 0,
+		rows: labels.map((label, i) => [
+			label,
+			...series.map((s) => (s.format ?? formatCount)(s.values[i]))
+		])
+	};
+}
+
+// 차트(캔버스)의 접근 가능한 이름: 제목·부제는 캔버스에만 그려지므로 화면 낭독기에 따로 알리고,
+// 수치는 '표로 보기'에 있다고 안내한다.
+/**
+ * @param {string} title
+ * @param {string} [subtitle]
+ */
+export function chartLabel(title, subtitle = '') {
+	const name = `${title.trim()} 차트`.trim();
+	const sub = subtitle.trim();
+	return `${sub ? `${name} — ${sub}` : name}. 수치는 '표로 보기'에서 볼 수 있습니다.`;
+}
+
+// '표로 보기' 스크롤 영역의 이름(`<제목> 표`): 같은 제목을 단 카드·패널 영역과 이름이 겹치지 않게 한다.
+/** @param {string} title */
+export function tableRegionLabel(title) {
+	return `${title.trim()} 표`.trim();
+}
+
+// 차트를 그리지 못할 때 카드에 보일 문구. 차트 제목은 캔버스에만 그려지므로, 남아 있는 문구(실패,
+// 빈 데이터)에는 어느 카드인지 제목을 붙인다. 불러오는 중은 잠깐이라 그대로 둔다.
+// empty 를 주면 빈 카드에 '데이터가 없습니다' 대신 왜 비었는지를 보인다(예: PERFORMER_EMPTY).
+/**
+ * @param {string} title
+ * @param {{ loading?: boolean, error?: string, empty?: string }} [state]
+ */
+export function placeholderText(title, { loading = false, error = '', empty = '' } = {}) {
+	if (loading) return '불러오는 중...';
+	const message = error || empty || '데이터가 없습니다';
+	const name = title.trim();
+	return name ? `${name} — ${message}` : message;
+}
+
+// 연주자 카드가 빈 까닭: 통계 API 는 그 연주자가 적히지 않은 선곡을 세지 않는다(피아노·실내악·성악 등).
+export const PERFORMER_EMPTY = {
+	soloists: '독주자가 적힌 선곡이 없습니다',
+	conductors: '지휘자가 적힌 선곡이 없습니다',
+	orchestras: '오케스트라가 적힌 선곡이 없습니다'
+};

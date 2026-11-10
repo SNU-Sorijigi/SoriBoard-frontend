@@ -1,0 +1,1190 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import {
+	readComposerId,
+	readComposerPeriod,
+	writeComposerPeriod,
+	readComposerMember,
+	writeComposerMember,
+	composerHref,
+	composerPeriodParams,
+	composerMemberParams,
+	composerPeriodName,
+	composerStatHref,
+	composerWorkHref,
+	composerHistoryHref,
+	composerRequestedHref,
+	composerDayHref,
+	composerRankLinks,
+	composerRankNote,
+	composerRankLead,
+	composerPreviousRankLead,
+	RANK_LIMIT,
+	composerSemesterLinks,
+	composerFacts,
+	composerTimelineBucket,
+	composerWorkName,
+	composerWorksTable,
+	composerFirstsTable,
+	composerWorksCsv,
+	composerIsWholeRecord,
+	composerWholeDates,
+	composerEmptyText
+} from '../../src/lib/composerStats.js';
+import { readHistoryQuery, workHistoryHref } from '../../src/lib/playHistory.js';
+import { toCsvTable, tableCsv } from '../../src/lib/csvTable.js';
+import { WORKS_LIMIT } from '../../src/lib/statDrill.js';
+import { byCount } from '../../src/lib/statFirsts.js';
+
+test('the route id must be a positive integer', () => {
+	assert.equal(readComposerId('12'), '12');
+	for (const raw of ['', '0', '-3', '1.5', '012', 'abc', '9007199254740993', null, undefined]) {
+		assert.equal(readComposerId(raw), null, String(raw));
+	}
+});
+
+test('links: the composer page and its plays over all time', () => {
+	assert.equal(composerHref(7), '/stat/composer/7');
+	const href = composerHistoryHref(7);
+	assert.equal(href, '/stat/history?period=all&composer_id=7');
+	const query = readHistoryQuery(new URL(href, 'http://x').searchParams);
+	assert.equal(query.period, 'all');
+	assert.deepEqual(query.targets, [{ param: 'composer_id', id: '7' }]);
+});
+
+test('links: a 독주자 or 지휘자 with this composer, by id', () => {
+	const href = composerHistoryHref(7, [{ param: 'player_id', id: '3' }]);
+	assert.equal(href, '/stat/history?period=all&composer_id=7&player_id=3');
+	const query = readHistoryQuery(new URL(href, 'http://x').searchParams);
+	assert.deepEqual(query.targets, [
+		{ param: 'composer_id', id: '7' },
+		{ param: 'player_id', id: '3' }
+	]);
+
+	// Same name, different ids: each row keeps its own id; a row without an id gets no link.
+	const conductors = {
+		items: [
+			{ id: 5, name: '동명', count: 4 },
+			{ id: 6, name: '동명', count: 2 },
+			{ id: null, name: '미상', count: 1 }
+		]
+	};
+	assert.deepEqual(composerRankLinks('7', 'conductors', conductors), [
+		'/stat/history?period=all&composer_id=7&conductor_id=5',
+		'/stat/history?period=all&composer_id=7&conductor_id=6',
+		null
+	]);
+	assert.deepEqual(composerRankLinks(7, 'soloists', { items: [{ id: 2, name: 'a' }] }), [
+		'/stat/history?period=all&composer_id=7&player_id=2'
+	]);
+	// 많이 튼 오케스트라: 이 작곡가의 곡을 그 악단과 튼 선곡 기록.
+	assert.deepEqual(composerRankLinks(7, 'orchestras', { items: [{ id: 3, name: 'o' }] }), [
+		'/stat/history?period=all&composer_id=7&orchestra_id=3'
+	]);
+});
+
+test('links: nothing before the card loads, none for a card without an id filter', () => {
+	assert.deepEqual(composerRankLinks(7, 'soloists', null), []);
+	assert.deepEqual(composerRankLinks(7, 'soloists', undefined), []);
+	assert.deepEqual(composerRankLinks(7, 'soloists', { items: [] }), []);
+	assert.deepEqual(composerRankLinks(7, 'timeline', { items: [{ id: 1, name: 'a' }] }), [null]);
+});
+
+test('facts name the era and the birth year, or say they are unknown', () => {
+	assert.equal(composerFacts({ era: '낭만', birth_year: 1810 }), '낭만 · 1810년생');
+	assert.equal(composerFacts({ era: '미상', birth_year: null }), '시대 미상 · 출생 연도 미상');
+	// 시대는 보정값으로 정해질 수 있다: 출생 연도 없이도 시대가 있다.
+	assert.equal(composerFacts({ era: '낭만', birth_year: null }), '낭만 · 출생 연도 미상');
+	assert.equal(composerFacts({ birth_year: 1685 }), '시대 미상 · 1685년생');
+	assert.equal(composerFacts(null), '');
+});
+
+test('the 선곡 card is 학기별 across several 학기 and 월별 inside one', () => {
+	const current = { start: '2026-09-01', end: '2026-10-31' };
+	const bucket = (filter) => composerTimelineBucket(filter, current);
+	assert.equal(bucket({ period: 'all' }), 'semester');
+	assert.equal(bucket({ period: 'custom', start: '2025-10-01', end: '2026-04-30' }), 'semester');
+	// 시작일이 비면 처음부터라 여러 학기다.
+	assert.equal(bucket({ period: 'custom', start: '', end: '2025-11-30' }), 'semester');
+	assert.equal(bucket({ period: '7' }), 'month');
+	assert.equal(bucket({ period: 'current' }), 'month');
+	assert.equal(bucket({ period: 'custom', start: '2025-10-01', end: '2025-11-30' }), 'month');
+	// 종료일이 비면 오늘(이번 학기의 끝)까지다.
+	assert.equal(bucket({ period: 'custom', start: '2026-09-15', end: '' }), 'month');
+	assert.equal(bucket({ period: 'custom', start: '2026-05-01', end: '' }), 'semester');
+});
+
+test("a work drops the composer's own name, matched by id", () => {
+	const composer = { id: 3, name: '가상 C' };
+	assert.equal(
+		composerWorkName({ name: '가상 C - 교향곡 1번', composer_id: 3 }, composer),
+		'교향곡 1번'
+	);
+	// 같은 이름의 다른 작곡가, 또는 접두어가 없는 이름은 그대로 둔다.
+	assert.equal(
+		composerWorkName({ name: '가상 C - 교향곡 1번', composer_id: 9 }, composer),
+		'가상 C - 교향곡 1번'
+	);
+	assert.equal(composerWorkName({ name: '교향곡 1번', composer_id: 3 }, composer), '교향곡 1번');
+});
+
+test("the 처음 튼 곡 table drops the composer's name and keeps the backend's order", () => {
+	const composer = { id: 3, name: '가상 C' };
+	const firsts = {
+		items: [
+			{ id: 11, name: '가상 C - 교향곡 1번', count: 1234, first_played: '2025-09-02' },
+			{ id: 12, name: '가상 C - 서곡', count: 2, first_played: '2025-10-15' },
+			{ id: 13, name: '무제', count: 1, first_played: '2025-11-01' }
+		]
+	};
+	const before = structuredClone(firsts);
+	const table = composerFirstsTable(firsts, composer);
+	assert.deepEqual(
+		table.columns.map((c) => c.name),
+		['곡', '처음 튼 날', '횟수']
+	);
+	assert.deepEqual(table.rows, [
+		['교향곡 1번', '2025-09-02', '1,234'],
+		['서곡', '2025-10-15', '2'],
+		['무제', '2025-11-01', '1']
+	]);
+	assert.deepEqual(firsts, before);
+	// 작곡가 정보를 못 받았으면 이름은 백엔드가 준 그대로다.
+	assert.deepEqual(
+		composerFirstsTable(firsts, null).rows.map((row) => row[0]),
+		['가상 C - 교향곡 1번', '가상 C - 서곡', '무제']
+	);
+});
+
+test('the 처음 튼 곡 table 많이 튼 순 goes by 횟수, each name with its own row, ties in received order', () => {
+	const composer = { id: 3, name: '가상 C' };
+	const firsts = {
+		items: [
+			{ id: 11, name: '가상 C - 교향곡 1번', count: 1, first_played: '2025-09-02' },
+			{ id: 12, name: '가상 C - 서곡', count: 4, first_played: '2025-09-10' },
+			{ id: 13, name: '가상 C - 소나타', count: 2, first_played: '2025-10-01' },
+			{ id: 14, name: '가상 C - 협주곡', count: 4, first_played: '2025-10-15' },
+			{ id: 15, name: '무제', count: 1, first_played: '2025-11-01' }
+		]
+	};
+	const before = structuredClone(firsts);
+	const shown = byCount(firsts);
+	assert.deepEqual(composerFirstsTable(shown, composer).rows, [
+		['서곡', '2025-09-10', '4'],
+		['협주곡', '2025-10-15', '4'],
+		['소나타', '2025-10-01', '2'],
+		['교향곡 1번', '2025-09-02', '1'],
+		['무제', '2025-11-01', '1']
+	]);
+	// 이름의 링크는 같은 보이는 목록에서 만든다: 행마다 그 곡의 id 다.
+	assert.deepEqual(
+		shown.items.map((item) => item.id),
+		[12, 14, 13, 11, 15]
+	);
+	assert.deepEqual(firsts, before);
+});
+
+test('the works table ranks ties together and shows each work’s first and last play', () => {
+	const works = {
+		items: [
+			{ name: 'C - 가', count: 1200, composer_id: 1 },
+			{
+				name: 'C - 나',
+				count: 9,
+				composer_id: 1,
+				first_played: '2025-03-04',
+				last_played: '2026-10-01'
+			},
+			{
+				name: 'C - 다',
+				count: 9,
+				composer_id: 1,
+				first_played: '2025-03-05',
+				last_played: '2026-09-30'
+			}
+		]
+	};
+	const table = composerWorksTable(works, { id: 1, name: 'C' });
+	assert.deepEqual(
+		table.columns.map((c) => c.name),
+		['순위', '곡', '횟수', '처음', '마지막']
+	);
+	assert.equal(table.rowHeader, 1);
+	assert.deepEqual(table.rows, [
+		['1', '가', '1,200', '—', '—'],
+		['2', '나', '9', '2025-03-04', '2026-10-01'],
+		['2', '다', '9', '2025-03-05', '2026-09-30']
+	]);
+	// 작곡가를 아직 모르면 이름을 그대로 쓴다.
+	assert.equal(composerWorksTable(works, null).rows[0][1], 'C - 가');
+});
+
+test('the works CSV is the table as shown, with 순위: rank, name, count, first and last play', () => {
+	const works = {
+		items: [
+			{ name: 'C - 가', count: 1200, composer_id: 1 },
+			{
+				name: 'C - 나, "작품 2"',
+				count: 9,
+				composer_id: 1,
+				first_played: '2025-03-04',
+				last_played: '2026-10-01'
+			},
+			{ name: 'D - 다', count: 9, composer_id: 2, first_played: '2025-03-05', last_played: null }
+		]
+	};
+	const composer = { id: 1, name: 'C' };
+	const csv = composerWorksCsv(works, composer);
+	assert.deepEqual(csv.headers, ['순위', '곡', '횟수', '처음', '마지막']);
+	// 표와 같다: 동점은 같은 순위, 이 작곡가의 곡은 곡 이름만, 다른 작곡가의 곡은 그대로.
+	// 횟수는 천 단위 쉼표 없이, 없는 날짜는 '—'.
+	assert.deepEqual(csv.rows, [
+		['1', '가', '1200', '—', '—'],
+		['2', '나, "작품 2"', '9', '2025-03-04', '2026-10-01'],
+		['2', 'D - 다', '9', '2025-03-05', '—']
+	]);
+	assert.equal(
+		toCsvTable(csv.headers, csv.rows),
+		'순위,곡,횟수,처음,마지막\n1,가,1200,—,—\n2,"나, ""작품 2""",9,2025-03-04,2026-10-01\n2,D - 다,9,2025-03-05,—'
+	);
+	// 통계의 차트 카드·drill-down 패널처럼, 보이는 표의 CSV 그대로다.
+	assert.deepEqual(csv, tableCsv(composerWorksTable(works, composer)));
+	// 작곡가를 아직 모르면 이름을 그대로 쓴다.
+	assert.deepEqual(
+		composerWorksCsv(works, null).rows.map((row) => row[1]),
+		['C - 가', 'C - 나, "작품 2"', 'D - 다']
+	);
+	assert.deepEqual(composerWorksCsv({ items: [] }, null).rows, []);
+});
+
+test('with the previous 학기, the works table and CSV add 지난 학기, matched by id', () => {
+	const composer = { id: 1, name: 'C' };
+	// 이름이 같은 두 곡(id 2, 3): 지난 학기 칸은 id 로 맞춘다.
+	const works = {
+		items: [
+			{ id: 1, name: 'C - 가', count: 1500, composer_id: 1, first_played: '2025-03-04' },
+			{ id: 2, name: 'C - 나', count: 9, composer_id: 1 },
+			{ id: 3, name: 'C - 나', count: 9, composer_id: 1 },
+			{ id: 4, name: 'C - 라', count: 2, composer_id: 1 }
+		]
+	};
+	const previous = {
+		total_plays: 1240,
+		items: [
+			{ id: 1, name: 'C - 가', count: 1234 },
+			{ id: 3, name: 'C - 나', count: 6 }
+		]
+	};
+	const table = composerWorksTable(works, composer, previous);
+	assert.deepEqual(
+		table.columns.map((c) => c.name),
+		['순위', '곡', '횟수', '처음', '마지막', '지난 학기']
+	);
+	// 처음·마지막처럼 수치 칸이라 한 줄로 둔다.
+	assert.equal(table.columns[5].numeric, true);
+	assert.equal(table.rowHeader, 1);
+	assert.deepEqual(table.rows, [
+		['1', '가', '1,500', '2025-03-04', '—', '1,234'],
+		['2', '나', '9', '—', '—', '0'],
+		['2', '나', '9', '—', '—', '6'],
+		['4', '라', '2', '—', '—', '0']
+	]);
+	const csv = composerWorksCsv(works, composer, previous);
+	assert.deepEqual(csv.headers, ['순위', '곡', '횟수', '처음', '마지막', '지난 학기']);
+	assert.deepEqual(csv.rows, [
+		['1', '가', '1500', '2025-03-04', '—', '1234'],
+		['2', '나', '9', '—', '—', '0'],
+		['2', '나', '9', '—', '—', '6'],
+		['4', '라', '2', '—', '—', '0']
+	]);
+	assert.equal(
+		toCsvTable(csv.headers, csv.rows),
+		'순위,곡,횟수,처음,마지막,지난 학기\n1,가,1500,2025-03-04,—,1234\n2,나,9,—,—,0\n2,나,9,—,—,6\n' +
+			'4,라,2,—,—,0'
+	);
+	assert.deepEqual(csv, tableCsv(table));
+
+	// 앞 학기에 선곡이 없으면 모두 0.
+	const none = { total_plays: 0, items: [] };
+	assert.deepEqual(
+		composerWorksTable(works, composer, none).rows.map((row) => row[5]),
+		['0', '0', '0', '0']
+	);
+	assert.deepEqual(
+		composerWorksCsv(works, composer, none).rows.map((row) => row[5]),
+		['0', '0', '0', '0']
+	);
+
+	// 앞 학기 목록이 WORKS_LIMIT 에서 잘렸으면, 거기 없는 곡은 알 수 없다: 표와 CSV 는 '—'.
+	const cut = {
+		total_plays: 5000,
+		items: Array.from({ length: WORKS_LIMIT }, (_, i) => ({ id: i === 0 ? 1 : 100 + i, count: 1 }))
+	};
+	assert.deepEqual(
+		composerWorksTable(works, composer, cut).rows.map((row) => row[5]),
+		['1', '—', '—', '—']
+	);
+	assert.deepEqual(
+		composerWorksCsv(works, composer, cut).rows.map((row) => row[5]),
+		['1', '—', '—', '—']
+	);
+
+	// 앞 학기가 없으면(null) 칸을 두지 않는다.
+	assert.deepEqual(composerWorksTable(works, composer, null), composerWorksTable(works, composer));
+	assert.equal(composerWorksTable(works, composer).columns.length, 5);
+	assert.deepEqual(composerWorksCsv(works, composer, null), composerWorksCsv(works, composer));
+	assert.deepEqual(composerWorksCsv(works, composer).headers, [
+		'순위',
+		'곡',
+		'횟수',
+		'처음',
+		'마지막'
+	]);
+});
+
+test('with a 학기 start, 지난 학기 says 첫 선곡 for works first played in it, in the table and CSV', () => {
+	const composer = { id: 1, name: 'C' };
+	const items = [
+		{ id: 1, name: 'C - 가', count: 8, composer_id: 1, first_played: '2025-09-08' },
+		{ id: 2, name: 'C - 나', count: 4, composer_id: 1, first_played: '2026-05-02' },
+		{ id: 3, name: 'C - 다', count: 2, composer_id: 1, first_played: '2026-02-28' },
+		{ id: 4, name: 'C - 라', count: 1, composer_id: 1, first_played: '2026-03-01' },
+		{ id: 5, name: 'C - 마', count: 1, composer_id: 1, first_played: null },
+		{ id: 6, name: 'C - 바', count: 1, composer_id: 1 }
+	];
+	const works = { filters: { semester_id: '3', start: '2026-03-01' }, items };
+	const previous = { total_plays: 6, items: [{ id: 1, name: 'C - 가', count: 6 }] };
+	assert.deepEqual(
+		composerWorksTable(works, composer, previous).rows.map((row) => row[5]),
+		['6', '첫 선곡', '0', '첫 선곡', '0', '0']
+	);
+	const csv = composerWorksCsv(works, composer, previous);
+	assert.deepEqual(
+		csv.rows.map((row) => row[5]),
+		['6', '첫 선곡', '0', '첫 선곡', '0', '0']
+	);
+	assert.equal(
+		toCsvTable(csv.headers, csv.rows),
+		'순위,곡,횟수,처음,마지막,지난 학기\n1,가,8,2025-09-08,—,6\n2,나,4,2026-05-02,—,첫 선곡\n' +
+			'3,다,2,2026-02-28,—,0\n4,라,1,2026-03-01,—,첫 선곡\n4,마,1,—,—,0\n4,바,1,—,—,0'
+	);
+
+	// 앞 학기 목록이 잘렸으면: 이 학기에 처음 튼 곡은 '첫 선곡', 나머지 없는 곡은 표와 CSV 모두 '—'.
+	const cut = {
+		total_plays: 5000,
+		items: Array.from({ length: WORKS_LIMIT }, (_, i) => ({ id: 100 + i, count: 1 }))
+	};
+	assert.deepEqual(
+		composerWorksTable(works, composer, cut).rows.map((row) => row[5]),
+		['—', '첫 선곡', '—', '첫 선곡', '—', '—']
+	);
+	assert.deepEqual(
+		composerWorksCsv(works, composer, cut).rows.map((row) => row[5]),
+		['—', '첫 선곡', '—', '첫 선곡', '—', '—']
+	);
+
+	// filters 나 start 가 없으면 지금처럼 횟수만.
+	for (const other of [{ items }, { filters: { scope: 'all' }, items }]) {
+		assert.deepEqual(
+			composerWorksTable(other, composer, previous).rows.map((row) => row[5]),
+			['6', '0', '0', '0', '0', '0']
+		);
+		assert.deepEqual(
+			composerWorksCsv(other, composer, previous).rows.map((row) => row[5]),
+			['6', '0', '0', '0', '0', '0']
+		);
+	}
+	// 앞 학기가 없으면 칸이 없다.
+	assert.equal(composerWorksTable(works, composer).columns.length, 5);
+	assert.deepEqual(composerWorksCsv(works, composer).headers, [
+		'순위',
+		'곡',
+		'횟수',
+		'처음',
+		'마지막'
+	]);
+});
+
+test('composerSemesterLinks opens each 학기 of 학기별 선곡 with this composer', () => {
+	const timeline = { filters: { bucket: 'semester' }, labels: ['2025-1', '2025-2'] };
+	assert.deepEqual(composerSemesterLinks('4', timeline), [
+		'/stat/history?start=2025-03-01&end=2025-08-31&composer_id=4',
+		'/stat/history?start=2025-09-01&end=2026-02-28&composer_id=4'
+	]);
+	assert.deepEqual(composerSemesterLinks(null, timeline), []);
+	assert.deepEqual(composerSemesterLinks('4', null), []);
+});
+
+test('composerSemesterLinks opens a 학기 in the 학기 list by semester_id', () => {
+	const timeline = { filters: { bucket: 'semester' }, labels: ['2024-1', '2025-2'] };
+	const semesters = [{ id: 1, year: 2025, semester_num: 2 }];
+	const links = composerSemesterLinks('4', timeline, semesters);
+	assert.deepEqual(links, [
+		'/stat/history?start=2024-03-01&end=2024-08-31&composer_id=4',
+		'/stat/history?semester_id=1&composer_id=4'
+	]);
+	const read = readHistoryQuery(new URL(links[1], 'http://x').searchParams);
+	assert.equal(read.period, '1');
+	assert.deepEqual(read.targets, [{ param: 'composer_id', id: '4' }]);
+});
+
+const query = (search) => new URLSearchParams(search);
+const SEMESTER = { period: '7', start: '', end: '' };
+const RANGE = { period: 'custom', start: '2025-10-01', end: '2025-11-30' };
+
+test('the period defaults to 전체 기간; period=current is 이번 학기', () => {
+	const all = { period: 'all', start: '', end: '' };
+	assert.deepEqual(readComposerPeriod(query('')), all);
+	assert.deepEqual(readComposerPeriod(query('period=all')), all);
+	assert.deepEqual(readComposerPeriod(query('period=current')), {
+		period: 'current',
+		start: '',
+		end: ''
+	});
+	assert.deepEqual(readComposerPeriod(query('semester_id=7')), SEMESTER);
+	assert.deepEqual(readComposerPeriod(query('start=2025-10-01&end=2025-11-30')), RANGE);
+	assert.deepEqual(readComposerPeriod(query('start=2025-10-01')), {
+		period: 'custom',
+		start: '2025-10-01',
+		end: ''
+	});
+	// 학기가 직접 지정보다, 직접 지정이 period 보다 먼저다(통계와 같다).
+	assert.deepEqual(readComposerPeriod(query('semester_id=7&start=2025-10-01')), SEMESTER);
+	assert.deepEqual(readComposerPeriod(query('period=current&end=2025-11-30')), {
+		period: 'custom',
+		start: '',
+		end: '2025-11-30'
+	});
+	for (const bad of [
+		'semester_id=0',
+		'semester_id=abc',
+		'start=2025-02-30',
+		'end=2025-1-1',
+		'period=now',
+		'period=custom'
+	]) {
+		assert.deepEqual(readComposerPeriod(query(bad)), all, bad);
+	}
+});
+
+test('writing the period round-trips, and 전체 기간 writes nothing', () => {
+	for (const filter of [
+		{ period: 'current', start: '', end: '' },
+		SEMESTER,
+		RANGE,
+		{ period: 'custom', start: '', end: '2025-11-30' }
+	]) {
+		const params = query('');
+		writeComposerPeriod(params, filter);
+		assert.deepEqual(readComposerPeriod(params), filter, params.toString());
+	}
+	const params = query('semester_id=3&period=current&start=2025-01-01&x=1');
+	writeComposerPeriod(params, { period: 'all' });
+	assert.equal(params.toString(), 'x=1');
+	writeComposerPeriod(params, SEMESTER);
+	assert.equal(params.toString(), 'x=1&semester_id=7');
+	writeComposerPeriod(params);
+	assert.equal(params.toString(), 'x=1');
+});
+
+test('composerHref keeps the bare path for 전체 기간 and adds any other period', () => {
+	assert.equal(composerHref(5), '/stat/composer/5');
+	assert.equal(composerHref(5, { period: 'all', start: '', end: '' }), '/stat/composer/5');
+	assert.equal(composerHref(5, { period: '7' }), '/stat/composer/5?semester_id=7');
+	assert.equal(composerHref(5, { period: 'current' }), '/stat/composer/5?period=current');
+	assert.equal(composerHref(5, RANGE), '/stat/composer/5?start=2025-10-01&end=2025-11-30');
+	// 통계의 기간 상태 그대로: 직접 지정이 아니면 남은 날짜는 쓰지 않는다.
+	assert.equal(
+		composerHref(5, { period: '7', start: '2025-10-01', end: '' }),
+		'/stat/composer/5?semester_id=7'
+	);
+});
+
+test('the request sends 이번 학기 as its dates, like 통계', () => {
+	const current = { start: '2026-09-01', end: '2026-10-29' };
+	assert.deepEqual(composerPeriodParams({ period: 'all' }, current), {});
+	assert.deepEqual(composerPeriodParams({ period: 'current' }, current), current);
+	assert.deepEqual(composerPeriodParams(SEMESTER, current), { semester_id: '7' });
+	assert.deepEqual(composerPeriodParams(RANGE, current), {
+		start: '2025-10-01',
+		end: '2025-11-30'
+	});
+	assert.deepEqual(
+		composerPeriodParams({ period: 'custom', start: '', end: '2025-11-30' }, current),
+		{ end: '2025-11-30' }
+	);
+});
+
+test('the period name for subtitles and the tab title', () => {
+	const semesters = [{ id: 7, year: 2025, semester_num: 2 }];
+	assert.equal(composerPeriodName({ period: 'all' }, semesters), '전체 기간');
+	assert.equal(composerPeriodName({ period: 'current' }, semesters), '이번 학기');
+	assert.equal(composerPeriodName(SEMESTER, semesters), '2025-2학기');
+	assert.equal(composerPeriodName(SEMESTER, []), '');
+	assert.equal(composerPeriodName(RANGE, null), '2025-10-01 ~ 2025-11-30');
+});
+
+test('links carry a 학기 or 직접 지정 period, and keep today’s URLs without one', () => {
+	assert.equal(composerHistoryHref(7, [], SEMESTER), '/stat/history?semester_id=7&composer_id=7');
+	assert.equal(
+		composerHistoryHref(7, [], RANGE),
+		'/stat/history?start=2025-10-01&end=2025-11-30&composer_id=7'
+	);
+	// 이번 학기는 선곡 기록의 기본값이라 남기지 않는다.
+	assert.equal(composerHistoryHref(7, [], { period: 'current' }), '/stat/history?composer_id=7');
+	assert.equal(composerHistoryHref(7, []), '/stat/history?period=all&composer_id=7');
+
+	const soloists = { items: [{ id: 2, name: 'a' }] };
+	assert.deepEqual(composerRankLinks(7, 'soloists', soloists, RANGE), [
+		'/stat/history?start=2025-10-01&end=2025-11-30&composer_id=7&player_id=2'
+	]);
+	assert.deepEqual(composerRankLinks(7, 'soloists', soloists, SEMESTER), [
+		'/stat/history?semester_id=7&composer_id=7&player_id=2'
+	]);
+
+	assert.equal(composerWorkHref(11), workHistoryHref(11));
+	assert.equal(composerWorkHref(11, SEMESTER), '/stat/history?semester_id=7&music_id=11');
+	assert.equal(
+		composerWorkHref(11, RANGE),
+		'/stat/history?start=2025-10-01&end=2025-11-30&music_id=11'
+	);
+
+	assert.equal(composerStatHref(), '/stat?period=all');
+	assert.equal(composerStatHref({ period: 'current' }), '/stat');
+	assert.equal(composerStatHref(SEMESTER), '/stat?semester_id=7');
+	assert.equal(composerStatHref(RANGE), '/stat?start=2025-10-01&end=2025-11-30');
+});
+
+test('the 처음·마지막 튼 날 dates open that day’s plays of this composer, with the page’s 지기', () => {
+	const read = (href) => readHistoryQuery(new URL(href, 'http://x').searchParams);
+	const day = '2019-03-05';
+	const mentees = { period: '7', userId: '12', includeMentees: true };
+
+	// 학기(또는 다른 직접 지정)는 그 하루로 바뀐다.
+	assert.equal(
+		composerDayHref(7, day, SEMESTER),
+		'/stat/history?start=2019-03-05&end=2019-03-05&composer_id=7'
+	);
+	assert.equal(
+		composerDayHref(7, day, RANGE),
+		'/stat/history?start=2019-03-05&end=2019-03-05&composer_id=7'
+	);
+	assert.equal(composerDayHref(7, day, { period: 'all' }), composerDayHref(7, day, SEMESTER));
+
+	// 지기를 고르면 그 지기, 견습 포함은 고른 때만.
+	assert.equal(
+		composerDayHref(7, day, { period: '7', userId: '3', includeMentees: false }),
+		'/stat/history?start=2019-03-05&end=2019-03-05&user_id=3&composer_id=7'
+	);
+	assert.equal(
+		composerDayHref(7, day, { period: '7', userId: '3', includeMentees: true }),
+		'/stat/history?start=2019-03-05&end=2019-03-05&user_id=3&include_mentees=true&composer_id=7'
+	);
+	// 지기 없이 견습 포함만 있으면 뜻이 없다.
+	assert.equal(
+		composerDayHref(7, day, { period: '7', userId: null, includeMentees: true }),
+		'/stat/history?start=2019-03-05&end=2019-03-05&composer_id=7'
+	);
+	// 전체 기록 줄의 날짜: 지기 없이 부른다.
+	assert.equal(
+		composerDayHref(7, day),
+		'/stat/history?start=2019-03-05&end=2019-03-05&composer_id=7'
+	);
+
+	// 날짜가 없으면 링크도 없다.
+	for (const missing of ['', null, undefined]) {
+		assert.equal(composerDayHref(7, missing, SEMESTER), '', String(missing));
+		assert.equal(composerDayHref(7, missing, mentees), '', String(missing));
+	}
+
+	// 선곡 기록은 그 하루의 직접 지정으로 읽는다.
+	const opened = read(composerDayHref(7, day, mentees));
+	assert.equal(opened.period, 'custom');
+	assert.equal(opened.start, day);
+	assert.equal(opened.end, day);
+	assert.deepEqual(opened.targets, [{ param: 'composer_id', id: '7' }]);
+	assert.equal(opened.userId, '12');
+	assert.equal(opened.includeMentees, true);
+	const whole = read(composerDayHref(7, day));
+	assert.equal(whole.period, 'custom');
+	assert.equal(whole.start, day);
+	assert.equal(whole.end, day);
+	assert.equal(whole.userId, null);
+	assert.equal(whole.includeMentees, false);
+});
+
+test('the 신청곡 tile opens this composer’s 신청곡만, in the same 기간 and 지기', () => {
+	const read = (href) => readHistoryQuery(new URL(href, 'http://x').searchParams);
+	const composer = [{ param: 'composer_id', id: '7' }];
+
+	const whole = composerRequestedHref(7);
+	assert.equal(whole, '/stat/history?period=all&requested=true&composer_id=7');
+	assert.equal(read(whole).period, 'all');
+	assert.equal(read(whole).userId, null);
+	assert.equal(read(whole).requested, 'true');
+	assert.deepEqual(read(whole).targets, composer);
+
+	const member = { period: '7', userId: '12', includeMentees: true };
+	const semester = composerRequestedHref(7, member);
+	assert.equal(
+		semester,
+		'/stat/history?semester_id=7&user_id=12&include_mentees=true&requested=true&composer_id=7'
+	);
+	assert.equal(read(semester).period, '7');
+	assert.equal(read(semester).userId, '12');
+	assert.equal(read(semester).includeMentees, true);
+	assert.equal(read(semester).requested, 'true');
+	assert.deepEqual(read(semester).targets, composer);
+
+	const range = composerRequestedHref(7, RANGE);
+	assert.equal(range, '/stat/history?start=2025-10-01&end=2025-11-30&requested=true&composer_id=7');
+	assert.deepEqual(
+		[read(range).period, read(range).start, read(range).end],
+		['custom', '2025-10-01', '2025-11-30']
+	);
+	assert.equal(read(range).requested, 'true');
+	assert.deepEqual(read(range).targets, composer);
+
+	// 이번 학기는 선곡 기록의 기본값이라 기간 키를 남기지 않는다(composerHistoryHref 와 같다).
+	const current = composerRequestedHref(7, { period: 'current' });
+	assert.equal(current, '/stat/history?requested=true&composer_id=7');
+	assert.equal(read(current).period, 'current');
+	assert.equal(read(current).requested, 'true');
+
+	// 같은 목록에서 신청곡만 더 거른 것이다.
+	for (const filter of [undefined, member, RANGE, SEMESTER]) {
+		const plain = read(composerHistoryHref(7, [], filter));
+		assert.deepEqual(read(composerRequestedHref(7, filter)), { ...plain, requested: 'true' });
+	}
+});
+
+test('학기별 선곡 links clip to the period the answer applied', () => {
+	// 직접 지정 2025-10-01 ~ 2025-11-30: 학기 버킷 하나, 그 범위로 줄인 날짜로 연다.
+	const timeline = {
+		filters: { bucket: 'semester', start: '2025-10-01', end: '2025-11-30' },
+		labels: ['2025-2']
+	};
+	const semesters = [{ id: 1, year: 2025, semester_num: 2 }];
+	assert.deepEqual(composerSemesterLinks('4', timeline, semesters, RANGE), [
+		'/stat/history?start=2025-10-01&end=2025-11-30&composer_id=4'
+	]);
+	// 학기 하나: 줄지 않은 버킷은 그 학기(semester_id)로 연다.
+	const whole = {
+		filters: { bucket: 'semester', start: '2025-09-01', end: '2026-02-28' },
+		labels: ['2025-2']
+	};
+	assert.deepEqual(composerSemesterLinks('4', whole, semesters, { period: '1' }), [
+		'/stat/history?semester_id=1&composer_id=4'
+	]);
+});
+
+test('월별 선곡 links open each month, clipped to the period the answer applied', () => {
+	const semesters = [{ id: 1, year: 2025, semester_num: 2 }];
+	const months = {
+		filters: { bucket: 'month', start: '2025-09-01', end: '2026-02-28' },
+		labels: ['2025-10']
+	};
+	assert.deepEqual(composerSemesterLinks('4', months, semesters, { period: '1' }), [
+		'/stat/history?start=2025-10-01&end=2025-10-31&composer_id=4'
+	]);
+	// 직접 지정 2025-10-15 ~ 2025-11-20: 처음과 끝 달은 그 범위로 줄인다.
+	const clipped = {
+		filters: { bucket: 'month', start: '2025-10-15', end: '2025-11-20' },
+		labels: ['2025-10', '2025-11']
+	};
+	assert.deepEqual(
+		composerSemesterLinks('4', clipped, semesters, {
+			period: 'custom',
+			start: '2025-10-15',
+			end: '2025-11-20'
+		}),
+		[
+			'/stat/history?start=2025-10-15&end=2025-10-31&composer_id=4',
+			'/stat/history?start=2025-11-01&end=2025-11-20&composer_id=4'
+		]
+	);
+});
+
+const NONE = { userId: null, includeMentees: false };
+const MEMBER = { period: '7', userId: '12', includeMentees: false };
+const MENTEES = { period: '7', userId: '12', includeMentees: true };
+
+test('the 지기 reads from user_id and include_mentees, and defaults to 전체 지기', () => {
+	assert.deepEqual(readComposerMember(query('user_id=12&include_mentees=true')), {
+		userId: '12',
+		includeMentees: true
+	});
+	assert.deepEqual(readComposerMember(query('semester_id=7&user_id=12')), {
+		userId: '12',
+		includeMentees: false
+	});
+	assert.deepEqual(readComposerMember(query('user_id=12&include_mentees=1')), {
+		userId: '12',
+		includeMentees: false
+	});
+	// 견습 포함은 지기를 고른 때만 뜻이 있다.
+	for (const bad of [
+		'',
+		'include_mentees=true',
+		'user_id=0&include_mentees=true',
+		'user_id=abc',
+		'user_id=1.5',
+		'user_id=-3',
+		'user_id='
+	]) {
+		assert.deepEqual(readComposerMember(query(bad)), NONE, bad);
+	}
+});
+
+test('writing the 지기 round-trips, keeps other keys, and 전체 지기 writes nothing', () => {
+	for (const member of [
+		NONE,
+		{ userId: '12', includeMentees: false },
+		{ userId: '12', includeMentees: true }
+	]) {
+		const params = query('');
+		writeComposerMember(params, member);
+		assert.deepEqual(readComposerMember(params), member, params.toString());
+	}
+	const params = query('semester_id=7&user_id=3&include_mentees=true');
+	writeComposerMember(params, { userId: '12', includeMentees: false });
+	assert.equal(params.toString(), 'semester_id=7&user_id=12');
+	writeComposerMember(params, NONE);
+	assert.equal(params.toString(), 'semester_id=7');
+	// 견습 포함만으로는 아무것도 남기지 않는다.
+	writeComposerMember(params, { userId: null, includeMentees: true });
+	assert.equal(params.toString(), 'semester_id=7');
+	writeComposerMember(params);
+	assert.equal(params.toString(), 'semester_id=7');
+});
+
+test('composerHref adds the 지기 after the period', () => {
+	assert.equal(
+		composerHref(5, { period: '7', userId: '12', includeMentees: true }),
+		'/stat/composer/5?semester_id=7&user_id=12&include_mentees=true'
+	);
+	assert.equal(composerHref(5, MEMBER), '/stat/composer/5?semester_id=7&user_id=12');
+	assert.equal(composerHref(5, { period: 'all', userId: '12' }), '/stat/composer/5?user_id=12');
+	// 전체 지기면 오늘의 URL 그대로(통계의 전체 보기가 넘기는 값).
+	assert.equal(
+		composerHref(5, { period: '7', userId: null, includeMentees: true }),
+		'/stat/composer/5?semester_id=7'
+	);
+	const read = new URL(
+		composerHref(5, { ...RANGE, userId: '12', includeMentees: true }),
+		'http://x'
+	).searchParams;
+	assert.deepEqual(readComposerPeriod(read), RANGE);
+	assert.deepEqual(readComposerMember(read), { userId: '12', includeMentees: true });
+});
+
+test('the request sends user_id, and include_mentees only with a 지기', () => {
+	assert.deepEqual(composerMemberParams(NONE), {});
+	assert.deepEqual(composerMemberParams({}), {});
+	assert.deepEqual(composerMemberParams({ userId: null, includeMentees: true }), {});
+	assert.deepEqual(composerMemberParams(MEMBER), { user_id: '12' });
+	assert.deepEqual(composerMemberParams(MENTEES), { user_id: '12', include_mentees: 'true' });
+});
+
+test('links keep the 지기: 통계 opens its 개인 view, 선곡 기록 opens with that 지기', () => {
+	assert.equal(composerStatHref(MEMBER), '/stat?semester_id=7&scope=individual&user_id=12');
+	assert.equal(
+		composerStatHref(MENTEES),
+		'/stat?semester_id=7&scope=individual&user_id=12&include_mentees=true'
+	);
+	assert.equal(
+		composerStatHref({ period: 'all', userId: '12' }),
+		'/stat?period=all&scope=individual&user_id=12'
+	);
+
+	assert.equal(
+		composerHistoryHref(7, [], MENTEES),
+		'/stat/history?semester_id=7&user_id=12&include_mentees=true&composer_id=7'
+	);
+	const read = readHistoryQuery(
+		new URL(composerHistoryHref(7, [], MENTEES), 'http://x').searchParams
+	);
+	assert.equal(read.userId, '12');
+	assert.equal(read.includeMentees, true);
+	assert.deepEqual(read.targets, [{ param: 'composer_id', id: '7' }]);
+
+	assert.equal(composerWorkHref(11, MEMBER), '/stat/history?semester_id=7&user_id=12&music_id=11');
+	assert.deepEqual(composerRankLinks(7, 'soloists', { items: [{ id: 2, name: 'a' }] }, MENTEES), [
+		'/stat/history?semester_id=7&user_id=12&include_mentees=true&composer_id=7&player_id=2'
+	]);
+	assert.deepEqual(composerRankLinks(7, 'conductors', { items: [{ id: 5, name: 'b' }] }, MEMBER), [
+		'/stat/history?semester_id=7&user_id=12&composer_id=7&conductor_id=5'
+	]);
+
+	const timeline = {
+		filters: { bucket: 'semester', user_id: 12 },
+		labels: ['2024-1', '2025-2']
+	};
+	const semesters = [{ id: 1, year: 2025, semester_num: 2 }];
+	assert.deepEqual(composerSemesterLinks('4', timeline, semesters, { ...MENTEES, period: 'all' }), [
+		'/stat/history?start=2024-03-01&end=2024-08-31&user_id=12&include_mentees=true&composer_id=4',
+		'/stat/history?semester_id=1&user_id=12&include_mentees=true&composer_id=4'
+	]);
+});
+
+test('견습 포함 without a 지기 does not reach any link', () => {
+	const stray = { period: '7', userId: null, includeMentees: true };
+	assert.equal(composerStatHref(stray), '/stat?semester_id=7');
+	assert.equal(composerHistoryHref(7, [], stray), '/stat/history?semester_id=7&composer_id=7');
+	assert.equal(composerWorkHref(11, stray), '/stat/history?semester_id=7&music_id=11');
+});
+
+test('the date tiles get the whole record under them, except in the whole-record view', () => {
+	const whole = { date_start: '2019-03-05', date_end: '2026-10-20' };
+	const texts = { start: '전체 기록 2019-03-05', end: '전체 기록 2026-10-20' };
+	assert.equal(composerWholeDates({ period: 'all' }, whole), null);
+	assert.equal(
+		composerWholeDates({ period: 'all', userId: null, includeMentees: true }, whole),
+		null
+	);
+	// 날짜가 둘 다 빈 직접 지정은 기간 없이 부르므로 전체 기간과 같다.
+	assert.equal(composerWholeDates({ period: 'custom', start: '', end: '' }, whole), null);
+	for (const missing of [null, undefined]) {
+		assert.equal(composerWholeDates({ period: '7' }, missing), null);
+	}
+	assert.deepEqual(composerWholeDates({ period: '7' }, whole), texts);
+	assert.deepEqual(composerWholeDates({ period: 'current' }, whole), texts);
+	assert.deepEqual(
+		composerWholeDates({ period: 'custom', start: '2025-03-01', end: '' }, whole),
+		texts
+	);
+	assert.deepEqual(composerWholeDates({ period: 'all', userId: '12' }, whole), texts);
+	assert.deepEqual(
+		composerWholeDates({ period: '7' }, { date_start: null, date_end: '2026-10-20' }),
+		{
+			start: '',
+			end: '전체 기록 2026-10-20'
+		}
+	);
+	assert.deepEqual(
+		composerWholeDates({ period: '7' }, { date_start: '2019-03-05', date_end: null }),
+		{
+			start: '전체 기록 2019-03-05',
+			end: ''
+		}
+	);
+
+	assert.equal(composerIsWholeRecord({ period: 'all' }), true);
+	assert.equal(composerIsWholeRecord({ period: 'custom', start: '', end: '2026-01-01' }), false);
+	assert.equal(composerIsWholeRecord({ period: 'all', userId: '12' }), false);
+	assert.equal(composerIsWholeRecord({ period: '7' }), false);
+});
+
+// stats/composers 의 답(많은 순, 같으면 이름·id 순).
+const ranking = (total, counts) => ({
+	total_plays: total,
+	items: counts.map(([id, count]) => ({ id, name: `작곡가 ${id}`, count }))
+});
+const SEM2 = ranking(222, [
+	[1, 39],
+	[8, 34],
+	[4, 32],
+	[2, 19],
+	[6, 18],
+	[7, 18],
+	[10, 18],
+	[3, 16],
+	[9, 16],
+	[5, 12]
+]);
+
+test('rank note: first place and its share of the period', () => {
+	assert.equal(
+		composerRankNote(SEM2, '1', 39),
+		'많이 튼 작곡가 1위 · 이 기간 선곡 222곡 중 39곡 (17.6%)'
+	);
+	assert.equal(
+		composerRankNote(SEM2, 4, 32),
+		'많이 튼 작곡가 3위 · 이 기간 선곡 222곡 중 32곡 (14.4%)'
+	);
+	// 마지막 자리도 다른 작곡가와 같지 않으면 '공동'이 없다
+	assert.equal(
+		composerRankNote(SEM2, '5', 12),
+		'많이 튼 작곡가 10위 · 이 기간 선곡 222곡 중 12곡 (5.4%)'
+	);
+});
+
+test('rank note: the same count is the same rank, 공동', () => {
+	for (const id of ['6', '7', '10']) {
+		assert.equal(
+			composerRankNote(SEM2, id, 18),
+			'많이 튼 작곡가 공동 5위 · 이 기간 선곡 222곡 중 18곡 (8.1%)'
+		);
+	}
+	assert.equal(
+		composerRankNote(SEM2, '9', 16),
+		'많이 튼 작곡가 공동 8위 · 이 기간 선곡 222곡 중 16곡 (7.2%)'
+	);
+});
+
+test('rank note: counts get thousands separators', () => {
+	const whole = ranking(1970, [
+		[1, 1234],
+		[2, 736]
+	]);
+	assert.equal(
+		composerRankNote(whole, '1', 1234),
+		'많이 튼 작곡가 1위 · 이 기간 선곡 1,970곡 중 1,234곡 (62.6%)'
+	);
+});
+
+test("rank note: outside a full list of 100 is 100위 밖, with this page's own plays", () => {
+	assert.equal(RANK_LIMIT, 100);
+	const full = ranking(
+		1970,
+		Array.from({ length: RANK_LIMIT }, (_, i) => [1000 + i, 30 - Math.floor(i / 10)])
+	);
+	assert.equal(
+		composerRankNote(full, '1', 3),
+		'많이 튼 작곡가 100위 밖 · 이 기간 선곡 1,970곡 중 3곡 (0.2%)'
+	);
+});
+
+test('rank note: no line when the answer disagrees or there is nothing to rank', () => {
+	// 짧은 목록에 없다(요약과 어긋난 답)
+	assert.equal(composerRankNote(SEM2, '42', 3), '');
+	assert.equal(composerRankNote(SEM2, '1', 0), '');
+	assert.equal(composerRankNote(SEM2, '1', null), '');
+	assert.equal(composerRankNote(SEM2, '1', undefined), '');
+	assert.equal(composerRankNote(null, '1', 39), '');
+	assert.equal(composerRankNote(undefined, '1', 39), '');
+	assert.equal(composerRankNote(ranking(0, []), '1', 39), '');
+	assert.equal(composerRankNote({ items: SEM2.items }, '1', 39), '');
+	assert.equal(composerRankNote(SEM2, null, 39), '');
+	// id 가 없는 항목은 어느 작곡가와도 맞지 않는다
+	assert.equal(
+		composerRankNote({ total_plays: 5, items: [{ id: null, name: '', count: 5 }] }, 'null', 5),
+		''
+	);
+});
+
+test("rank lead: the line's opening, the words that link to 통계's 많이 튼 작곡가 table", () => {
+	assert.equal(composerRankLead(SEM2, '1'), '많이 튼 작곡가 1위');
+	assert.equal(composerRankLead(SEM2, 4), '많이 튼 작곡가 3위');
+	assert.equal(composerRankLead(SEM2, '7'), '많이 튼 작곡가 공동 5위');
+	assert.equal(composerRankLead(SEM2, '9'), '많이 튼 작곡가 공동 8위');
+	// 목록에 없거나(짧은 목록, 요약과 어긋난 답) 물을 것이 없으면 링크가 없다
+	assert.equal(composerRankLead(SEM2, '42'), '');
+	assert.equal(composerRankLead(SEM2, null), '');
+	assert.equal(composerRankLead(null, '1'), '');
+	assert.equal(composerRankLead(undefined, '1'), '');
+	assert.equal(composerRankLead(ranking(0, []), '1'), '');
+	assert.equal(
+		composerRankLead({ total_plays: 5, items: [{ id: null, name: '', count: 5 }] }, 'null'),
+		''
+	);
+});
+
+test('rank lead: 100위 밖 is not in the table, so it has no lead', () => {
+	const full = ranking(
+		1970,
+		Array.from({ length: RANK_LIMIT }, (_, i) => [1000 + i, 30 - Math.floor(i / 10)])
+	);
+	assert.equal(composerRankLead(full, '1'), '');
+	// 100번째 행과 같은 횟수로 묶여도 표에 있으니 링크가 있다
+	assert.equal(composerRankLead(full, '1099'), '많이 튼 작곡가 공동 91위');
+	assert.equal(composerRankNote(full, '1', 3).startsWith('많이 튼 작곡가 100위 밖'), true);
+});
+
+test('rank lead: every rank note starts with its lead', () => {
+	const cases = [
+		[SEM2, '1', 39],
+		[SEM2, 4, 32],
+		[SEM2, '5', 12],
+		[SEM2, '6', 18],
+		[SEM2, '9', 16],
+		[
+			ranking(1970, [
+				[1, 1234],
+				[2, 736]
+			]),
+			'1',
+			1234
+		]
+	];
+	for (const [envelope, id, plays] of cases) {
+		const lead = composerRankLead(envelope, id);
+		const note = composerRankNote(envelope, id, plays);
+		assert.ok(lead && note, `${id}: both non-empty`);
+		assert.ok(note.startsWith(lead), `${note} starts with ${lead}`);
+		// 지난 학기 자리가 붙어도 첫머리는 같다
+		const withPrevious = composerRankNote(
+			envelope,
+			id,
+			plays,
+			ranking(180, [
+				[4, 30],
+				[1, 21]
+			])
+		);
+		assert.ok(withPrevious.startsWith(lead), `${withPrevious} starts with ${lead}`);
+	}
+});
+
+// 지난 학기(같은 지기)의 stats/composers 답.
+const SEM1 = ranking(180, [
+	[4, 30],
+	[8, 25],
+	[1, 21],
+	[2, 15],
+	[6, 12],
+	[3, 12],
+	[5, 8]
+]);
+const FULL = (total) =>
+	ranking(
+		total,
+		Array.from({ length: RANK_LIMIT }, (_, i) => [1000 + i, 30 - Math.floor(i / 10)])
+	);
+
+test("rank note: the previous 학기's place follows the current one", () => {
+	assert.equal(
+		composerRankNote(SEM2, '1', 39, SEM1),
+		'많이 튼 작곡가 1위 (지난 학기 3위) · 이 기간 선곡 222곡 중 39곡 (17.6%)'
+	);
+	// 지난 학기의 같은 횟수는 같은 순위, '공동'
+	assert.equal(
+		composerRankNote(SEM2, 6, 18, SEM1),
+		'많이 튼 작곡가 공동 5위 (지난 학기 공동 5위) · 이 기간 선곡 222곡 중 18곡 (8.1%)'
+	);
+	assert.equal(
+		composerRankNote(SEM2, '3', 16, SEM1),
+		'많이 튼 작곡가 공동 8위 (지난 학기 공동 5위) · 이 기간 선곡 222곡 중 16곡 (7.2%)'
+	);
+});
+
+test('rank note: absent last 학기 is 틀지 않음 in a short list, 100위 밖 in a full one', () => {
+	assert.equal(
+		composerRankNote(SEM2, '7', 18, SEM1),
+		'많이 튼 작곡가 공동 5위 (지난 학기에는 틀지 않음) · 이 기간 선곡 222곡 중 18곡 (8.1%)'
+	);
+	assert.equal(
+		composerRankNote(SEM2, '1', 39, FULL(1970)),
+		'많이 튼 작곡가 1위 (지난 학기 100위 밖) · 이 기간 선곡 222곡 중 39곡 (17.6%)'
+	);
+	// 지금 100위 밖이어도 말이 뒤따른다
+	assert.equal(
+		composerRankNote(FULL(1970), '1', 3, SEM1),
+		'많이 튼 작곡가 100위 밖 (지난 학기 3위) · 이 기간 선곡 1,970곡 중 3곡 (0.2%)'
+	);
+});
+
+test('rank note: no 지난 학기 clause without a previous 학기 with plays', () => {
+	const today = '많이 튼 작곡가 1위 · 이 기간 선곡 222곡 중 39곡 (17.6%)';
+	assert.equal(composerRankNote(SEM2, '1', 39, null), today);
+	assert.equal(composerRankNote(SEM2, '1', 39, undefined), today);
+	assert.equal(composerRankNote(SEM2, '1', 39, ranking(0, [])), today);
+	assert.equal(composerRankNote(SEM2, '1', 39, { items: SEM1.items }), today);
+	// 지금의 답이 없거나 어긋나면 지난 학기가 있어도 줄이 없다
+	assert.equal(composerRankNote(null, '1', 39, SEM1), '');
+	assert.equal(composerRankNote(ranking(0, []), '1', 39, SEM1), '');
+	assert.equal(composerRankNote(SEM2, '42', 3, SEM1), '');
+	assert.equal(composerRankNote(SEM2, '1', 0, SEM1), '');
+	assert.equal(composerRankNote(SEM2, null, 39, SEM1), '');
+});
+
+test("previous rank lead: the 지난 학기 place that links to that 학기's table on 통계", () => {
+	assert.equal(composerPreviousRankLead(SEM1, 4), '지난 학기 1위');
+	assert.equal(composerPreviousRankLead(SEM1, '1'), '지난 학기 3위');
+	assert.equal(composerPreviousRankLead(SEM1, '6'), '지난 학기 공동 5위');
+	assert.equal(composerPreviousRankLead(SEM2, '7'), '지난 학기 공동 5위');
+	assert.equal(composerPreviousRankLead(SEM2, '1'), '지난 학기 1위');
+});
+
+test('previous rank lead: none when the 학기 has no row for it (틀지 않음, 100위 밖) or no list', () => {
+	// 지난 학기에는 틀지 않음(짧은 목록에 없다)
+	assert.equal(composerPreviousRankLead(SEM1, '7'), '');
+	// 100위 밖: 표에 없다. 100번째 행과 묶여도 표에 있으면 링크가 있다
+	assert.equal(composerPreviousRankLead(FULL(1970), '1'), '');
+	assert.equal(composerPreviousRankLead(FULL(1970), '1099'), '지난 학기 공동 91위');
+	// 앞 학기가 없거나, 아직 없거나, 선곡이 없으면 괄호도 없다
+	assert.equal(composerPreviousRankLead(null, '1'), '');
+	assert.equal(composerPreviousRankLead(undefined, '1'), '');
+	assert.equal(composerPreviousRankLead({ items: SEM1.items }, '4'), '');
+	assert.equal(composerPreviousRankLead(ranking(0, []), '4'), '');
+	assert.equal(composerPreviousRankLead(SEM1, null), '');
+	assert.equal(
+		composerPreviousRankLead({ total_plays: 5, items: [{ id: null, name: '', count: 5 }] }, 'null'),
+		''
+	);
+});
+
+test("previous rank lead: the note has ' (<previous lead>)' right after its lead", () => {
+	const cases = [
+		[SEM2, 4, 32, SEM2],
+		[SEM2, '1', 39, SEM1],
+		[SEM2, 6, 18, SEM1],
+		[SEM2, '3', 16, SEM1],
+		[FULL(1970), '1099', 30, FULL(1500)]
+	];
+	for (const [envelope, id, plays, previous] of cases) {
+		const lead = composerRankLead(envelope, id);
+		const previousLead = composerPreviousRankLead(previous, id);
+		const note = composerRankNote(envelope, id, plays, previous);
+		assert.ok(lead && previousLead, `${id}: both leads non-empty`);
+		assert.ok(
+			note.startsWith(`${lead} (${previousLead}) · `),
+			`${note} starts with ${lead} (${previousLead})`
+		);
+	}
+	assert.equal(
+		composerRankNote(SEM2, 4, 32, SEM2).slice(composerRankLead(SEM2, 4).length),
+		` (${composerPreviousRankLead(SEM2, 4)}) · 이 기간 선곡 222곡 중 32곡 (14.4%)`
+	);
+});
+
+test('composerEmptyText: 지기를 고르지 않으면 오늘의 말이고 지기 버튼은 없다', () => {
+	assert.deepEqual(composerEmptyText({ period: 'all', userId: null }, null), {
+		text: '아직 이 작곡가의 곡을 튼 적이 없습니다.',
+		widenMember: false
+	});
+	assert.deepEqual(composerEmptyText({ period: '12', userId: null }, 12), {
+		text: '이 기간에는 이 작곡가의 곡을 튼 적이 없습니다.',
+		widenMember: false
+	});
+	assert.deepEqual(composerEmptyText({ period: 'current' }, undefined), {
+		text: '이 기간에는 이 작곡가의 곡을 튼 적이 없습니다.',
+		widenMember: false
+	});
+});
+
+test('composerEmptyText: 지기를 골랐고 클럽이 튼 적이 있으면 그 수와 지기 버튼', () => {
+	assert.deepEqual(composerEmptyText({ period: '12', userId: '7' }, 12), {
+		text: '이 기간에는 이 지기가 이 작곡가의 곡을 튼 적이 없습니다 · 클럽 전체 12곡',
+		widenMember: true
+	});
+	assert.deepEqual(composerEmptyText({ period: 'all', userId: 7 }, 1234), {
+		text: `아직 이 지기가 이 작곡가의 곡을 튼 적이 없습니다 · 클럽 전체 ${(1234).toLocaleString()}곡`,
+		widenMember: true
+	});
+	assert.equal(
+		composerEmptyText({ period: 'custom', userId: '7' }, 1).text,
+		'이 기간에는 이 지기가 이 작곡가의 곡을 튼 적이 없습니다 · 클럽 전체 1곡'
+	);
+});
+
+test('composerEmptyText: 클럽 수를 모르면 수 없이 지기 버튼, 클럽도 0이면 오늘의 말', () => {
+	for (const unknown of [null, undefined]) {
+		assert.deepEqual(composerEmptyText({ period: '12', userId: '7' }, unknown), {
+			text: '이 기간에는 이 지기가 이 작곡가의 곡을 튼 적이 없습니다.',
+			widenMember: true
+		});
+		assert.deepEqual(composerEmptyText({ period: 'all', userId: '7' }, unknown), {
+			text: '아직 이 지기가 이 작곡가의 곡을 튼 적이 없습니다.',
+			widenMember: true
+		});
+	}
+	assert.deepEqual(composerEmptyText({ period: '12', userId: '7' }, 0), {
+		text: '이 기간에는 이 지기가 이 작곡가의 곡을 튼 적이 없습니다.',
+		widenMember: false
+	});
+	assert.deepEqual(composerEmptyText({ period: 'all', userId: '7' }, 0), {
+		text: '아직 이 지기가 이 작곡가의 곡을 튼 적이 없습니다.',
+		widenMember: false
+	});
+});

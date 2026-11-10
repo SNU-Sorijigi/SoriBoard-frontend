@@ -1,16 +1,33 @@
 <script>
 	import * as echarts from 'echarts';
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount, onDestroy, createEventDispatcher } from 'svelte';
+	import { axisLabelTipAction } from '$lib/axisLabelTip.js';
+	import { markBar } from '$lib/chartOptions.js';
 
 	export let option = null;
+	// 주면 화면 낭독기가 차트를 이 이름의 그림으로 읽는다(캔버스에 그린 제목은 읽지 못한다).
+	export let label = '';
+	// 주면 그 막대(dataIndex)를 화면에서만 칠한다(열린 drill-down 패널의 대상). PNG 는 칠하지 않는다.
+	export let marked = -1;
 
 	let el;
 	let chart;
 	let resizeObserver;
 
+	const dispatch = createEventDispatcher();
+
 	onMount(() => {
 		chart = echarts.init(el, null, { renderer: 'canvas' });
-		if (option) chart.setOption(option);
+		if (option) chart.setOption(markBar(option, marked));
+		// 막대·조각(축 이름은 triggerEvent 일 때)을 누르면 알린다. dataIndex 는 option 의 데이터 순서다.
+		chart.on('click', (params) => dispatch('itemclick', { dataIndex: params.dataIndex }));
+		// 축 이름·날짜를 가리키면 그 막대·점의 툴팁(잘린 이름의 전체)을 띄우고, 벗어나면 닫는다.
+		for (const kind of ['mouseover', 'mouseout']) {
+			chart.on(kind, (params) => {
+				const action = axisLabelTipAction(kind, params);
+				if (action) chart.dispatchAction(action);
+			});
+		}
 		resizeObserver = new ResizeObserver(() => chart && chart.resize());
 		resizeObserver.observe(el);
 	});
@@ -22,7 +39,7 @@
 
 	// option 이 바뀌면 다시 그린다. notMerge 로 잔상 제거.
 	$: if (chart && option) {
-		chart.setOption(option, { notMerge: true });
+		chart.setOption(markBar(option, marked), { notMerge: true });
 	}
 
 	// 부모에서 bind:this 로 호출하는 메서드들.
@@ -55,7 +72,12 @@
 	}
 </script>
 
-<div class="echart" bind:this={el}></div>
+<div
+	class="echart"
+	bind:this={el}
+	role={label ? 'img' : undefined}
+	aria-label={label || undefined}
+></div>
 
 <style>
 	.echart {
