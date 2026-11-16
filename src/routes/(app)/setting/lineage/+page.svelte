@@ -125,6 +125,7 @@
 			user.is_ob ? 'OB' : '현역',
 			[user.major, user.year_id ? `${user.year_id}학번` : ''].filter(Boolean).join(' '),
 			joinLabel(user),
+			user.position ? `직책 ${user.position}` : '',
 			node.parent ? `사부 ${node.parent.user.name}` : '',
 			node.children.length ? `제자 ${node.children.length}명` : ''
 		];
@@ -320,7 +321,8 @@
 			year_id: user.year_id ?? '',
 			join_year: Number.isFinite(user.join_year) ? String(user.join_year) : '',
 			join_semester: Number.isFinite(semester) ? String(semester) : '',
-			sabu_id: hasValue(user.sabu_id) ? String(user.sabu_id) : ''
+			sabu_id: hasValue(user.sabu_id) ? String(user.sabu_id) : '',
+			position: user.position ?? ''
 		};
 	}
 
@@ -394,7 +396,7 @@
 	// Characters as the backend counts them (Python's len): an emoji is one, not two
 	const length = (text) => [...text].length;
 
-	// The backend's limits (max_length 20, 40 and 2; 이름, 전공 and 학번 required), with the field to
+	// The backend's limits (max_length 20, 40, 2 and 직책's 100; 이름, 전공 and 학번 required), with the field to
 	// fix, so a refusal does not come back as a bare 400
 	function checkForm() {
 		const name = form.name.trim();
@@ -414,6 +416,9 @@
 				field: 'join_year',
 				message: '입부 년도는 네 자리 숫자로 입력해 주세요 (예: 2021).'
 			};
+		}
+		if (length(form.position.trim()) > 100) {
+			return { field: 'position', message: '직책은 100자까지 쓸 수 있습니다.' };
 		}
 		return null;
 	}
@@ -452,7 +457,8 @@
 		year_id: '학번',
 		join_year: '입부 년도',
 		join_semester: '입부 학기',
-		sabu_id: '사부'
+		sabu_id: '사부',
+		position: '직책'
 	};
 
 	// The member changed elsewhere since 수정 opened (recordedFields): the fields not edited here
@@ -539,7 +545,8 @@
 			is_ob: form.is_ob,
 			sabu_id: form.sabu_id === '' ? null : Number(form.sabu_id),
 			join_year: form.join_year.trim() === '' ? null : Number(form.join_year),
-			join_semester: form.join_semester === '' ? null : Number(form.join_semester)
+			join_semester: form.join_semester === '' ? null : Number(form.join_semester),
+			position: form.position.trim()
 		};
 		let saved = null;
 		try {
@@ -886,6 +893,17 @@
 				<p class="field-note" id="edit-sabu-note">
 					{sabuNote || '자기 자신과 자기 아래 계보(제자, 제자의 제자…)는 사부로 고를 수 없습니다.'}
 				</p>
+				<label for="edit-position">직책</label>
+				<input
+					id="edit-position"
+					bind:value={form.position}
+					maxlength="100"
+					autocomplete="off"
+					placeholder="회장(2019), 총무(2018-2)"
+					aria-invalid={formError?.field === 'position'}
+					aria-describedby={errorFor('position')}
+					readonly={saving}
+				/>
 				{#if formError}
 					<p class="form-error" id="edit-error" role="alert">{formError.message}</p>
 				{/if}
@@ -902,6 +920,10 @@
 					.join(' · ')}
 			</div>
 			<dl>
+				{#if user.position}
+					<dt>직책</dt>
+					<dd>{user.position}</dd>
+				{/if}
 				<dt>사부</dt>
 				<dd>
 					{#if selected.parent}
