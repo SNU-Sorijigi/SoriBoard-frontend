@@ -36,6 +36,7 @@
 	let new_is_ob = false;
 	let new_join_year = '';
 	let new_join_semester = '';
+	let new_position = '';
 
 	// True from a 지기 추가 until it failed or the list reloaded: a double click or a held Enter
 	// would otherwise add the member twice (the backend accepts identical members).
@@ -60,6 +61,7 @@
 			sabu_id: new_sabu_id || null,
 			join_year: new_join_year,
 			join_semester: new_join_semester,
+			position: new_position
 		};
 		creating = true;
 		let created = false;
@@ -88,6 +90,7 @@
 		new_is_ob = false;
 		new_join_year = '';
 		new_join_semester = '';
+		new_position = '';
 		// Not location.reload(): it dropped what was typed in a row in 수정. The list reloads in
 		// place, as after 삭제 or 확인
 		await fetchUsers();
@@ -205,6 +208,7 @@
 					sabu_info={user.sabu_info}
 					join_year={user.join_year}
 					join_semester={user.join_semester}
+					position={user.position ?? ''}
 					deleteUser={deleteUser}
 					refetchUsers={fetchUsers}
 				></UserInfo>
@@ -233,6 +237,7 @@
 			<Input label="학번" bind:value={new_year_id}></Input>
 			<Input label="입부 년도" bind:value={new_join_year}></Input>
 			<Input label="입부 학기" bind:value={new_join_semester}></Input>
+			<Input label="직책 (예: 회장(2019), 총무(2018-2))" bind:value={new_position}></Input>
 			<label for="sabu-select">사부</label>
 			<select id="sabu-select" bind:value={new_sabu_id}>
 				<option value="">사부 없음</option>

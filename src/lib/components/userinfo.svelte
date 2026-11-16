@@ -17,6 +17,7 @@
 	let listIsOb = false;
 	let listJoinYear = '';
 	let listJoinSemester = '';
+	let listPosition = '';
 	export {
 		listName as name,
 		listSabuId as sabu_id,
@@ -24,11 +25,12 @@
 		listYearId as year_id,
 		listIsOb as is_ob,
 		listJoinYear as join_year,
-		listJoinSemester as join_semester
+		listJoinSemester as join_semester,
+		listPosition as position
 	};
 
 	// What the boxes show and 수정 edits
-	let name, sabu_id, major, year_id, is_ob, join_year, join_semester;
+	let name, sabu_id, major, year_id, is_ob, join_year, join_semester, position;
 	function showListValues() {
 		if (isEditing) return;
 		name = listName;
@@ -38,6 +40,7 @@
 		is_ob = listIsOb;
 		join_year = listJoinYear;
 		join_semester = listJoinSemester;
+		position = listPosition;
 	}
 	// Only when the list's values change: leaving 수정 after a save keeps the saved values shown
 	// until the refetch brings them
@@ -48,6 +51,7 @@
 		listIsOb,
 		listJoinYear,
 		listJoinSemester,
+		listPosition,
 		showListValues();
 
 	export let deleteUser;
@@ -113,7 +117,8 @@
 			year_id: year_id,
 			is_ob: is_ob,
 			join_year: join_year,
-			join_semester: join_semester
+			join_semester: join_semester,
+			position: position
 		};
 		const response = await fetch(`/api/user/${id}`, {
 			method: 'PUT',
@@ -210,6 +215,17 @@
 					</div>
 				</div>
 				<div class="col_stack">
+					<label for={`user-position-${id}`}>직책</label>
+					<input
+						id={`user-position-${id}`}
+						bind:value={position}
+						readonly={!isEditing}
+						maxlength="100"
+						title={position}
+						class="position"
+					/>
+				</div>
+				<div class="col_stack">
 					<div class="row_stack">
 						<!-- One button for 수정 and 확인: swapping two buttons dropped the keyboard focus -->
 						<button class="button" on:click={isEditing ? confirmEdit : toggleEdit}>
@@ -302,6 +318,9 @@
 		font-weight: var(--small-medium-font-weight, 500);
 		width: 110px;
 	}
+	.yearid {
+		width: 40px; /* two characters; the default width left no room for 직책 in 수정 */
+	}
 	.sabu {
 		font-family: var(--small-font-family, 'NotoSansKr-Regular', sans-serif);
 		font-size: var(--small-font-size, 10px);
@@ -313,6 +332,12 @@
 		font-size: var(--small-font-size, 10px);
 		font-weight: var(--small-font-weight, 400);
 		width: 100px;
+	}
+	.position {
+		font-family: var(--small-font-family, 'NotoSansKr-Regular', sans-serif);
+		font-size: var(--small-font-size, 10px);
+		font-weight: var(--small-font-weight, 400);
+		width: 170px;
 	}
 	.button {
 		display: flex;
