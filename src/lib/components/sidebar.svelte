@@ -46,9 +46,12 @@
 		gap: 4px;
 		align-items: stretch;
 		justify-content: flex-start;
+		/* border-box: with the padding and border outside, the bar was 10px taller than the window
+		   and every page scrolled by that much */
+		box-sizing: border-box;
 		height: 100vh; /* Full viewport height */
 		min-height: 100vh; /* Ensure minimum full height */
-		width: 58px; /* Fixed width for sidebar */
+		width: 68px; /* Fixed width for sidebar: 58px inside the padding and border */
 		position: relative;
 		box-shadow: 4px 4px 5px 0px rgba(0, 0, 0, 0.25);
 		overflow: hidden;
