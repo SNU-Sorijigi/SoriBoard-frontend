@@ -972,14 +972,21 @@
 	.detail * {
 		box-sizing: border-box;
 	}
+	/* As tall as the window: the chart below takes what the header, toolbar and notices leave, so
+	   its scrollbars are always in view and the page itself does not scroll */
 	.lineage-screen {
 		width: 100%;
 		min-width: 0;
+		height: 100vh;
+		height: 100dvh;
 		display: flex;
 		flex-direction: column;
 		align-items: center;
 		justify-content: flex-start;
 		padding-bottom: 24px;
+	}
+	.lineage-screen > :global(*) {
+		flex: none;
 	}
 	.header {
 		padding: 16px;
@@ -1116,6 +1123,9 @@
 		color: var(--danger-fg);
 		font-family: var(--medium-font-family);
 		font-size: 13px;
+		/* A long list of names scrolls in its box instead of taking the chart's height */
+		max-height: 84px;
+		overflow-y: auto;
 	}
 	.note {
 		background-color: var(--secondary-secondary-100);
@@ -1125,10 +1135,15 @@
 		margin-left: 10px;
 		color: var(--gray-gray-700);
 	}
-	/* The chart scrolls both ways inside the window; the 학기 column stays at its left edge */
+	/* The chart scrolls both ways inside the window; the 학기 column stays at its left edge. It
+	   shrinks to the height left in the window; in a very short window it keeps 200px and the page
+	   scrolls */
+	.lineage-screen > .chart {
+		flex: 0 1 auto;
+		min-height: 200px;
+	}
 	.chart {
 		width: calc(100% - 80px);
-		max-height: calc(100vh - 150px);
 		margin: 16px 40px 0;
 		overflow: auto;
 		border: 1px solid var(--gray-gray-400);
